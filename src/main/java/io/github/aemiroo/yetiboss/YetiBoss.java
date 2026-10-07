@@ -62,7 +62,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             double value=c.getDouble(key);
             if(!Double.isFinite(value)||value<=0) throw new IllegalArgumentException("Invalid "+key);
         }
-        if(c.getDouble("boss.health")>100000 || c.getDouble("boss.golem-scale")>4
+        if(c.getDouble("boss.health")>1024 || c.getDouble("boss.golem-scale")>4
                 ||c.getDouble("boss.model-scale")>12 ||c.getDouble("boss.arena-radius")>128
                 ||c.getDouble("boss.leash-radius")<c.getDouble("boss.arena-radius")
                 ||c.getDouble("boss.leash-radius")>160 ||c.getDouble("boss.movement-speed")>1)
@@ -264,7 +264,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 e.barrageRemaining=getConfig().getInt("attacks.barrage.count");e.nextShot=tick;
             }
             case SWIPE, SLAM -> {
-                e.body.playEffect(EntityEffect.IRON_GOLEM_ATTACK);
+                playGolemAttack(e.body);
                 double range=getConfig().getDouble("attacks."+attack.key+(attack==Attack.SLAM?".radius":".range"));
                 for(Player p:players) {
                     org.bukkit.util.Vector delta=p.getLocation().toVector().subtract(at.toVector());
@@ -278,6 +278,13 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 at.getWorld().spawnParticle(Particle.SNOWFLAKE,at.clone().add(0,.5,0),45,2,.4,2,.04);
                 at.getWorld().playSound(at,Sound.ENTITY_IRON_GOLEM_ATTACK,1,.7f);
             }
+        }
+    }
+    private void playGolemAttack(IronGolem body) {
+        // The legacy API misspelled GOLEM; resolve both names across server versions.
+        for(String name:List.of("IRON_GOLEM_ATTACK","IRON_GOLEN_ATTACK")) {
+            try { body.playEffect(EntityEffect.valueOf(name));return; }
+            catch(IllegalArgumentException ignored) {}
         }
     }
     private void launch(Player p,Attack attack) { launchAt(p.getEyeLocation(),attack); }
