@@ -1,108 +1,103 @@
-"""Original voxel-built mountain Yeti based on the supplied gorilla-like reference."""
+"""Articulated cuboid reconstruction of the supplied mountain gorilla Yeti reference."""
 import math
-COLORS={'fur':(210,222,226,255),'fur_light':(238,246,246,255),'fur_shadow':(164,182,190,255),
- 'frost':(184,210,220,255),'frost_dark':(93,121,133,255),'frost_light':(215,238,245,255),
- 'face':(80,103,110,255),'mouth':(40,16,23,255),'tongue':(125,40,48,255),
- 'tooth':(221,247,250,255),'eye':(247,42,38,255),'eye_shadow':(116,25,29,255)}
+COLORS={'fur':(218,230,234,255),'fur_light':(239,245,246,255),'fur_shadow':(167,188,197,255),
+ 'frost':(190,218,228,255),'frost_dark':(91,118,129,255),'frost_light':(219,240,245,255),
+ 'face':(78,104,116,255),'mouth':(39,15,24,255),'tongue':(134,46,58,255),
+ 'tooth':(228,249,253,255),'eye':(250,38,36,255),'eye_shadow':(100,27,35,255)}
+DIRECTIONS=('north','south','east','west','up','down')
 def model(frame=None,attack=None):
- cells={}
- def box(a,b,material,part='body'):
-  for x in range(a[0],b[0]):
-   for y in range(a[1],b[1]):
-    for z in range(a[2],b[2]):cells[x,y,z]=(material,part)
- # 32-voxel construction, exported at half-unit resolution.
- # Broad upper torso narrowing towards the hips.
- box((10,10,13),(22,16,25),'fur')
- box((8,16,13),(24,23,25),'fur')
- box((10,13,12),(22,21,13),'fur')
- # Sloping upper arms, tapered forearms, shoulders overlap torso at the joints.
- for y in range(7,24):
-  inner=0 if y<11 else 1 if y<16 else 2 if y<20 else 3
-  width=7 if y<16 else 8
-  box((inner,y,12),(inner+width,y+1,23),'fur','arm_l')
-  box((32-inner-width,y,12),(32-inner,y+1,23),'fur','arm_r')
- box((0,4,10),(7,10,23),'frost_dark','arm_l')
- box((25,4,10),(32,10,23),'frost_dark','arm_r')
- # Individual fingers and icy claws instead of square mittens.
- for x in (0,2,4,6):
-  box((x,2,10),(x+1,6,13),'face','arm_l')
-  box((x,2,9),(x+1,3,10),'tooth','arm_l')
-  box((24+x,2,10),(25+x,6,13),'face','arm_r')
-  box((24+x,2,9),(25+x,3,10),'tooth','arm_r')
- # Wide planted feet and slightly outward-stepped legs.
- for y in range(12):
-  offset=0 if y<4 else 1 if y<8 else 2
-  box((7+offset,y,13),(13+offset,y+1,24),'fur','leg_l')
-  box((19-offset,y,13),(25-offset,y+1,24),'fur','leg_r')
- box((6,0,10),(13,3,24),'frost_dark','leg_l')
- box((19,0,10),(26,3,24),'frost_dark','leg_r')
- box((11,19,7),(23,32,21),'fur')
- # Deep mouth: remove fur from the opening, leaving a dark recessed back.
- for x in range(13,21):
-  for y in range(21,28):
-   for z in range(6,16):cells.pop((x,y,z),None)
- box((13,21,15),(21,28,16),'mouth')
- box((13,20,6),(21,21,16),'face')
- box((12,21,6),(13,28,16),'face');box((21,21,6),(22,28,16),'face')
- box((13,28,6),(21,29,10),'face')
- box((14,21,10),(20,22,15),'tongue')
- for x in (13,15,18,20):
-  depth=4 if x in (13,20) else 2
-  box((x,28-depth,6),(x+1,28,8),'tooth')
-  box((x,21,6),(x+1,23,8),'tooth')
- # Recessed red eyes under a heavy brow, small squared muzzle.
- box((12,29,6),(16,31,7),'eye_shadow');box((18,29,6),(22,31,7),'eye_shadow')
- box((13,29,5),(15,30,6),'eye');box((19,29,5),(21,30,6),'eye')
- box((11,31,5),(16,32,8),'fur_light');box((18,31,5),(23,32,8),'fur_light')
- box((15,28,4),(19,30,7),'face')
- box((15,29,3),(16,30,4),'mouth');box((18,29,3),(19,30,4),'mouth')
- # Stepped fur fringe on shoulders, cheeks and jaw, without protruding horns.
- for x in (1,3,5,25,27,29):
-  part='arm_l' if x<8 else 'arm_r'
-  box((x,23,14),(x+2,24,21),'fur_light',part)
-  box((x,17,11),(x+1,20,12),'fur',part)
- for x in (10,22):box((x,24,7),(x+1,30,9),'fur_light')
- for x in (12,15,18,21):box((x,18,8),(x+1,21,10),'fur_light')
- # Stepped fur ends extend the silhouette on the upper arms and back.
- for side in ('arm_l','arm_r'):
-  for top in (19,15,11):
-   outer=1 if top<16 else 2
-   for yy in range(top-3,top):
-    x=outer-1 if side=='arm_l' else 32-outer
-    box((x,yy,15),(x+1,yy+1,20),'fur_light',side)
- for x in (9,12,19,22):box((x,20,25),(x+1,23,27),'fur_shadow')
- for (x,y,z),(material,part) in list(cells.items()):
-  noise=(x*7+(y//2)*5+z*11)%23
-  if material=='fur':
-   if noise<4:material='fur_shadow'
-   elif noise>17:material='fur_light'
-   elif noise==10:material='frost'
-  cells[x,y,z]=(material,part)
- directions={'west':(-1,0,0),'east':(1,0,0),'down':(0,-1,0),'up':(0,1,0),'north':(0,0,-1),'south':(0,0,1)}
- pivots={'arm_l':[2,9,8.5],'arm_r':[14,9,8.5],'leg_l':[6.5,5,8.5],'leg_r':[10.5,5,8.5]}
  elements=[]
- # Stepped fur ends extend the silhouette on the upper arms and back.
- for side in ('arm_l','arm_r'):
-  for top in (19,15,11):
-   outer=1 if top<16 else 2
-   for yy in range(top-3,top):
-    x=outer-1 if side=='arm_l' else 32-outer
-    box((x,yy,15),(x+1,yy+1,20),'fur_light',side)
- for x in (9,12,19,22):box((x,20,25),(x+1,23,27),'fur_shadow')
- for (x,y,z),(material,part) in sorted(cells.items()):
-  faces={}
-  for face,(dx,dy,dz) in directions.items():
-   neighbor=cells.get((x+dx,y+dy,z+dz))
-   if neighbor is None or neighbor[1]!=part:faces[face]={'uv':[0,0,16,16],'texture':'#'+material}
-  if not faces:continue
-  e={'from':[x/2,y/2,z/2],'to':[(x+1)/2,(y+1)/2,(z+1)/2],'faces':faces}
-  if part in pivots and (frame is not None or attack is not None):
-   if part.startswith('arm'):
-    angle=-45*math.sin(math.pi*attack/7) if attack is not None else -18*(1-4*abs((frame/12+.25)%1-.5))
-   else:angle=0 if attack is not None else 25*math.sin(2*math.pi*frame/12)*(1 if part=='leg_l' else -1)
-   angle=round(angle/22.5)*22.5
-   e['rotation']={'origin':pivots[part],'axis':'x','angle':angle,'rescale':False}
+ phase=math.sin(2*math.pi*(frame or 0)/12)
+ lift=round((-45*math.sin(math.pi*attack/7) if attack is not None else 0)/22.5)*22.5
+ def box(a,b,mat,part='body',angle=0,pivot=None,axis='z'):
+  a=list(a);b=list(b)
+  if part.startswith('arm'):
+   # Both arms travel forward together; legs alternate. Rest angles remain intact.
+   dz=phase*.5 if frame is not None else 0
+   a[2]+=dz;b[2]+=dz
+   if attack is not None:angle=lift;axis='x';pivot=[3.5 if part=='arm_l' else 12.5,10.5,8]
+  elif part.startswith('leg') and frame is not None:
+   dz=phase*.65*(1 if part=='leg_l' else -1)
+   a[2]+=dz;b[2]+=dz
+  e={'from':a,'to':b,'faces':{face:{'uv':[0,0,16,16],'texture':'#'+mat} for face in DIRECTIONS}}
+  if angle:e['rotation']={'origin':pivot,'axis':axis,'angle':angle,'rescale':False}
   elements.append(e)
- return {'credit':'Original mountain Yeti inspired by the supplied visual reference.',
+ # Long tapered torso, wide upper chest and dark recessed pectorals.
+ box((5,4.6,7),(11,8.5,11.7),'fur')
+ box((4.4,8,6.5),(11.6,11.5,11.6),'fur')
+ box((4.7,8.6,6.05),(7.8,10.9,6.5),'fur_shadow')
+ box((8.2,8.6,6.05),(11.3,10.9,6.5),'fur_shadow')
+ box((5.5,5.6,6.65),(10.5,8.4,7),'fur_shadow')
+ # Sloping shoulders and angled two-section arms, rather than vertical slabs.
+ for side,part in ((-1,'arm_l'),(1,'arm_r')):
+  def mirror(a,b):
+   return (a,b) if side<0 else ((16-b[0],a[1],a[2]),(16-a[0],b[1],b[2]))
+  def limb(a,b,mat,angle,pivot):
+   aa,bb=mirror(a,b);pp=[pivot[0] if side<0 else 16-pivot[0],pivot[1],pivot[2]]
+   box(aa,bb,mat,part,angle*(-side),pp)
+  limb((2.2,7,6.1),(4.7,11.3,10.7),'fur',-22.5,[3.7,10.7,8.4])
+  limb((1.2,3.5,5.3),(3.8,7.9,10.2),'fur_light',-22.5,[2.6,7.5,7.8])
+  limb((.8,2.5,4.9),(3.7,4.5,9),'face',-22.5,[2.2,4,7])
+  # Four individually segmented bent fingers, with pointed icy tips.
+  for index in range(4):
+   x=.85+index*.68
+   limb((x,1.7,4.4),(x+.5,3.2,5.3),'frost_dark',-22.5,[2.2,4,7])
+   limb((x,1.45,3.95),(x+.45,2.1,4.5),'face',-22.5,[2.2,4,7])
+   limb((x+.08,1.35,3.55),(x+.35,1.9,4.05),'tooth',-22.5,[2.2,4,7])
+  limb((3.4,2.5,5.6),(4.2,3.8,6.8),'face',22.5,[3.5,3.8,6])
+  # Overlapping tufts along the forward-facing forearms and shoulders.
+  for n,y in enumerate((5,6.4,8,9.5)):
+   x=1.4 if y<8 else 2.5
+   limb((x,y,5.15),(x+.5,y+1.1,5.5),'fur_light',-22.5,[2.6,y+1,7.8])
+  # Layered angled fur patches break up the arm outline.
+  for y in (9,7,5):
+   limb((1.1 if y<8 else 2,y,6),(1.7 if y<8 else 2.6,y+1.7,8.7),'frost' if y==5 else 'fur_shadow',-22.5,[2.6,y+1.5,8])
+ # Long sturdy legs, bent outwards with substantial planted feet.
+ box((5.2,1.1,7),(7.5,5.8,10.6),'fur','leg_l',-22.5,[6.5,5.5,8.5])
+ box((8.5,1.1,7),(10.8,5.8,10.6),'fur','leg_r',22.5,[9.5,5.5,8.5])
+ box((4.2,0,5.5),(7.1,1.5,10.7),'fur_shadow','leg_l')
+ box((8.9,0,5.5),(11.8,1.5,10.7),'fur_shadow','leg_r')
+ for x in (4.4,5.4,6.4,9.1,10.1,11.1):
+  box((x,0,5.1),(x+.45,.65,5.7),'tooth','leg_l' if x<8 else 'leg_r')
+ # Uneven chest fringe and abdominal fur, avoiding a smooth plate-like chest.
+ for x,y in ((5,8),(6.2,7.8),(7.4,8.1),(8.6,7.7),(9.8,8)):
+  box((x,y,6.1),(x+.45,y+.8,6.6),'fur_light')
+ head_start=len(elements)
+ # Smaller head. Hollow opening assembled from cheek walls, roof, jaw and back.
+ box((5.6,12.4,5.2),(10.4,15.6,9.7),'fur')
+ box((5.6,9.5,7.8),(10.4,12.4,9.7),'fur_shadow')
+ box((5.6,9.5,4.65),(6.35,12.5,7.8),'fur_light')
+ box((9.65,9.5,4.65),(10.4,12.5,7.8),'fur_light')
+ box((6.35,9.6,7.65),(9.65,12.5,7.8),'mouth')
+ box((6.2,9.15,4.6),(9.8,9.65,7.8),'face')
+ box((6.5,9.65,6),(9.5,9.9,7.65),'tongue')
+ box((6.2,12.25,4.5),(9.8,12.8,7.8),'face')
+ # Muzzle above the mouth; small nostrils, deeply inset eyes and diagonal brows.
+ box((6.8,12.65,4.45),(9.2,13.3,5.5),'face')
+ for x in (7,8.65):box((x,12.9,4.35),(x+.35,13.2,4.5),'mouth')
+ box((5.9,13.3,4.85),(7.4,14.2,5.2),'eye_shadow')
+ box((8.6,13.3,4.85),(10.1,14.2,5.2),'eye_shadow')
+ box((6.2,13.55,4.7),(7.1,13.95,4.9),'eye')
+ box((8.9,13.55,4.7),(9.8,13.95,4.9),'eye')
+ box((5.75,14.05,4.55),(7.55,14.55,5.5),'fur_light',angle=-22.5,pivot=[7.4,14.3,5])
+ box((8.45,14.05,4.55),(10.25,14.55,5.5),'fur_light',angle=22.5,pivot=[8.6,14.3,5])
+ # Long outer fangs and shorter teeth, tapered using a narrow second section.
+ for x,length in ((6.4,1.8),(7.2,.55),(7.9,.6),(8.6,.55),(9.3,1.8)):
+  box((x,12.3-length,4.6),(x+.35,12.3,5.05),'tooth')
+  box((x+.08,12.1-length,4.65),(x+.26,12.3-length,4.95),'tooth')
+ for x in (6.55,7.25,7.95,8.65,9.35):box((x,9.65,4.65),(x+.28,10.15,5),'tooth')
+ # Jagged skull fur and jaw fringe. Short spiky crown, no smooth cuboid cap.
+ for x,y in ((5.8,15.5),(6.5,15.8),(7.4,15.6),(8.6,15.7),(9.6,15.5)):
+  box((x,y-.4,6),(x+.45,min(16,y+.2),8.8),'fur_light')
+ for x in (5.35,10.25):
+  box((x,11,5.7),(x+.4,14.5,7),'fur_shadow')
+  box((x,10.7,5.7),(x+.25,11.4,6.5),'fur_light')
+ for x in (6.4,7.2,8,8.8,9.4):
+  box((x,8.7,5.9),(x+.3,9.4,6.9),'fur_light')
+ # Keep the recessed mouth ahead of the chest instead of burying its back wall in the torso.
+ for e in elements[head_start:]:
+  e['from'][2]-=2;e['to'][2]-=2
+  if 'rotation' in e:e['rotation']['origin'][2]-=2
+ return {'credit':'Reference-based mountain Yeti reconstruction; original geometry and textures.',
          'textures':{name:'yetiboss:boss/'+name for name in COLORS},'elements':elements,
          'display':{'fixed':{'rotation':[0,0,0],'translation':[0,8,0],'scale':[1,1,1]}}}

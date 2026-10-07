@@ -11,13 +11,13 @@ PETS = MODELS
 def encoded(value):
     return json.dumps(value, indent=2).encode()
 
-def color(data):
-    # build_pack emits solid RGBA PNGs with a single IDAT and filter-zero rows.
+def pixels(data):
+    # Preserve all 16x16 RGBA texels from our filter-zero PNG textures.
     pos = 8
     while pos < len(data):
         length = struct.unpack('>I', data[pos:pos+4])[0]
         if data[pos+4:pos+8] == b'IDAT':
-            return zlib.decompress(data[pos+8:pos+8+length])[1:5]
+            return b''.join(zlib.decompress(data[pos+8:pos+8+length])[i*65+1:i*65+65] for i in range(16))
         pos += 12 + length
     raise ValueError('Missing PNG pixels')
 
@@ -25,8 +25,7 @@ def atlas(colors):
     def chunk(kind, data):
         return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
     width = 16 * len(colors)
-    row = b''.join(c*16 for c in colors)
-    raw = b''.join(b'\0'+row for _ in range(16))
+    raw = b''.join(b'\0'+b''.join(c[y*64:(y+1)*64] for c in colors) for y in range(16))
     return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',width,16,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
 
 def tga(colors):
@@ -56,7 +55,9 @@ def geometry(pet, model, names):
             px,py,pz=rotation['origin']
             cube['pivot']=[8-px-translate[0],py+translate[1],pz-8+translate[2]]
             # Bedrock cube rotations use the opposite X rotation convention.
-            cube['rotation']=[-rotation['angle'],0,0]
+            cube['rotation']=[-rotation['angle'] if rotation['axis']=='x' else 0,
+                              rotation['angle'] if rotation['axis']=='y' else 0,
+                              rotation['angle'] if rotation['axis']=='z' else 0]
         destination.append(cube)
     # The extension's geyser_z bone is at Y=8, with mapping y-offset=-0.5.
     # This keeps Java's item centre (and pumpkin's fixed translation) aligned.
@@ -74,8 +75,8 @@ def files():
     source = java_files()
     result = {'manifest.json':encoded({'format_version':2,
         'header':{'name':'YetiBoss Bedrock','description':'Original Giant Yeti boss',
-                  'uuid':'f5d7fcef-34a7-48fa-a98f-2155802ef6e4','version':[0,3,2],'min_engine_version':[1,21,0]},
-        'modules':[{'type':'resources','uuid':'ec728d89-387d-4a04-bdb0-7263d53d0a33','version':[0,3,2]}]}),
+                  'uuid':'f5d7fcef-34a7-48fa-a98f-2155802ef6e4','version':[0,4,0],'min_engine_version':[1,21,0]},
+        'modules':[{'type':'resources','uuid':'ec728d89-387d-4a04-bdb0-7263d53d0a33','version':[0,4,0]}]}),
         'LICENSE.txt':source['LICENSE.txt'],
         'render_controllers/yetiboss.json':encoded({'format_version':'1.8.0','render_controllers':{
             'controller.render.yetiboss':{'geometry':'Geometry.default',
@@ -89,7 +90,7 @@ def files():
     for pet in PETS:
         model = json.loads(source['assets/yetiboss/models/boss/'+pet+'.json'])
         names = list(model['textures'])
-        colors = [color(source['assets/'+model['textures'][n].replace(':','/textures/')+'.png']) for n in names]
+        colors = [pixels(source['assets/'+model['textures'][n].replace(':','/textures/')+'.png']) for n in names]
         if pet=='pumpkin':
             mask=[c[:3]+bytes([0 if n=='pumpkin_glow' else 255])
                   for n,c in zip(names,colors)]

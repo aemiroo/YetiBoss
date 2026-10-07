@@ -4,7 +4,15 @@ ROOT=pathlib.Path(__file__).resolve().parents[1]
 from boss_model import model,COLORS
 def png(color):
  def chunk(kind,data): return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
- raw=b''.join(b'\0'+bytes(color)*16 for _ in range(16))
+ rows=[]
+ for y in range(16):
+  row=bytearray()
+  for x in range(16):
+   # Fur streaks on large surfaces instead of a checkerboard of separate cubes.
+   variation=((x//2*17+(y//2)*31+(x//2)*(y//2)*13)%19-9) if color in [COLORS[n] for n in ('fur','fur_light','fur_shadow','frost')] else 0
+   row.extend([max(0,min(255,v+variation)) for v in color[:3]]+[color[3]])
+  rows.append(b'\0'+bytes(row))
+ raw=b''.join(rows)
  return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',16,16,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
 MODELS=('giant_yeti',)+tuple('giant_yeti_walk_'+str(i) for i in range(12))+tuple('giant_yeti_attack_'+str(i) for i in range(8))
 def files():
