@@ -59,10 +59,10 @@ def model(frame=None,attack=None,kind='slam'):
  # Broad hunched torso and forward head.
  box((4.3,4.6,6.3),(11.7,10.7,11.8),'fur')
  box((4.2,9,8.3),(11.8,12,12.5),'fur_light',angle=22.5,pivot=[8,10,9],axis='x')
- box((4.8,4.1,6),(11.2,6,10.8),'fur_shadow')
+ box((4.82,4.1,6),(11.18,6,10.8),'fur_shadow')
  for x,part in ((4.8,'leg_l'),(8.8,'leg_r')):
   box((x,1,6.6),(x+2.4,4.7,10.2),'fur',part)
-  box((x,0,5.7),(x+2.4,1.2,10.3),'fur_shadow',part)
+  box((x-.02,0,5.7),(x+2.42,1.2,10.3),'fur_shadow',part)
  for right in (False,True):
   part='arm_r' if right else 'arm_l'
   def arm(a,b,mat):
@@ -95,6 +95,6 @@ def model(frame=None,attack=None,kind='slam'):
    box(a,b,'horn')
   horn((4.3,10.8,3.5),(5.7,12.3,5.4))
   horn((4.1,12,4),(5.5,13.1,6.4))
-  horn((4.4,12,6),(5.6,13,7.5))
+  horn((4.4,12.02,6),(5.6,13,7.5))
  return {'elements':es,'textures':{n:'yetiboss:boss/'+n for n in COLORS},
          'display':{'fixed':{'rotation':[0,0,0],'translation':[0,8,0],'scale':[1,1,1]}}}

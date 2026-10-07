@@ -154,3 +154,7 @@ Adds the five supplied clips: spawn once per encounter, death once, two randomly
 ### 0.5.6 — eye texture correction
 
 The eyes now appear only on the front of the face. Top, back, sides and underside use a plain dark face texture in every animation pose, in both resource packs.
+
+### 0.5.7 — overlapping surfaces
+
+Separates coplanar overlapping surfaces at the hip/legs, feet and curled horn segments. Small geometry offsets preserve the silhouette and prevent surface flicker across all 45 poses. Includes the front-only eye fix from 0.5.6.

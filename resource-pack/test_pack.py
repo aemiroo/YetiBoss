@@ -21,6 +21,18 @@ class BossPackTest(unittest.TestCase):
    m=json.loads(self.java['assets/yetiboss/models/boss/'+name+'.json'])
    eye_faces=[(side,face) for e in m['elements'] for side,face in e['faces'].items() if face['texture']=='#ice_face']
    self.assertEqual(['north'],[side for side,face in eye_faces],name)
+ def test_no_overlapping_coplanar_surfaces_in_any_pose(self):
+  axes={'north':(2,False),'south':(2,True),'west':(0,False),'east':(0,True),'down':(1,False),'up':(1,True)}
+  for name in MODELS:
+   elements=json.loads(self.java['assets/yetiboss/models/boss/'+name+'.json'])['elements']
+   for i,a in enumerate(elements):
+    for b in elements[:i]:
+     if a.get('rotation')!=b.get('rotation'):continue
+     for side,(axis,high) in axes.items():
+      bound='to' if high else 'from'
+      if abs(a[bound][axis]-b[bound][axis])>1e-8:continue
+      overlap=all(min(a['to'][k],b['to'][k])-max(a['from'][k],b['from'][k])>1e-8 for k in range(3) if k!=axis)
+      self.assertFalse(overlap,(name,i,side))
  def test_approved_shape_and_scream_teeth(self):
   rest=model();roar=model(attack=3,kind='roar')
   self.assertEqual(0,min(e['from'][1] for e in rest['elements']))
