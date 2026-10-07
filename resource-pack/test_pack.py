@@ -16,14 +16,15 @@ class BossPackTest(unittest.TestCase):
     self.assertTrue(element['faces'])
     for bound in ('from','to'):self.assertTrue(all(0<=v<=16 for v in element[bound]))
     if 'rotation' in element:self.assertIn(element['rotation']['angle'],(-45,-22.5,0,22.5,45))
- def test_reference_shape_has_tall_horns_blue_extremities_and_open_mouth(self):
+ def test_reference_shape_has_fur_red_eyes_and_deep_mouth(self):
   m=model()
   self.assertEqual(0,min(e['from'][1] for e in m['elements']))
   self.assertEqual(16,max(e['to'][1] for e in m['elements']))
-  for name in ('horn','frost','face','tooth','mouth','eye'):
+  for name in ('fur','frost','face','tooth','mouth','eye'):
    self.assertTrue(any(f['texture']=='#'+name for e in m['elements'] for f in e['faces'].values()))
-  horns=[e for e in m['elements'] if any(f['texture'].startswith('#horn') for f in e['faces'].values())]
-  self.assertGreaterEqual(max(e['to'][1] for e in horns)-min(e['from'][1] for e in horns),5)
+  mouth=[e for e in m['elements'] if any(f['texture']=='#mouth' for f in e['faces'].values())]
+  teeth=[e for e in m['elements'] if any(f['texture']=='#tooth' for f in e['faces'].values())]
+  self.assertGreater(max(e['from'][2] for e in mouth),min(e['from'][2] for e in teeth)+2)
  def test_arms_swing_together_and_legs_alternate(self):
   for frame in range(12):
    m=model(frame=frame)

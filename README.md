@@ -1,5 +1,5 @@
 # YetiBoss
-A Giant Yeti encounter for LARP SMP, targeting Paper/Purpur 26.3 using the compatible 1.21.4 Bukkit API. Java 21 or newer is required; the server's Java 25 is suitable. Version 0.3.0 is an initial server-test build.
+A Giant Yeti encounter for LARP SMP, targeting Paper/Purpur 26.3 using the compatible 1.21.4 Bukkit API. Java 21 or newer is required; the server's Java 25 is suitable. Version 0.3.1 is an initial server-test build.
 
 ## Install
 1. Install CosmeticPets **1.5.0 or newer**, its required PacketEvents dependency, and the current CosmeticPets resource packs/mappings.
@@ -11,7 +11,7 @@ A Giant Yeti encounter for LARP SMP, targeting Paper/Purpur 26.3 using the compa
    Keep the CosmeticPets pack/mappings installed for the reward pet. After installing the boss files, set bedrock.enabled: true in YetiBoss config and restart Geyser/server.
 4. As an operator, run /yetiboss spawn in an open arena. It spawns about six blocks ahead, requiring solid ground and five blocks of headroom.
 
-The boss has an original blue-and-white frost model inspired by the latest reference: broad shoulders, long chunky arms, blue forearms/boots, a blue face with red eyes and teeth, and tall cream horns. The default model scale is now **6.4**, approximately 6.4 blocks tall, with a matching larger golem hitbox. The baby pet is unchanged. Walking arms swing together like a golem; eight attack poses remain included.
+The boss has an original white-and-grey mountain Yeti model inspired by the supplied reference: heavy shoulders, long arms, individual fingers/claws, a broad head with red eyes and a deep fang-lined mouth. The default model scale is **6.4**, approximately 6.4 blocks tall, with a matching larger golem hitbox. The baby pet is unchanged. Walking arms swing together like a golem; eight attack poses remain included.
 
 On upgrade, only the previous default model scale (4.3) and hitbox scale (1.4) migrate to 6.4 and 2.35 respectively. Custom size settings are preserved. Use an open arena with at least seven blocks of headroom.
 
@@ -73,8 +73,8 @@ For local builds, generate both packs with the resource-pack Python scripts befo
 
 
 ## Summoned enemies (0.3.0)
-- **Evil Snow Golems** are a weighted random summon attack: two per wave, capped at four living golems by default. They remain at their spawn positions and fire four-shot ice barrages at visible survival/adventure players inside the arena. Hits apply Slowness I for three seconds by default. Barrage speed follows the Yeti barrage setting; minion damage, timing, count, health, cap and slowness are configurable.
-- **Ice Warden** summons once per encounter at **35% HP or below**, after finding clear loaded ground. If the area is blocked it retries every five seconds until it can spawn. It is a native Warden themed with snow particles and slowing melee attacks, not a new custom Warden texture/model. Its vanilla AI/sonic boom is disabled. It approaches players using collision-checked movement and steps; this initial movement can stall in complicated terrain, so use an open arena.
+- **Evil Snow Golems** are a weighted random summon attack: two per wave, capped at four living golems by default. They approach players until within six blocks and fire four-shot ice barrages at visible survival/adventure players inside the arena. Hits apply Slowness I for three seconds by default. Barrage speed follows the Yeti barrage setting; minion damage, timing, count, health, cap and slowness are configurable.
+- **Ice Warden** summons once per encounter at **35% HP or below**, after finding clear loaded ground. If the area is blocked it retries every five seconds until it can spawn. It is a native Warden themed with snow particles and slowing melee attacks, not a new custom Warden texture/model. Its movement AI is enabled; vanilla damage is blocked and plugin-controlled melee applies Slowness. It navigates toward players. Use an arena with traversable paths.
 - Summons have no item/XP drops, no natural environmental death, no friendly fire, and no snow trails. Accepted player damage can kill them normally.
 - All summons and their projectiles are removed on victory, stop, timeout, disable, or encounter abort. A summon entering an unloading chunk is removed. Killing the Warden does not cause it to respawn.
 - Set minions.snow-golems.enabled or minions.ice-warden.enabled to false to disable the respective summon.
@@ -83,8 +83,10 @@ For local builds, generate both packs with the resource-pack Python scripts befo
 ### 0.3.1 movement and model fixes
 Summons now keep AI movement enabled with vanilla goals removed. Snow golems approach players until within six blocks and fire the existing slowing ice barrage. The Ice Warden uses navigation to chase players and the plugin controls its melee damage. Vanilla summon damage remains blocked.
 
-The Yeti has longer, distinct legs and clearer raised eyes. Pose models use valid vanilla element rotation steps.
+The Yeti has longer, distinct legs and red eyes and a recessed fang-lined mouth. Pose models use valid vanilla element rotation steps.
 
 `attacks.grab-slam` adds a weighted close-range attack: a 35-tick warning, range/line-of-sight check, a short lift and downward slam for 14 damage by default. Players can dodge during the warning. The grab requires clear space and solid ground, respects canceled teleports, and ends on other teleports, death, leaving the arena, disconnect, or encounter cleanup. It changes no game mode, gravity, or mount state.
 
 Live verification: test both summons navigating around obstacles, grab dodging/cancellation/disconnect, and Java/Bedrock visual poses on the target server.
+
+The latest boss model uses the second supplied mountain-Yeti reference: white/grey fur, heavy shoulders, long arms, distinct fingers and claws, red eyes and a deep mouth. It is an original block-built interpretation, not an imported mesh from the image.
