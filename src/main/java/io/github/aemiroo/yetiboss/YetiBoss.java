@@ -204,7 +204,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             }
             return;
         }
-        Player target=chooseTarget(players,e.body);
+        Player target=e.chaseTarget==null?null:Bukkit.getPlayer(e.chaseTarget);
+        if(target==null||!players.contains(target)||tick>=e.nextRetarget) {
+            target=chooseTarget(players,e.body);
+            e.chaseTarget=target==null?null:target.getUniqueId();e.nextRetarget=tick+60;
+        }
         if(target==null) { e.body.getPathfinder().stopPathfinding();return; }
         e.body.setTarget(null);
         if(tick%10==0) e.body.getPathfinder().moveTo(target,1);
@@ -212,11 +216,12 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         double distance=e.body.getLocation().distance(target.getLocation());
         Map<Attack,Integer> weights=new EnumMap<>(Attack.class);
         for(Attack a:Attack.values()) weights.put(a,getConfig().getInt("attacks."+a.key+".weight"));
+        Player attackTarget=target;
         e.selector.choose(tick,e.enraged,distance,getConfig().getDouble("attacks.swipe.range"),
             getConfig().getDouble("attacks.slam.radius"),weights,random).ifPresent(attack->{
-                e.pending=attack;e.target=target.getUniqueId();
-                e.aim=target.getEyeLocation().clone();
-                e.direction=target.getLocation().toVector().subtract(e.body.getLocation().toVector()).setY(0);
+                e.pending=attack;e.target=attackTarget.getUniqueId();
+                e.aim=attackTarget.getEyeLocation().clone();
+                e.direction=attackTarget.getLocation().toVector().subtract(e.body.getLocation().toVector()).setY(0);
                 if(e.direction.lengthSquared()>0) e.direction.normalize();
                 e.releaseTick=tick+getConfig().getInt("attacks."+attack.key+".windup-ticks");
                 e.selector.used(attack,tick,getConfig().getInt("attacks."+attack.key+".cooldown-ticks"));
@@ -504,10 +509,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private static final class Encounter {
         final UUID id=UUID.randomUUID();final IronGolem body;final ItemDisplay model;
         final Location origin;Location last,aim;org.bukkit.util.Vector direction;
-        final long started;long lastPlayers,nextAttack,releaseTick,nextShot,retryReward;
+        final long started;long lastPlayers,nextAttack,releaseTick,nextShot,retryReward,nextRetarget;
         final AttackSelector selector=new AttackSelector();final Participation participation=new Participation();
         final BossBar bar=Bukkit.createBossBar("Giant Yeti",BarColor.BLUE,BarStyle.SEGMENTED_10);
-        Attack pending;UUID target;boolean enraged,defeated;int barrageRemaining;
+        Attack pending;UUID target,chaseTarget;boolean enraged,defeated;int barrageRemaining;
         double walk;String modelName="yeti";Set<UUID> recipients=Set.of();
         Encounter(IronGolem body,ItemDisplay model,Location origin,long tick) {
             this.body=body;this.model=model;this.origin=origin;last=origin.clone();started=tick;lastPlayers=tick;

@@ -1,4 +1,5 @@
 name: Build YetiBoss
+# Compile and verify the complete boss and reward integration.
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
