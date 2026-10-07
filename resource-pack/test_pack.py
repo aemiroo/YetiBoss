@@ -15,7 +15,7 @@ class BossPackTest(unittest.TestCase):
    for element in m['elements']:
     self.assertTrue(element['faces'])
     for bound in ('from','to'):self.assertTrue(all(0<=v<=16 for v in element[bound]))
-    if 'rotation' in element:self.assertLessEqual(abs(element['rotation']['angle']),45)
+    if 'rotation' in element:self.assertIn(element['rotation']['angle'],(-45,-22.5,0,22.5,45))
  def test_reference_shape_has_tall_horns_blue_extremities_and_open_mouth(self):
   m=model()
   self.assertEqual(0,min(e['from'][1] for e in m['elements']))
@@ -29,13 +29,13 @@ class BossPackTest(unittest.TestCase):
    m=model(frame=frame)
    rotations={tuple(e['rotation']['origin']):e['rotation']['angle'] for e in m['elements'] if 'rotation' in e}
    self.assertEqual(rotations[(2,9,8.5)],rotations[(14,9,8.5)])
-   self.assertAlmostEqual(rotations[(6.5,3,8.5)],-rotations[(10.5,3,8.5)])
+   self.assertAlmostEqual(rotations[(6.5,5,8.5)],-rotations[(10.5,5,8.5)])
  def test_attack_poses_raise_both_arms(self):
   m=model(attack=3)
   rotations={tuple(e['rotation']['origin']):e['rotation']['angle'] for e in m['elements'] if 'rotation' in e}
   self.assertEqual(rotations[(2,9,8.5)],rotations[(14,9,8.5)])
   self.assertLess(rotations[(2,9,8.5)],-35)
-  self.assertEqual(0,rotations[(6.5,3,8.5)])
+  self.assertEqual(0,rotations[(6.5,5,8.5)])
  def test_bedrock_contains_all_poses_and_preserves_pivots(self):
   self.assertEqual(21,len(mappings()['items']['minecraft:paper']))
   for name in MODELS:

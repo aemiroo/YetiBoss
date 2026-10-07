@@ -11,18 +11,18 @@ def model(frame=None,attack=None):
   for x in range(a[0],b[0]):
    for y in range(a[1],b[1]):
     for z in range(a[2],b[2]):cells[x,y,z]=(material,part)
- box((4,3,6),(12,10,12),'fur')
- box((0,1,6),(4,10,11),'fur','arm_l')
- box((12,1,6),(16,10,11),'fur','arm_r')
- box((5,0,6),(8,4,11),'fur','leg_l')
- box((9,0,6),(12,4,11),'fur','leg_r')
- box((5,9,4),(11,14,10),'fur')
+ box((4,5,6),(12,11,12),'fur')
+ box((0,2,6),(4,11,11),'fur','arm_l')
+ box((12,2,6),(16,11,11),'fur','arm_r')
+ box((5,0,6),(8,6,11),'fur','leg_l')
+ box((9,0,6),(12,6,11),'fur','leg_r')
+ box((5,10,4),(11,14,10),'fur')
  # A blocky blue face with an open fang-filled mouth.
- box((5,9,3),(11,12,4),'face')
- box((5,10,3),(6,11,4),'eye');box((10,10,3),(11,11,4),'eye')
- box((6,9,3),(10,11,4),'mouth')
- for x in (6,8):box((x,10,3),(x+1,11,4),'tooth')
- for x in (7,9):box((x,9,3),(x+1,10,4),'tooth')
+ box((5,10,3),(11,13,4),'face')
+ box((5,12,3),(6,13,4),'eye');box((10,12,3),(11,13,4),'eye')
+ box((6,10,3),(10,12,4),'mouth')
+ for x in (6,8):box((x,11,3),(x+1,12,4),'tooth')
+ for x in (7,9):box((x,10,3),(x+1,11,4),'tooth')
  box((4,11,4),(5,13,6),'ear');box((11,11,4),(12,13,6),'ear')
  # Thick upright cream horns with stepped outward tips.
  box((3,11,5),(5,15,7),'horn')
@@ -40,7 +40,7 @@ def model(frame=None,attack=None):
   elif material=='horn' and value<5:material='horn_shadow'
   cells[x,y,z]=(material,part)
  directions={'west':(-1,0,0),'east':(1,0,0),'down':(0,-1,0),'up':(0,1,0),'north':(0,0,-1),'south':(0,0,1)}
- pivots={'arm_l':[2,9,8.5],'arm_r':[14,9,8.5],'leg_l':[6.5,3,8.5],'leg_r':[10.5,3,8.5]}
+ pivots={'arm_l':[2,9,8.5],'arm_r':[14,9,8.5],'leg_l':[6.5,5,8.5],'leg_r':[10.5,5,8.5]}
  elements=[]
  for (x,y,z),(material,part) in sorted(cells.items()):
   faces={}
@@ -54,6 +54,7 @@ def model(frame=None,attack=None):
     angle=-40*math.sin(math.pi*attack/7) if attack is not None else -18*(1-4*abs((frame/12+.25)%1-.5))
    else:
     angle=0 if attack is not None else 25*math.sin(2*math.pi*frame/12)*(1 if part=='leg_l' else -1)
+   angle=round(angle/22.5)*22.5
    e['rotation']={'origin':pivots[part],'axis':'x','angle':round(angle,6),'rescale':False}
   elements.append(e)
  return {'credit':'Original frost Yeti inspired by supplied visual reference.',

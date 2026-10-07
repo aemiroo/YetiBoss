@@ -5,7 +5,7 @@ import java.util.random.RandomGenerator;
 
 final class AttackSelector {
     enum Attack {
-        ICE_BALL("ice-ball"), SWIPE("swipe"), SLAM("slam"), BARRAGE("barrage"), SNOW_GOLEMS("snow-golems");
+        ICE_BALL("ice-ball"), SWIPE("swipe"), SLAM("slam"), BARRAGE("barrage"), SNOW_GOLEMS("snow-golems"), GRAB_SLAM("grab-slam");
         final String key;
         Attack(String key) { this.key=key; }
     }

@@ -79,3 +79,12 @@ For local builds, generate both packs with the resource-pack Python scripts befo
 - All summons and their projectiles are removed on victory, stop, timeout, disable, or encounter abort. A summon entering an unloading chunk is removed. Killing the Warden does not cause it to respawn.
 - Set minions.snow-golems.enabled or minions.ice-warden.enabled to false to disable the respective summon.
 - Live checks should include the four-golem cap, slowing barrages, crossing 35% health in one hit, Warden movement, and cleanup after death/stop/restart.
+
+### 0.3.1 movement and model fixes
+Summons now keep AI movement enabled with vanilla goals removed. Snow golems approach players until within six blocks and fire the existing slowing ice barrage. The Ice Warden uses navigation to chase players and the plugin controls its melee damage. Vanilla summon damage remains blocked.
+
+The Yeti has longer, distinct legs and clearer raised eyes. Pose models use valid vanilla element rotation steps.
+
+`attacks.grab-slam` adds a weighted close-range attack: a 35-tick warning, range/line-of-sight check, a short lift and downward slam for 14 damage by default. Players can dodge during the warning. The grab requires clear space and solid ground, respects canceled teleports, and ends on other teleports, death, leaving the arena, disconnect, or encounter cleanup. It changes no game mode, gravity, or mount state.
+
+Live verification: test both summons navigating around obstacles, grab dodging/cancellation/disconnect, and Java/Bedrock visual poses on the target server.

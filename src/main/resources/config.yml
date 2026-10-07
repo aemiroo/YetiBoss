@@ -11,6 +11,13 @@ boss:
   idle-despawn-seconds: 180
   maximum-duration-seconds: 1800
 attacks:
+  grab-slam:
+    weight: 2
+    cooldown-ticks: 240
+    windup-ticks: 35
+    range: 5.0
+    damage: 14.0
+    knockback: 0.5
   global-cooldown-ticks: 35
   ice-ball:
     weight: 5
