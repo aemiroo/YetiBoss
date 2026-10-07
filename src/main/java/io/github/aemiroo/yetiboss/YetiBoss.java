@@ -249,7 +249,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             updateViewers(e);
         }
         if(tick>=e.nextGrowl&&tick>=e.voiceUntil&&e.pending==null&&e.recovery==null&&!players.isEmpty()) {
-            bossSound(e,"idle",Sound.ENTITY_POLAR_BEAR_AMBIENT,3f);
+            bossSound(e,"angry",Sound.ENTITY_POLAR_BEAR_WARNING,3f);
             e.nextGrowl=tick+240+random.nextInt(240);
         }
         Location at=e.body.getLocation();at.setPitch(0);

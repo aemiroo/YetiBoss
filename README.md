@@ -130,3 +130,9 @@ Idle and angry growls now use Minecraft's built-in Ender Dragon growl, with lowe
 pitch for idle and higher pitch for anger. Playback no longer depends on the
 resource pack or custom Bedrock sound mappings. Only the JAR needs updating for
 this fix. The client's Hostile Creatures volume must be enabled.
+
+## 0.5.3 combat growls
+
+The encounter's arena players are active combat targets, so periodic growls now
+use the angry pitch throughout the fight. Idle-pitch growls no longer play during
+chasing, attacks, or the enraged phase.
