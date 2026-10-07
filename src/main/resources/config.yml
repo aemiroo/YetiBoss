@@ -1,4 +1,4 @@
-schema-version: 3
+schema-version: 4
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Giant Yeti'
@@ -11,6 +11,14 @@ boss:
   idle-despawn-seconds: 180
   maximum-duration-seconds: 1800
 attacks:
+  roar:
+    weight: 2
+    cooldown-ticks: 260
+    windup-ticks: 45
+    damage: 4.0
+    radius: 7.0
+    knockback: 0.9
+    slow-ticks: 60
   grab-slam:
     weight: 2
     cooldown-ticks: 240

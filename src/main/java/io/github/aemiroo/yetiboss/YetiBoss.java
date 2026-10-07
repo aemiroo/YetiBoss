@@ -49,6 +49,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             if(Math.abs(getConfig().getDouble("boss.golem-scale")-1.4)<.001)getConfig().set("boss.golem-scale",2.35);
             getConfig().set("schema-version",3);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<4) {
+            for(String key:List.of("weight","cooldown-ticks","windup-ticks","damage","knockback","radius","slow-ticks"))
+                if(!getConfig().contains("attacks.roar."+key,true))getConfig().set("attacks.roar."+key,getConfig().getDefaults().get("attacks.roar."+key));
+            getConfig().set("schema-version",4);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
@@ -72,7 +77,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     @Override public void onDisable() {
         stop(false);
-        for(IceShot shot:shots.values()) shot.entity.remove();
+        for(IceShot shot:shots.values()) { shot.entity.remove();if(shot.visual!=null)shot.visual.remove(); }
         shots.clear();
     }
     private void validate(FileConfiguration c) {
@@ -98,11 +103,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             if(!Double.isFinite(damage)||damage<0||damage>100||!Double.isFinite(kb)||kb<0||kb>3)
                 throw new IllegalArgumentException("Invalid attack damage or knockback");
         }
-        for(String key:List.of("attacks.grab-slam.range","attacks.swipe.range","attacks.slam.radius","attacks.ice-ball.speed","attacks.barrage.speed")) {
+        for(String key:List.of("attacks.grab-slam.range","attacks.swipe.range","attacks.slam.radius","attacks.roar.radius","attacks.ice-ball.speed","attacks.barrage.speed")) {
             double n=c.getDouble(key);
             if(!Double.isFinite(n)||n<=0||n>16) throw new IllegalArgumentException("Invalid "+key);
         }
-        for(String key:List.of("attacks.ice-ball.slow-ticks","attacks.barrage.slow-ticks","rewards.sword.slow-ticks",
+        for(String key:List.of("attacks.ice-ball.slow-ticks","attacks.barrage.slow-ticks","attacks.roar.slow-ticks","rewards.sword.slow-ticks",
                 "rewards.sword.frost-cooldown-ticks","attacks.global-cooldown-ticks","boss.idle-despawn-seconds",
                 "boss.maximum-duration-seconds","snowfall.duration-seconds")) {
             if(c.getInt(key)<1||c.getInt(key)>36000) throw new IllegalArgumentException("Invalid "+key);
@@ -151,7 +156,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private void cleanupStale(Entity entity) {
         if(entity.getPersistentDataContainer().has(entityKey,PersistentDataType.BYTE)
                 &&(encounter==null||(!entity.equals(encounter.body)&&!entity.equals(encounter.model)&&!encounter.minions.containsKey(entity.getUniqueId())))
-                &&!shots.containsKey(entity.getUniqueId())) entity.remove();
+                &&!shots.containsKey(entity.getUniqueId())
+                &&shots.values().stream().noneMatch(shot->entity.equals(shot.visual))) entity.remove();
     }
     private void spawn(Location at) {
         double health=getConfig().getDouble("boss.health");
@@ -191,8 +197,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         for(Iterator<IceShot> it=shots.values().iterator();it.hasNext();) {
             IceShot shot=it.next();
             if(!shot.entity.isValid()||tick-shot.created>100||encounter==null||!shot.caster.isValid()||shot.caster.isDead()) {
-                shot.entity.remove();it.remove();
-            } else if(tick%3==0) shot.entity.getWorld().spawnParticle(Particle.SNOWFLAKE,shot.entity.getLocation(),2,.05,.05,.05,0);
+                shot.entity.remove();if(shot.visual!=null)shot.visual.remove();it.remove();
+            } else {
+                if(shot.visual!=null)shot.visual.teleport(shot.entity.getLocation().clone().add(-.35,-.35,-.35));
+                if(tick%3==0)shot.entity.getWorld().spawnParticle(Particle.SNOWFLAKE,shot.entity.getLocation(),2,.05,.05,.05,0);
+            }
         }
         if(tick%1200==0) swordCooldown.entrySet().removeIf(e->e.getValue()<=tick);
         if(tick%200==0) for(Player p:Bukkit.getOnlinePlayers()) claim(p);
@@ -232,14 +241,24 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             e.bar.removeAll();for(Player p:players)e.bar.addPlayer(p);
             updateViewers(e);
         }
+        if(tick>=e.nextGrowl&&e.pending==null&&e.recovery==null&&!players.isEmpty()) {
+            bossSound(e,"idle",Sound.ENTITY_POLAR_BEAR_AMBIENT,1f);
+            e.nextGrowl=tick+240+random.nextInt(240);
+        }
         Location at=e.body.getLocation();at.setPitch(0);
         double moved=at.distance(e.last);
         if(e.pending==null&&moved>.002&&moved<2) e.walk=(e.walk+moved)%1.8;
         else if(e.pending==null) e.walk=0;
         int frame=e.pending==null&&moved>.002?(int)(e.walk/1.8*12):-1;
-        int attackFrame=e.pending==null?-1:Math.max(0,Math.min(7,
-                (int)((tick-e.windupStarted)*8/Math.max(1,e.releaseTick-e.windupStarted))));
-        String model=e.grabbed!=null?"giant_yeti_attack_3":e.pending!=null?"giant_yeti_attack_"+attackFrame:
+        int attackFrame=e.pending==null?-1:Math.max(0,Math.min(3,
+                (int)((tick-e.windupStarted)*4/Math.max(1,e.releaseTick-e.windupStarted))));
+        if(e.recovery!=null&&tick>=e.recoveryUntil)e.recovery=null;
+        Attack animated=e.pending!=null?e.pending:e.recovery;
+        int poseFrame=e.pending!=null?attackFrame:e.recovery==null?0:
+                Math.min(7,4+(int)((tick-e.recoveryStarted)*4/Math.max(1,e.recoveryUntil-e.recoveryStarted)));
+        String pose=animated==Attack.SWIPE?"swipe":animated==Attack.ICE_BALL||animated==Attack.BARRAGE?"throw":
+                animated==Attack.ROAR||animated==Attack.SNOW_GOLEMS?"roar":"attack";
+        String model=e.grabbed!=null?"giant_yeti_attack_3":animated!=null?"giant_yeti_"+pose+"_"+poseFrame:
                 frame<0?"giant_yeti":"giant_yeti_walk_"+frame;
         if(!model.equals(e.modelName)) { e.model.setItemStack(modelItem(model));e.modelName=model; }
         e.model.teleport(at);e.last=at;
@@ -249,12 +268,13 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             e.barrageRemaining--;e.nextShot=tick+getConfig().getInt("attacks.barrage.interval-ticks");
             return;
         }
-        if(e.grabbed!=null)return;
+        if(e.grabbed!=null||e.recovery!=null)return;
         if(e.pending!=null) {
             if(tick%5==0) telegraph(e);
             if(tick>=e.releaseTick) {
                 Attack attack=e.pending;e.pending=null;
                 execute(e,attack,players);
+                e.recovery=attack;e.recoveryStarted=tick;e.recoveryUntil=tick+12;
                 e.nextAttack=tick+getConfig().getInt("attacks.global-cooldown-ticks");
             }
             return;
@@ -288,6 +308,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 e.body.setVelocity(new org.bukkit.util.Vector(0,e.body.getVelocity().getY(),0));
                 for(Player p:players)p.sendActionBar(net.kyori.adventure.text.Component.text(
                     "Giant Yeti: "+attack.key.replace('-',' ')+"!",net.kyori.adventure.text.format.NamedTextColor.AQUA));
+                bossSound(e,"angry",Sound.ENTITY_POLAR_BEAR_WARNING,1f);
                 telegraph(e);
             });
     }
@@ -342,10 +363,25 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     @EventHandler public void leave(PlayerQuitEvent event) {
         UUID id=event.getPlayer().getUniqueId();bossPackReady.remove(id);packStates.remove(id);
     }
+    private void bossSound(Encounter e,String sound,Sound fallback,float volume) {
+        Location at=e.body.getLocation();
+        if(sound.equals("angry"))e.nextGrowl=tick+240+random.nextInt(240);
+        for(Player player:Bukkit.getOnlinePlayers()) {
+            if(!player.getWorld().equals(at.getWorld())||player.getLocation().distanceSquared(at)>48*48)continue;
+            if(sound.equals("angry")) {
+                String namespace=BedrockPlayers.contains(player.getUniqueId())?"yetiboss.":"yetiboss:";
+                player.stopSound(namespace+"idle",SoundCategory.HOSTILE);
+                player.stopSound(namespace+"angry",SoundCategory.HOSTILE);
+            }
+            if(bossPackReady.contains(player.getUniqueId()))
+                player.playSound(at,(BedrockPlayers.contains(player.getUniqueId())?"yetiboss.":"yetiboss:")+sound,SoundCategory.HOSTILE,volume,1f);
+            else player.playSound(at,fallback,SoundCategory.HOSTILE,volume,.65f);
+        }
+    }
     private void telegraph(Encounter e) {
         Location at=e.body.getLocation();World world=at.getWorld();
         world.spawnParticle(Particle.SNOWFLAKE,at.clone().add(0,2,0),12,1,1,1,.02);
-        if(e.pending==Attack.SLAM) {
+        if(e.pending==Attack.SLAM||e.pending==Attack.ROAR) {
             double r=getConfig().getDouble("attacks.slam.radius");
             for(int i=0;i<32;i++) {
                 double a=2*Math.PI*i/32;
@@ -357,6 +393,16 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private void execute(Encounter e,Attack attack,List<Player> players) {
         Location at=e.body.getLocation();
         switch(attack) {
+            case ROAR -> {
+                double radius=getConfig().getDouble("attacks.roar.radius");
+                for(Player player:players) {
+                    org.bukkit.util.Vector delta=player.getLocation().toVector().subtract(at.toVector());
+                    if(delta.lengthSquared()<=radius*radius&&e.body.hasLineOfSight(player))
+                        hitWithEffects(player,getConfig().getDouble("attacks.roar.damage"),delta,
+                            getConfig().getDouble("attacks.roar.knockback"),getConfig().getInt("attacks.roar.slow-ticks"));
+                }
+                at.getWorld().spawnParticle(Particle.SNOWFLAKE,at.clone().add(0,2,0),80,radius/2,1,radius/2,.08);
+            }
             case GRAB_SLAM -> {
                 Player victim=Bukkit.getPlayer(e.target);
                 if(victim==null||!players.contains(victim)||victim.isInsideVehicle()
@@ -463,7 +509,15 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             tagged(s);s.setShooter(caster);s.setGravity(false);
             s.setItem(new ItemStack(Material.BLUE_ICE));s.setVelocity(direction.multiply(speed));
         });
-        shots.put(ball.getUniqueId(),new IceShot(ball,tick,attack,caster,damage,kb,slow));
+        BlockDisplay visual=null;
+        if(attack==Attack.ICE_BALL) {
+            visual=start.getWorld().spawn(start.clone().add(-.35,-.35,-.35),BlockDisplay.class,d->{
+                tagged(d);d.setBlock(Material.BLUE_ICE.createBlockData());d.setPersistent(false);
+                d.setTeleportDuration(1);
+                d.setTransformation(new Transformation(new Vector3f(),new Quaternionf(),new Vector3f(.7f),new Quaternionf()));
+            });
+        }
+        shots.put(ball.getUniqueId(),new IceShot(ball,visual,tick,attack,caster,damage,kb,slow));
     }
     private void hit(Player player,double damage,LivingEntity source) {
         if(encounter==null)return;
@@ -629,7 +683,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 &&eligible(p,encounter.origin,getConfig().getDouble("boss.arena-radius"))) {
             hitWithEffects(p,shot.damage,shot.entity.getVelocity(),shot.knockback,shot.slow,shot.caster);
         }
-        shot.entity.remove();
+        shot.entity.remove();if(shot.visual!=null)shot.visual.remove();
     }
     private void hitWithEffects(Player p,double damage,org.bukkit.util.Vector direction,double kb,int slow) {
         if(encounter!=null)hitWithEffects(p,damage,direction,kb,slow,encounter.body);
@@ -731,7 +785,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         for(IceMinion minion:e.minions.values())minion.mob.remove();
         e.minions.clear();
         for(Player player:Bukkit.getOnlinePlayers()) player.hideEntity(this,e.model);
-        for(IceShot shot:shots.values())shot.entity.remove();shots.clear();
+        for(IceShot shot:shots.values()) { shot.entity.remove();if(shot.visual!=null)shot.visual.remove(); }shots.clear();
         if(announce)Bukkit.broadcastMessage(prefix()+"The Giant Yeti encounter ended without rewards.");
     }
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args) {
@@ -790,7 +844,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(!sender.hasPermission("yetiboss.admin")||args.length!=1)return List.of();
         return List.of("spawn","stop","status","reload").stream().filter(s->s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
     }
-    private record IceShot(Snowball entity,long created,Attack attack,LivingEntity caster,double damage,double knockback,int slow) {}
+    private record IceShot(Snowball entity,BlockDisplay visual,long created,Attack attack,LivingEntity caster,double damage,double knockback,int slow) {}
     private record Hit(UUID player,org.bukkit.util.Vector direction,double knockback,int slow) {}
     private static final class IceMinion {
         final Mob mob;final boolean warden;long nextAttack,nextShot;int remaining;
@@ -805,7 +859,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         long nextWardenAttempt,grabStarted;UUID grabbed;Location grabLanding;
         final AttackSelector selector=new AttackSelector();final Participation participation=new Participation();
         final BossBar bar=Bukkit.createBossBar("Giant Yeti",BarColor.BLUE,BarStyle.SEGMENTED_10);
-        Attack pending;UUID target,chaseTarget;boolean enraged,defeated,customVisible;int barrageRemaining;
+        Attack pending,recovery;long recoveryStarted,recoveryUntil,nextGrowl;UUID target,chaseTarget;boolean enraged,defeated,customVisible;int barrageRemaining;
         double walk;String modelName="giant_yeti";Set<UUID> recipients=Set.of();
         final Set<UUID> warned=new HashSet<>();
         Encounter(IronGolem body,ItemDisplay model,Location origin,long tick) {

@@ -16,31 +16,33 @@ class BossPackTest(unittest.TestCase):
     self.assertTrue(element['faces'])
     for bound in ('from','to'):self.assertTrue(all(0<=v<=16 for v in element[bound]))
     if 'rotation' in element:self.assertIn(element['rotation']['angle'],(-45,-22.5,0,22.5,45))
- def test_reference_shape_has_fur_red_eyes_and_deep_mouth(self):
-  m=model()
-  self.assertEqual(0,min(e['from'][1] for e in m['elements']))
-  self.assertGreaterEqual(max(e['to'][1] for e in m['elements']),15.9)
-  for name in ('fur','frost','face','tooth','mouth','eye'):
-   self.assertTrue(any(f['texture']=='#'+name for e in m['elements'] for f in e['faces'].values()))
-  mouth=[e for e in m['elements'] if any(f['texture']=='#mouth' for f in e['faces'].values())]
-  teeth=[e for e in m['elements'] if any(f['texture']=='#tooth' for f in e['faces'].values())]
-  self.assertGreater(max(e['from'][2] for e in mouth),min(e['from'][2] for e in teeth)+2)
+ def test_approved_shape_and_scream_teeth(self):
+  rest=model();roar=model(attack=3,kind='roar')
+  self.assertEqual(0,min(e['from'][1] for e in rest['elements']))
+  self.assertTrue(any(e['faces']['north']['texture']=='#horn' for e in rest['elements']))
+  self.assertFalse(any(e['faces']['north']['texture']=='#tooth' for e in rest['elements']))
+  teeth=[e for e in roar['elements'] if e['faces']['north']['texture']=='#tooth']
+  self.assertGreater(len(teeth),6)
+  self.assertTrue(all(e['to'][2]<=3.65 for e in teeth))
  def test_walk_moves_both_arms_together_and_legs_alternate(self):
   rest=model();walk=model(frame=3)
-  # Identify corresponding pieces by order; the pose changes their positions.
-  left=next(i for i,e in enumerate(rest['elements']) if e['from']==[.8,2.5,4.9])
-  right=next(i for i,e in enumerate(rest['elements']) if e['from']==[12.3,2.5,4.9])
-  self.assertAlmostEqual(.5,walk['elements'][left]['from'][2]-rest['elements'][left]['from'][2])
-  self.assertAlmostEqual(.5,walk['elements'][right]['from'][2]-rest['elements'][right]['from'][2])
-  for start,sign in (([5.2,1.1,7],1),([8.5,1.1,7],-1)):
+  for start in ([1.3,1.2,5.8],[12,1.2,5.8]):
    i=next(i for i,e in enumerate(rest['elements']) if e['from']==start)
-   self.assertAlmostEqual(sign*.65,walk['elements'][i]['from'][2]-rest['elements'][i]['from'][2])
+   self.assertAlmostEqual(.5,walk['elements'][i]['from'][2]-rest['elements'][i]['from'][2])
+  for start,sign in (([4.8,1,6.6],1),([8.8,1,6.6],-1)):
+   i=next(i for i,e in enumerate(rest['elements']) if e['from']==start)
+   self.assertAlmostEqual(sign*.6,walk['elements'][i]['from'][2]-rest['elements'][i]['from'][2])
  def test_attack_poses_raise_both_arms(self):
   rotations=[e['rotation'] for e in model(attack=3)['elements'] if 'rotation' in e]
-  for pivot in ([3.5,10.5,8],[12.5,10.5,8]):
+  for pivot in ([3.5,9,8],[12.5,9,8]):
    self.assertTrue(any(r['origin']==pivot and r['axis']=='x' and r['angle']==-45 for r in rotations))
+ def test_custom_sounds_are_in_both_packs(self):
+  for name in ('idle','angry'):
+   data=self.java['assets/yetiboss/sounds/'+name+'.ogg']
+   self.assertTrue(data.startswith(b'OggS'))
+   self.assertEqual(data,self.bedrock['sounds/yetiboss/'+name+'.ogg'])
  def test_bedrock_contains_all_poses_and_preserves_pivots(self):
-  self.assertEqual(21,len(mappings()['items']['minecraft:paper']))
+  self.assertEqual(len(MODELS),len(mappings()['items']['minecraft:paper']))
   for name in MODELS:
    self.assertIn('attachables/'+name+'.json',self.bedrock)
    self.assertIn('yetiboss:'+name,display_mappings())
@@ -74,7 +76,7 @@ class BossPackTest(unittest.TestCase):
    self.assertEqual(java[y*65+1:y*65+65],bedrock[y*width+1+tile*64:y*width+1+(tile+1)*64])
   self.assertGreater(len(set(java[1:65])),4)
 
- def test_open_mouth_is_in_front_of_the_chest_and_mesh_is_compact(self):
-  m=model();self.assertLess(len(m['elements']),200)
-  cavity=[e for e in m['elements'] if e['faces']['north']['texture']=='#mouth']
-  self.assertLess(max(e['to'][2] for e in cavity),6.05)
+ def test_roar_mouth_is_in_front_of_chest_and_mesh_is_compact(self):
+  m=model(attack=3,kind='roar');self.assertLess(len(m['elements']),80)
+  cavity=[e for e in m['elements'] if e['faces']['north']['texture']=='#scream']
+  self.assertLess(max(e['to'][2] for e in cavity),6)

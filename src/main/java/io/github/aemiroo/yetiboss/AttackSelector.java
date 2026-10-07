@@ -5,7 +5,7 @@ import java.util.random.RandomGenerator;
 
 final class AttackSelector {
     enum Attack {
-        ICE_BALL("ice-ball"), SWIPE("swipe"), SLAM("slam"), BARRAGE("barrage"), SNOW_GOLEMS("snow-golems"), GRAB_SLAM("grab-slam");
+        ICE_BALL("ice-ball"), SWIPE("swipe"), SLAM("slam"), BARRAGE("barrage"), SNOW_GOLEMS("snow-golems"), GRAB_SLAM("grab-slam"), ROAR("roar");
         final String key;
         Attack(String key) { this.key=key; }
     }
@@ -19,7 +19,7 @@ final class AttackSelector {
             if (attack==last || ready.getOrDefault(attack,0L)>tick) continue;
             if (attack==Attack.BARRAGE && !enraged) continue;
             if (attack==Attack.SWIPE && distance>swipeRange) continue;
-            if (attack==Attack.SLAM && distance>slamRange) continue;
+            if ((attack==Attack.SLAM || attack==Attack.ROAR) && distance>slamRange) continue;
             if (weights.getOrDefault(attack,0)>0) options.add(attack);
         }
         int total=options.stream().mapToInt(weights::get).sum();

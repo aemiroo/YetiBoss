@@ -98,3 +98,18 @@ The reference-based model now has broader shoulders, tapered and outward-stepped
 
 ### 0.4.0 model rebuild
 Replaced the voxel-cell model with a compact articulated cuboid model: a smaller head placed ahead of the torso, a fully visible mouth cavity, long angled arms, sloping shoulders, planted legs, segmented fingers, tapered fangs, and layered fur pieces. Fur uses textured surfaces, and the Bedrock atlas preserves all texture pixels. Both walk and raised-arm attack variants remain available. This is a reconstruction from the supplied image; exact original geometry, unseen sides, textures and lighting cannot be recovered from that image alone.
+
+## 0.5.0 boss rework
+
+The approved snow-white horned Yeti replaces the earlier gorilla model. Flat hands,
+red eyes, and tapered 3D scream fangs are retained. Separate one-arm swipe/throw,
+two-arm slam, and open-mouth roar poses play through a short recovery after impact.
+A frost roar deals nearby damage, knockback, and Slowness after a visible windup.
+Existing randomized cooldowns, minions, grab/slam, and rewards remain in place.
+
+The supplied idle and angry growls are converted to mono Ogg and bundled in both
+packs. Idle growls occur at randomized 12–24 second intervals; attack windups use
+the angry growl. Java players without the boss pack hear a vanilla fallback.
+Replace the Bedrock pack and BOTH mapping files because new animation IDs were added.
+Restart with the new JAR; existing configs receive the new roar defaults automatically.
+The attacks use snow particles without changing terrain or placing snow layers.

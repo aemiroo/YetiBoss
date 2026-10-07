@@ -39,6 +39,14 @@ class AttackSelectorTest {
         assertTrue(selector.choose(0,false,30,5,7,
             Map.of(AttackSelector.Attack.SNOW_GOLEMS,0),new Random()).isEmpty());
     }
+    @Test void roarRequiresCloseRangeAndHonorsCooldown() {
+        var selector=new AttackSelector();var roar=AttackSelector.Attack.ROAR;
+        var only=Map.of(roar,2);
+        assertTrue(selector.choose(0,false,20,5,7,only,new Random()).isEmpty());
+        assertEquals(roar,selector.choose(0,false,3,5,7,only,new Random()).orElseThrow());
+        selector.used(roar,0,260);
+        assertTrue(selector.choose(100,false,3,5,7,only,new Random()).isEmpty());
+    }
     @Test void zeroWeightsNeverSelect() {
         assertTrue(new AttackSelector().choose(0,true,0,5,7,Map.of(),new Random()).isEmpty());
     }
