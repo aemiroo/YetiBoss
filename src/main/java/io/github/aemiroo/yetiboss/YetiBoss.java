@@ -54,6 +54,12 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 if(!getConfig().contains("attacks.roar."+key,true))getConfig().set("attacks.roar."+key,getConfig().getDefaults().get("attacks.roar."+key));
             getConfig().set("schema-version",4);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<5) {
+            // The visible model stays giant; the navigation body must fit normal terrain.
+            if(Math.abs(getConfig().getDouble("boss.golem-scale")-2.35)<.001)
+                getConfig().set("boss.golem-scale",1.0);
+            getConfig().set("schema-version",5);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
@@ -170,6 +176,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             Objects.requireNonNull(golem.getAttribute(Attribute.MOVEMENT_SPEED)).setBaseValue(getConfig().getDouble("boss.movement-speed"));
             Objects.requireNonNull(golem.getAttribute(Attribute.KNOCKBACK_RESISTANCE)).setBaseValue(1);
             golem.setHealth(health);
+            golem.setAI(true);golem.setTarget(null);
             golem.setSilent(true);golem.setInvisible(false);
         });
         getServer().getMobGoals().removeAllGoals(body);
@@ -241,8 +248,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             e.bar.removeAll();for(Player p:players)e.bar.addPlayer(p);
             updateViewers(e);
         }
-        if(tick>=e.nextGrowl&&e.pending==null&&e.recovery==null&&!players.isEmpty()) {
-            bossSound(e,"idle",Sound.ENTITY_POLAR_BEAR_AMBIENT,1f);
+        if(tick>=e.nextGrowl&&tick>=e.voiceUntil&&e.pending==null&&e.recovery==null&&!players.isEmpty()) {
+            bossSound(e,"idle",Sound.ENTITY_POLAR_BEAR_AMBIENT,3f);
             e.nextGrowl=tick+240+random.nextInt(240);
         }
         Location at=e.body.getLocation();at.setPitch(0);
@@ -285,8 +292,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             e.chaseTarget=target==null?null:target.getUniqueId();e.nextRetarget=tick+60;
         }
         if(target==null) { e.body.getPathfinder().stopPathfinding();return; }
-        e.body.setTarget(null);
-        if(tick%10==0) e.body.getPathfinder().moveTo(target,1);
+        if(tick%5==0) e.body.getPathfinder().moveTo(target,1);
         if(tick<e.nextAttack) return;
         double distance=e.body.getLocation().distance(target.getLocation());
         Map<Attack,Integer> weights=new EnumMap<>(Attack.class);
@@ -308,7 +314,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 e.body.setVelocity(new org.bukkit.util.Vector(0,e.body.getVelocity().getY(),0));
                 for(Player p:players)p.sendActionBar(net.kyori.adventure.text.Component.text(
                     "Giant Yeti: "+attack.key.replace('-',' ')+"!",net.kyori.adventure.text.format.NamedTextColor.AQUA));
-                bossSound(e,"angry",Sound.ENTITY_POLAR_BEAR_WARNING,1f);
+                bossSound(e,"angry",Sound.ENTITY_POLAR_BEAR_WARNING,3f);
                 telegraph(e);
             });
     }
@@ -365,14 +371,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void bossSound(Encounter e,String sound,Sound fallback,float volume) {
         Location at=e.body.getLocation();
-        if(sound.equals("angry"))e.nextGrowl=tick+240+random.nextInt(240);
+        // Let an idle clip finish and rate-limit angry clips instead of cutting each other off.
+        if(tick<e.voiceUntil)return;
+        e.voiceUntil=tick+(sound.equals("idle")?177:62);
         for(Player player:Bukkit.getOnlinePlayers()) {
             if(!player.getWorld().equals(at.getWorld())||player.getLocation().distanceSquared(at)>48*48)continue;
-            if(sound.equals("angry")) {
-                String namespace=BedrockPlayers.contains(player.getUniqueId())?"yetiboss.":"yetiboss:";
-                player.stopSound(namespace+"idle",SoundCategory.HOSTILE);
-                player.stopSound(namespace+"angry",SoundCategory.HOSTILE);
-            }
             if(bossPackReady.contains(player.getUniqueId()))
                 player.playSound(at,(BedrockPlayers.contains(player.getUniqueId())?"yetiboss.":"yetiboss:")+sound,SoundCategory.HOSTILE,volume,1f);
             else player.playSound(at,fallback,SoundCategory.HOSTILE,volume,.65f);
@@ -859,7 +862,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         long nextWardenAttempt,grabStarted;UUID grabbed;Location grabLanding;
         final AttackSelector selector=new AttackSelector();final Participation participation=new Participation();
         final BossBar bar=Bukkit.createBossBar("Giant Yeti",BarColor.BLUE,BarStyle.SEGMENTED_10);
-        Attack pending,recovery;long recoveryStarted,recoveryUntil,nextGrowl;UUID target,chaseTarget;boolean enraged,defeated,customVisible;int barrageRemaining;
+        Attack pending,recovery;long recoveryStarted,recoveryUntil,nextGrowl,voiceUntil;UUID target,chaseTarget;boolean enraged,defeated,customVisible;int barrageRemaining;
         double walk;String modelName="giant_yeti";Set<UUID> recipients=Set.of();
         final Set<UUID> warned=new HashSet<>();
         Encounter(IronGolem body,ItemDisplay model,Location origin,long tick) {

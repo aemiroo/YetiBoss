@@ -24,14 +24,18 @@ class BossPackTest(unittest.TestCase):
   teeth=[e for e in roar['elements'] if e['faces']['north']['texture']=='#tooth']
   self.assertGreater(len(teeth),6)
   self.assertTrue(all(e['to'][2]<=3.65 for e in teeth))
- def test_walk_moves_both_arms_together_and_legs_alternate(self):
-  rest=model();walk=model(frame=3)
+ def test_walk_swings_arms_and_alternates_legs(self):
+  walk=model(frame=3)
   for start in ([1.3,1.2,5.8],[12,1.2,5.8]):
-   i=next(i for i,e in enumerate(rest['elements']) if e['from']==start)
-   self.assertAlmostEqual(.5,walk['elements'][i]['from'][2]-rest['elements'][i]['from'][2])
+   e=next(e for e in walk['elements'] if e['from']==start)
+   self.assertEqual(22.5,e['rotation']['angle'])
+   self.assertEqual('x',e['rotation']['axis'])
   for start,sign in (([4.8,1,6.6],1),([8.8,1,6.6],-1)):
-   i=next(i for i,e in enumerate(rest['elements']) if e['from']==start)
-   self.assertAlmostEqual(sign*.6,walk['elements'][i]['from'][2]-rest['elements'][i]['from'][2])
+   e=next(e for e in walk['elements'] if e['from']==start)
+   self.assertEqual(sign*22.5,e['rotation']['angle'])
+  back=model(frame=9)
+  e=next(e for e in back['elements'] if e['from']==[1.3,1.2,5.8])
+  self.assertEqual(-22.5,e['rotation']['angle'])
  def test_attack_poses_raise_both_arms(self):
   rotations=[e['rotation'] for e in model(attack=3)['elements'] if 'rotation' in e]
   for pivot in ([3.5,9,8],[12.5,9,8]):

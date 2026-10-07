@@ -1,9 +1,9 @@
-schema-version: 4
+schema-version: 5
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Giant Yeti'
   health: 700.0
-  golem-scale: 2.35
+  golem-scale: 1.0
   model-scale: 6.4
   movement-speed: 0.24
   arena-radius: 64.0

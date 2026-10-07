@@ -48,11 +48,10 @@ def model(frame=None,attack=None,kind='slam'):
     if kind=='throw' and part=='arm_l':angle=0
     if kind=='roar':angle=-22.5
    elif frame is not None:
-    # Golem-style synchronized arm swing, with alternating leg stride.
-    a=list(a);b=list(b);a[2]+=math.sin(phase)*.5;b[2]+=math.sin(phase)*.5
+    angle=round(math.sin(phase))*22.5;axis='x'
   if part and part.startswith('leg') and frame is not None:
-   stride=math.sin(phase)*.6*(1 if part=='leg_l' else -1)
-   a=list(a);b=list(b);a[2]+=stride;b[2]+=stride
+   pivot=[6 if part=='leg_l' else 10,4.5,8]
+   angle=round(math.sin(phase))*22.5*(1 if part=='leg_l' else -1);axis='x'
   e={'from':list(a),'to':list(b),'faces':{f:{'uv':[0,0,16,16],'texture':'#'+mat} for f in ('north','south','east','west','up','down')}}
   if angle:e['rotation']={'origin':pivot,'angle':angle,'axis':axis,'rescale':False}
   es.append(e)

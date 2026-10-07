@@ -113,3 +113,13 @@ the angry growl. Java players without the boss pack hear a vanilla fallback.
 Replace the Bedrock pack and BOTH mapping files because new animation IDs were added.
 Restart with the new JAR; existing configs receive the new roar defaults automatically.
 The attacks use snow particles without changing terrain or placing snow layers.
+
+## 0.5.1 movement and growl fixes
+
+Walk poses rotate arms at the shoulders and alternate leg rotations. The default
+collision body is normal golem size so paths fit ordinary terrain; the visible
+Yeti remains giant. Old default scale 2.35 migrates to 1.0 automatically. Chase
+paths refresh every five ticks without repeatedly clearing the mob target.
+Attack selection no longer resets the idle sound timer. Growls finish playing
+before another starts and are audible up to 48 blocks with hostile sounds enabled.
+Install the new JAR and packs together; reconnect to load the new pack hash.
