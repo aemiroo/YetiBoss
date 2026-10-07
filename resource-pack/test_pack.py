@@ -16,6 +16,11 @@ class BossPackTest(unittest.TestCase):
     self.assertTrue(element['faces'])
     for bound in ('from','to'):self.assertTrue(all(0<=v<=16 for v in element[bound]))
     if 'rotation' in element:self.assertIn(element['rotation']['angle'],(-45,-22.5,0,22.5,45))
+ def test_eyes_only_appear_on_front_in_every_pose(self):
+  for name in MODELS:
+   m=json.loads(self.java['assets/yetiboss/models/boss/'+name+'.json'])
+   eye_faces=[(side,face) for e in m['elements'] for side,face in e['faces'].items() if face['texture']=='#ice_face']
+   self.assertEqual(['north'],[side for side,face in eye_faces],name)
  def test_approved_shape_and_scream_teeth(self):
   rest=model();roar=model(attack=3,kind='roar')
   self.assertEqual(0,min(e['from'][1] for e in rest['elements']))

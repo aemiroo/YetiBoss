@@ -3,12 +3,13 @@ import math
 COLORS={'fur':(214,231,239,255),'fur_light':(243,250,253,255),'fur_shadow':(167,194,209,255),
  'ice':(65,187,223,255),'ice_dark':(35,116,156,255),'ice_light':(140,232,247,255),
  'ice_face':(64,190,222,255)}
+COLORS['face_plain']=(46,67,78,255)
 COLORS['muzzle']=(61,86,97,255)
 COLORS['scream']=(61,86,97,255)
 COLORS['tooth']=(231,235,216,255)
 COLORS.update({'horn':(54,70,82,255),'nose':(78,89,100,255)})
 def texture_color(mat,x,y):
- if mat=='tooth':return COLORS[mat][:3]
+ if mat in ('tooth','face_plain'):return COLORS[mat][:3]
  if mat in ('horn','nose'):
   c=COLORS[mat];return tuple(max(0,min(255,v+(((x//3+y//3)%3)-1)*4)) for v in c[:3])
  n=(x//2*17+y//2*31+x//2*y//2*11)%23
@@ -74,7 +75,7 @@ def model(frame=None,attack=None,kind='slam'):
  box((5,9,4.2),(11,12.2,8.7),'fur_light')
  box((5.5,8.5,3.6),(10.5,10.5,4.4),'fur_shadow')
  es[-1]['faces']['north']['texture']='#scream' if pose=='scream' else '#muzzle'
- box((5.6,10,3.95),(10.4,11.4,4.25),'ice_face')
+ box((5.6,10,3.95),(10.4,11.4,4.25),'face_plain')
  es[-1]['faces']['north']['texture']='#ice_face'
  if pose=='scream':
   # Slim stepped fangs taper down; smaller incisors sit between them.

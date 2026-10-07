@@ -150,3 +150,7 @@ It is removed on death/stop and disabled with the vanilla model fallback.
 ### 0.5.5 — boss event sounds
 
 Adds the five supplied clips: spawn once per encounter, death once, two randomly selected hurt clips, and grab-slam landing. Hurt clips have a short overlap cooldown and skip lethal hits. Combat retains the Ender Dragon growl. Custom audio requires the updated resource pack and enabled Hostile Creatures volume; Java players without the pack hear vanilla fallback sounds. Replace the Bedrock pack for Geyser clients as well.
+
+### 0.5.6 — eye texture correction
+
+The eyes now appear only on the front of the face. Top, back, sides and underside use a plain dark face texture in every animation pose, in both resource packs.
