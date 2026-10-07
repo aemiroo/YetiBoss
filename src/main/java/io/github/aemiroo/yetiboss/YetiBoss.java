@@ -371,14 +371,13 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void bossSound(Encounter e,String sound,Sound fallback,float volume) {
         Location at=e.body.getLocation();
-        // Let an idle clip finish and rate-limit angry clips instead of cutting each other off.
         if(tick<e.voiceUntil)return;
-        e.voiceUntil=tick+(sound.equals("idle")?177:62);
+        e.voiceUntil=tick+80;
+        float pitch=sound.equals("idle")?.65f:.9f;
+        // Built-in sound works independently of resource-pack acceptance and custom mappings.
         for(Player player:Bukkit.getOnlinePlayers()) {
             if(!player.getWorld().equals(at.getWorld())||player.getLocation().distanceSquared(at)>48*48)continue;
-            if(bossPackReady.contains(player.getUniqueId()))
-                player.playSound(at,(BedrockPlayers.contains(player.getUniqueId())?"yetiboss.":"yetiboss:")+sound,SoundCategory.HOSTILE,volume,1f);
-            else player.playSound(at,fallback,SoundCategory.HOSTILE,volume,.65f);
+            player.playSound(at,Sound.ENTITY_ENDER_DRAGON_GROWL,SoundCategory.HOSTILE,volume,pitch);
         }
     }
     private void telegraph(Encounter e) {

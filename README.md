@@ -123,3 +123,10 @@ paths refresh every five ticks without repeatedly clearing the mob target.
 Attack selection no longer resets the idle sound timer. Growls finish playing
 before another starts and are audible up to 48 blocks with hostile sounds enabled.
 Install the new JAR and packs together; reconnect to load the new pack hash.
+
+## 0.5.2 vanilla growls
+
+Idle and angry growls now use Minecraft's built-in Ender Dragon growl, with lower
+pitch for idle and higher pitch for anger. Playback no longer depends on the
+resource pack or custom Bedrock sound mappings. Only the JAR needs updating for
+this fix. The client's Hostile Creatures volume must be enabled.
