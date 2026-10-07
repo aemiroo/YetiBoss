@@ -136,3 +136,13 @@ this fix. The client's Hostile Creatures volume must be enabled.
 The encounter's arena players are active combat targets, so periodic growls now
 use the angry pitch throughout the fight. Idle-pitch growls no longer play during
 chasing, attacks, or the enraged phase.
+
+## 0.5.4 combat hitbox
+
+An invisible, stationary-AI golem follows the visual model as a separate combat
+hitbox. Its height scales to the 13.1-unit mesh height (5.24 blocks at scale 6.4);
+the normal-size body continues pathfinding. The hitbox approximates the central
+torso and head, rather than every animated arm or horn. Melee and projectile
+damage relay to the original body through normal damage events and participation
+tracking. The proxy cannot take environmental damage, drop items, or split rewards.
+It is removed on death/stop and disabled with the vanilla model fallback.

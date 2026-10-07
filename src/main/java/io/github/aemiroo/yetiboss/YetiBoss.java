@@ -161,7 +161,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void cleanupStale(Entity entity) {
         if(entity.getPersistentDataContainer().has(entityKey,PersistentDataType.BYTE)
-                &&(encounter==null||(!entity.equals(encounter.body)&&!entity.equals(encounter.model)&&!encounter.minions.containsKey(entity.getUniqueId())))
+                &&(encounter==null||(!entity.equals(encounter.body)&&!entity.equals(encounter.model)&&!entity.equals(encounter.hitbox)&&!encounter.minions.containsKey(entity.getUniqueId())))
                 &&!shots.containsKey(entity.getUniqueId())
                 &&shots.values().stream().noneMatch(shot->entity.equals(shot.visual))) entity.remove();
     }
@@ -191,7 +191,17 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             display.setDisplayWidth(scale);display.setDisplayHeight(scale);display.setViewRange(2);
             display.setItemStack(modelItem("giant_yeti"));
         });
-        encounter=new Encounter(body,model,at.clone(),tick);
+        IronGolem hitbox=at.getWorld().spawn(at,IronGolem.class,golem->{
+            tagged(golem);golem.setAI(false);golem.setGravity(false);golem.setSilent(true);
+            golem.setInvisible(true);golem.setCollidable(false);golem.setPlayerCreated(true);
+            golem.setRemoveWhenFarAway(false);
+            Objects.requireNonNull(golem.getAttribute(Attribute.MAX_HEALTH)).setBaseValue(1024);
+            golem.setHealth(1024);
+            // The approved mesh is 13.1 model units high; normal golem height is 2.7 blocks.
+            Objects.requireNonNull(golem.getAttribute(Attribute.SCALE)).setBaseValue(
+                getConfig().getDouble("boss.model-scale")*13.1/16/2.7);
+        });
+        encounter=new Encounter(body,model,hitbox,at.clone(),tick);
         updateViewers(encounter);
         Bukkit.broadcastMessage(prefix()+ChatColor.RED+"The Giant Yeti has appeared!");
     }
@@ -268,7 +278,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         String model=e.grabbed!=null?"giant_yeti_attack_3":animated!=null?"giant_yeti_"+pose+"_"+poseFrame:
                 frame<0?"giant_yeti":"giant_yeti_walk_"+frame;
         if(!model.equals(e.modelName)) { e.model.setItemStack(modelItem(model));e.modelName=model; }
-        e.model.teleport(at);e.last=at;
+        e.model.teleport(at);e.hitbox.teleport(at);e.last=at;
         if(e.barrageRemaining>0&&tick>=e.nextShot) {
             Player target=chooseTarget(players,e.body);
             if(target!=null) launch(target,Attack.BARRAGE);
@@ -333,7 +343,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         // Mixed pack readiness uses a visible fallback for everyone.
         e.body.setInvisible(custom);
         e.customVisible=custom;
+        Objects.requireNonNull(e.hitbox.getAttribute(Attribute.SCALE)).setBaseValue(custom?
+            getConfig().getDouble("boss.model-scale")*13.1/16/2.7:.01);
         for(Player player:e.body.getWorld().getPlayers()) {
+            if(custom&&viewers.contains(player))player.showEntity(this,e.hitbox);
+            else player.hideEntity(this,e.hitbox);
             boolean visible=custom&&viewers.contains(player);
             if(visible)player.showEntity(this,e.model);
             else player.hideEntity(this,e.model);
@@ -504,7 +518,9 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         org.bukkit.util.Vector direction=aim.toVector().subtract(start.toVector());
         if(direction.lengthSquared()<.001)return;
         direction.normalize();
-        start.add(direction.clone().multiply(Math.max(.8,caster.getBoundingBox().getWidthX()/2+.3)));
+        double launchWidth=caster.equals(encounter.body)&&encounter.customVisible?
+                encounter.hitbox.getBoundingBox().getWidthX():caster.getBoundingBox().getWidthX();
+        start.add(direction.clone().multiply(Math.max(.8,launchWidth/2+.3)));
         // Do not spawn a projectile through a wall.
         if(!start.getWorld().isChunkLoaded(start.getBlockX()>>4,start.getBlockZ()>>4)||!start.getBlock().isPassable())return;
         Snowball ball=start.getWorld().spawn(start,Snowball.class,s->{
@@ -527,7 +543,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         try { player.damage(damage,source); } finally { scriptedDamage=false; }
     }
     private boolean allied(Entity entity) {
-        return encounter!=null&&(entity.equals(encounter.body)||encounter.minions.containsKey(entity.getUniqueId()));
+        return encounter!=null&&(entity.equals(encounter.body)||entity.equals(encounter.hitbox)||encounter.minions.containsKey(entity.getUniqueId()));
     }
     private int snowGolemCount(Encounter e) {
         return (int)e.minions.values().stream().filter(m->!m.warden&&m.mob.isValid()&&!m.mob.isDead()).count();
@@ -617,6 +633,21 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true)
     public void snowTrail(EntityBlockFormEvent event) {
         if(allied(event.getEntity()))event.setCancelled(true);
+    }
+    @EventHandler(priority=EventPriority.HIGHEST)
+    public void hitboxDamage(EntityDamageEvent event) {
+        Encounter e=encounter;
+        if(e==null||!event.getEntity().equals(e.hitbox))return;
+        boolean allowed=!event.isCancelled();event.setCancelled(true);
+        if(!allowed||!e.customVisible||!(event instanceof EntityDamageByEntityEvent by))return;
+        Player player=attacker(by.getDamager());
+        if(player==null||!eligible(player,e.origin,getConfig().getDouble("boss.arena-radius")))return;
+        double damage=event.getDamage();
+        // Re-enter normal damage events on the encounter body, retaining the original source.
+        Bukkit.getScheduler().runTask(this,()->{
+            if(encounter==e&&!e.defeated&&e.body.isValid()&&player.isOnline())
+                e.body.damage(damage,by.getDamager());
+        });
     }
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true)
     public void damageRules(EntityDamageEvent event) {
@@ -719,7 +750,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(!event.getEntity().equals(encounter.body))return;
         event.getDrops().clear();event.setDroppedExp(0);encounter.defeated=true;
         encounter.recipients=encounter.participation.finish();
-        encounter.model.remove();encounter.bar.removeAll();
+        encounter.model.remove();encounter.hitbox.remove();encounter.bar.removeAll();
         victory(encounter);
     }
     private void victory(Encounter e) {
@@ -783,7 +814,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private void stop(boolean announce) {
         Encounter e=encounter;encounter=null;
         if(e==null)return;
-        e.body.remove();e.model.remove();e.bar.removeAll();
+        e.body.remove();e.model.remove();e.hitbox.remove();e.bar.removeAll();
         for(IceMinion minion:e.minions.values())minion.mob.remove();
         e.minions.clear();
         for(Player player:Bukkit.getOnlinePlayers()) player.hideEntity(this,e.model);
@@ -853,7 +884,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         IceMinion(Mob mob,boolean warden,long nextAttack) {this.mob=mob;this.warden=warden;this.nextAttack=nextAttack;}
     }
     private static final class Encounter {
-        final UUID id=UUID.randomUUID();final IronGolem body;final ItemDisplay model;
+        final UUID id=UUID.randomUUID();final IronGolem body,hitbox;final ItemDisplay model;
         final Location origin;Location last,aim;org.bukkit.util.Vector direction;
         final long started;long lastPlayers,nextAttack,releaseTick,nextShot,retryReward,nextRetarget,windupStarted;
         final ThresholdSummon wardenTrigger=new ThresholdSummon();
@@ -864,8 +895,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         Attack pending,recovery;long recoveryStarted,recoveryUntil,nextGrowl,voiceUntil;UUID target,chaseTarget;boolean enraged,defeated,customVisible;int barrageRemaining;
         double walk;String modelName="giant_yeti";Set<UUID> recipients=Set.of();
         final Set<UUID> warned=new HashSet<>();
-        Encounter(IronGolem body,ItemDisplay model,Location origin,long tick) {
-            this.body=body;this.model=model;this.origin=origin;last=origin.clone();started=tick;lastPlayers=tick;
+        Encounter(IronGolem body,ItemDisplay model,IronGolem hitbox,Location origin,long tick) {
+            this.body=body;this.model=model;this.hitbox=hitbox;this.origin=origin;last=origin.clone();started=tick;lastPlayers=tick;
         }
     }
 }
