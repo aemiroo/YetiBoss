@@ -1,9 +1,10 @@
+schema-version: 3
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Giant Yeti'
   health: 700.0
-  golem-scale: 1.4
-  model-scale: 4.3
+  golem-scale: 2.35
+  model-scale: 6.4
   movement-speed: 0.24
   arena-radius: 64.0
   leash-radius: 80.0
@@ -43,6 +44,28 @@ attacks:
     slow-ticks: 30
     count: 4
     interval-ticks: 10
+  snow-golems:
+    weight: 2
+    cooldown-ticks: 320
+    windup-ticks: 40
+minions:
+  snow-golems:
+    enabled: true
+    maximum: 4
+    per-wave: 2
+    health: 25.0
+    barrage-count: 4
+    barrage-cooldown-ticks: 120
+    barrage-interval-ticks: 10
+    damage: 3.0
+    slow-ticks: 60
+  ice-warden:
+    enabled: true
+    health: 200.0
+    damage: 12.0
+    movement-speed: 0.18
+    attack-cooldown-ticks: 60
+    slow-ticks: 60
 rewards:
   # XP points, not levels. Anyone who deals accepted positive damage participates.
   experience: 3000

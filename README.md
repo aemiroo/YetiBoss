@@ -1,5 +1,5 @@
 # YetiBoss
-A Giant Yeti encounter for LARP SMP, targeting Paper/Purpur 26.3 using the compatible 1.21.4 Bukkit API. Java 21 or newer is required; the server's Java 25 is suitable. Version 0.2.1 is an initial server-test build.
+A Giant Yeti encounter for LARP SMP, targeting Paper/Purpur 26.3 using the compatible 1.21.4 Bukkit API. Java 21 or newer is required; the server's Java 25 is suitable. Version 0.3.0 is an initial server-test build.
 
 ## Install
 1. Install CosmeticPets **1.5.0 or newer**, its required PacketEvents dependency, and the current CosmeticPets resource packs/mappings.
@@ -11,7 +11,9 @@ A Giant Yeti encounter for LARP SMP, targeting Paper/Purpur 26.3 using the compa
    Keep the CosmeticPets pack/mappings installed for the reward pet. After installing the boss files, set bedrock.enabled: true in YetiBoss config and restart Geyser/server.
 4. As an operator, run /yetiboss spawn in an open arena. It spawns about six blocks ahead, requiring solid ground and five blocks of headroom.
 
-The boss uses the **same model and colors as the CosmeticPets Baby Yeti**, enlarged with boss.model-scale (4.3 by default). Its twelve walking poses are copied from the pet's golem-style gait, with eight additional raised-arm attack poses. The pet itself is unchanged. A pinned MIT-licensed copy of the pet model helpers is included so pack builds are reproducible and do not fetch changing upstream code.
+The boss has an original blue-and-white frost model inspired by the latest reference: broad shoulders, long chunky arms, blue forearms/boots, a blue face with red eyes and teeth, and tall cream horns. The default model scale is now **6.4**, approximately 6.4 blocks tall, with a matching larger golem hitbox. The baby pet is unchanged. Walking arms swing together like a golem; eight attack poses remain included.
+
+On upgrade, only the previous default model scale (4.3) and hitbox scale (1.4) migrate to 6.4 and 2.35 respectively. Custom size settings are preserved. Use an open arena with at least seven blocks of headroom.
 
 The model is drawn over a damageable iron golem whose client-side hitbox stays tracked. **If any nearby viewer has not loaded the boss pack, everyone sees a visible golem fallback** instead of an invisible fight. Once all viewers within 96 blocks have the pack, the custom model appears. Pack failure/decline does not kick players. /yetiboss status reports the active model and the caller's boss-pack loading status. This independent pack status no longer relies on CosmeticPets reporting its pack loaded.
 
@@ -38,7 +40,7 @@ The weighted attack selector checks distance, phase and per-attack cooldowns. No
 Damage, knockback, cooldowns, weights and wind-ups are configurable. The 26.3 ice projectile is a snowball rendered as blue ice, with custom hit damage/slowness and a shatter effect. It does **not** depend on 26.4's experimental native Ice Ball. Native 26.4 integration can follow once its server API is stable.
 
 ## Rewards
-Any survival/adventure player dealing positive, uncanceled direct or projectile damage participates. Merely standing nearby does not count. Rewards are not restricted to the killing blow or remaining online.
+Any survival/adventure player dealing positive, uncanceled direct or projectile damage to the Yeti or its summoned enemies participates. Merely standing nearby does not count. Rewards are not restricted to the killing blow or remaining online.
 - Every participant receives a permanent **Baby Yeti unlock** in CosmeticPets and 3,000 **XP points**, configurable.
 - **One Frostfang sword** drops on the ground at the boss's death. Normal vanilla pickup applies: first pickup gets it, regardless of participation. No personal copies are issued.
 - Frostfang has one custom effect, **Frost Strike**: by default a 20% chance on accepted melee damage to apply Slowness II for three seconds, with a four-second per-player cooldown. It is an item tag/effect, not a registered vanilla enchantment. Vanilla Sharpness V is configurable.
@@ -68,3 +70,12 @@ Existing repository GPL-3.0 license applies.
 - The release is published only after all build checks pass. If using a custom host, update its ZIP together with the plugin JAR.
 
 For local builds, generate both packs with the resource-pack Python scripts before running mvn verify. GitHub Actions does this automatically.
+
+
+## Summoned enemies (0.3.0)
+- **Evil Snow Golems** are a weighted random summon attack: two per wave, capped at four living golems by default. They remain at their spawn positions and fire four-shot ice barrages at visible survival/adventure players inside the arena. Hits apply Slowness I for three seconds by default. Barrage speed follows the Yeti barrage setting; minion damage, timing, count, health, cap and slowness are configurable.
+- **Ice Warden** summons once per encounter at **35% HP or below**, after finding clear loaded ground. If the area is blocked it retries every five seconds until it can spawn. It is a native Warden themed with snow particles and slowing melee attacks, not a new custom Warden texture/model. Its vanilla AI/sonic boom is disabled. It approaches players using collision-checked movement and steps; this initial movement can stall in complicated terrain, so use an open arena.
+- Summons have no item/XP drops, no natural environmental death, no friendly fire, and no snow trails. Accepted player damage can kill them normally.
+- All summons and their projectiles are removed on victory, stop, timeout, disable, or encounter abort. A summon entering an unloading chunk is removed. Killing the Warden does not cause it to respawn.
+- Set minions.snow-golems.enabled or minions.ice-warden.enabled to false to disable the respective summon.
+- Live checks should include the four-golem cap, slowing barrages, crossing 35% health in one hit, Warden movement, and cleanup after death/stop/restart.

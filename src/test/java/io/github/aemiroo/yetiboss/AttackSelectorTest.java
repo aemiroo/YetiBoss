@@ -32,6 +32,13 @@ class AttackSelectorTest {
         assertTrue(selector.choose(0,true,20,5,7,Map.of(AttackSelector.Attack.BARRAGE,1),new Random()).isPresent());
         assertTrue(selector.choose(0,false,20,5,7,Map.of(AttackSelector.Attack.BARRAGE,1),new Random()).isEmpty());
     }
+    @Test void snowGolemsCanBeRandomlySummonedAtRangeAndCapCanDisableTheAttack() {
+        var selector=new AttackSelector();
+        assertEquals(AttackSelector.Attack.SNOW_GOLEMS,selector.choose(0,false,30,5,7,
+            Map.of(AttackSelector.Attack.SNOW_GOLEMS,2),new Random()).orElseThrow());
+        assertTrue(selector.choose(0,false,30,5,7,
+            Map.of(AttackSelector.Attack.SNOW_GOLEMS,0),new Random()).isEmpty());
+    }
     @Test void zeroWeightsNeverSelect() {
         assertTrue(new AttackSelector().choose(0,true,0,5,7,Map.of(),new Random()).isEmpty());
     }
@@ -39,6 +46,6 @@ class AttackSelectorTest {
         Set<AttackSelector.Attack> observed=new HashSet<>();
         var random=new Random(432);
         for(int i=0;i<1000;i++) observed.add(new AttackSelector().choose(0,true,2,5,7,weights,random).orElseThrow());
-        assertEquals(Set.of(AttackSelector.Attack.values()),observed);
+        assertEquals(weights.keySet(),observed);
     }
 }
