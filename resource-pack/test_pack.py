@@ -16,26 +16,28 @@ class BossPackTest(unittest.TestCase):
     self.assertTrue(element['faces'])
     for bound in ('from','to'):self.assertTrue(all(0<=v<=16 for v in element[bound]))
     if 'rotation' in element:self.assertLessEqual(abs(element['rotation']['angle']),45)
- def test_reference_features_have_actual_depth_and_feet_align(self):
-  m=model();self.assertEqual(0,min(e['from'][1] for e in m['elements']))
-  for material in ('tooth','ice','eye','mouth','fur_shadow'):
-   elements=[e for e in m['elements'] if any(f['texture']=='#'+material for f in e['faces'].values())]
-   self.assertTrue(elements)
-  teeth=[e for e in m['elements'] if any(f['texture']=='#tooth' for f in e['faces'].values())]
-  self.assertTrue(any(e['to'][2]-e['from'][2]>0 for e in teeth))
-  self.assertGreaterEqual(max(e['to'][1] for e in teeth)-min(e['from'][1] for e in teeth),3)
+ def test_boss_uses_pet_geometry_and_textures(self):
+  from pet_model import winter_model,yeti_walk_model
+  pet=winter_model('yeti');boss=model()
+  self.assertEqual(pet['elements'],boss['elements'])
+  self.assertEqual(pet['display'],boss['display'])
+  self.assertEqual(set(pet['textures']),set(boss['textures']))
+  self.assertEqual(0,min(e['from'][1] for e in boss['elements']))
+  self.assertIn('yeti_horn',boss['textures'])
+  for frame in range(12):
+   self.assertEqual(yeti_walk_model(frame)['elements'],model(frame=frame)['elements'])
  def test_arms_swing_together_and_legs_alternate(self):
   for frame in range(12):
    m=model(frame=frame)
    rotations={tuple(e['rotation']['origin']):e['rotation']['angle'] for e in m['elements'] if 'rotation' in e}
-   self.assertEqual(rotations[(2.5,10.5,9)],rotations[(13.5,10.5,9)])
-   self.assertAlmostEqual(rotations[(6,4.5,9)],-rotations[(10,4.5,9)])
+   self.assertEqual(rotations[(2.5,9,8.5)],rotations[(13.5,9,8.5)])
+   self.assertAlmostEqual(rotations[(6,3,7.5)],-rotations[(10,3,7.5)])
  def test_attack_poses_raise_both_arms(self):
   m=model(attack=3)
   rotations={tuple(e['rotation']['origin']):e['rotation']['angle'] for e in m['elements'] if 'rotation' in e}
-  self.assertEqual(rotations[(2.5,10.5,9)],rotations[(13.5,10.5,9)])
-  self.assertLess(rotations[(2.5,10.5,9)],-35)
-  self.assertEqual(0,rotations[(6,4.5,9)])
+  self.assertEqual(rotations[(2.5,9,8.5)],rotations[(13.5,9,8.5)])
+  self.assertLess(rotations[(2.5,9,8.5)],-35)
+  self.assertEqual(0,rotations[(6,3,7.5)])
  def test_bedrock_contains_all_poses_and_preserves_pivots(self):
   self.assertEqual(21,len(mappings()['items']['minecraft:paper']))
   for name in MODELS:

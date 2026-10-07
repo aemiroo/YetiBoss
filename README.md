@@ -1,5 +1,5 @@
 # YetiBoss
-A Giant Yeti encounter for LARP SMP, targeting Paper/Purpur 26.3 using the compatible 1.21.4 Bukkit API. Java 21 or newer is required; the server's Java 25 is suitable. Version 0.2.0 is an initial server-test build.
+A Giant Yeti encounter for LARP SMP, targeting Paper/Purpur 26.3 using the compatible 1.21.4 Bukkit API. Java 21 or newer is required; the server's Java 25 is suitable. Version 0.2.1 is an initial server-test build.
 
 ## Install
 1. Install CosmeticPets **1.5.0 or newer**, its required PacketEvents dependency, and the current CosmeticPets resource packs/mappings.
@@ -11,7 +11,7 @@ A Giant Yeti encounter for LARP SMP, targeting Paper/Purpur 26.3 using the compa
    Keep the CosmeticPets pack/mappings installed for the reward pet. After installing the boss files, set bedrock.enabled: true in YetiBoss config and restart Geyser/server.
 4. As an operator, run /yetiboss spawn in an open arena. It spawns about six blocks ahead, requiring solid ground and five blocks of headroom.
 
-The boss now has its own original hulking model inspired by the supplied visual reference: shaggy white fur, a shoulder mane, a dark snarling face, glowing-colored eyes, long tusks, claws and icy shoulder spikes. It has twelve golem-style walking poses and eight raised-arm attack poses. The Baby Yeti pet is unchanged.
+The boss uses the **same model and colors as the CosmeticPets Baby Yeti**, enlarged with boss.model-scale (4.3 by default). Its twelve walking poses are copied from the pet's golem-style gait, with eight additional raised-arm attack poses. The pet itself is unchanged. A pinned MIT-licensed copy of the pet model helpers is included so pack builds are reproducible and do not fetch changing upstream code.
 
 The model is drawn over a damageable iron golem whose client-side hitbox stays tracked. **If any nearby viewer has not loaded the boss pack, everyone sees a visible golem fallback** instead of an invisible fight. Once all viewers within 96 blocks have the pack, the custom model appears. Pack failure/decline does not kick players. /yetiboss status reports the active model and the caller's boss-pack loading status. This independent pack status no longer relies on CosmeticPets reporting its pack loaded.
 
