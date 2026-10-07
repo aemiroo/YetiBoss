@@ -12,10 +12,11 @@ def png(name):
   rows.append(b'\0'+bytes(row))
  raw=b''.join(rows)
  return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',16,16,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
+SOUNDS=('idle','angry','spawn','death','hurt_1','hurt_2','grab_slam')
 MODELS=('giant_yeti',)+tuple('giant_yeti_walk_'+str(i) for i in range(12))+tuple('giant_yeti_attack_'+str(i) for i in range(8))+tuple('giant_yeti_'+kind+'_'+str(i) for kind in ('swipe','throw','roar') for i in range(8))
 def files():
  result={'pack.mcmeta':json.dumps({'pack':{'description':'YetiBoss - Giant Yeti','min_format':[97,1],'max_format':[97,1]}}).encode(),
-         'LICENSE.txt':b'Original YetiBoss model and textures: GPL-3.0. No extracted third-party assets.\n'}
+         'LICENSE.txt':b'Original YetiBoss model and textures: GPL-3.0. Audio clips supplied by the server owner; original audio rights remain with their respective creators.\n'}
  for name in MODELS:
   if name=='giant_yeti':m=model()
   else:
@@ -25,10 +26,8 @@ def files():
   result['assets/yetiboss/items/'+name+'.json']=json.dumps({'model':{'type':'minecraft:model','model':'yetiboss:boss/'+name}}).encode()
  for name,color in COLORS.items():result['assets/yetiboss/textures/boss/'+name+'.png']=png(name)
  result['assets/minecraft/atlases/items.json']=json.dumps({'sources':[{'type':'minecraft:single','resource':'yetiboss:boss/'+name,'sprite':'yetiboss:boss/'+name} for name in COLORS]}).encode()
- result['assets/yetiboss/sounds.json']=json.dumps({
-  'idle':{'sounds':[{'name':'yetiboss:idle','stream':False}]},
-  'angry':{'sounds':[{'name':'yetiboss:angry','stream':False}]}}).encode()
- for name in ('idle','angry'):
+ result['assets/yetiboss/sounds.json']=json.dumps({name:{'sounds':[{'name':'yetiboss:'+name,'stream':False}]} for name in SOUNDS}).encode()
+ for name in SOUNDS:
   result['assets/yetiboss/sounds/'+name+'.ogg']=base64.b64decode((ROOT/'resource-pack/sounds'/ (name+'.ogg.b64')).read_text())
  return result
 def build():

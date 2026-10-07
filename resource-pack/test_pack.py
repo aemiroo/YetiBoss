@@ -41,9 +41,11 @@ class BossPackTest(unittest.TestCase):
   for pivot in ([3.5,9,8],[12.5,9,8]):
    self.assertTrue(any(r['origin']==pivot and r['axis']=='x' and r['angle']==-45 for r in rotations))
  def test_custom_sounds_are_in_both_packs(self):
-  for name in ('idle','angry'):
+  for name in ('idle','angry','spawn','death','hurt_1','hurt_2','grab_slam'):
    data=self.java['assets/yetiboss/sounds/'+name+'.ogg']
    self.assertTrue(data.startswith(b'OggS'))
+   self.assertIn(name,json.loads(self.java['assets/yetiboss/sounds.json']))
+   self.assertIn('yetiboss.'+name,json.loads(self.bedrock['sounds/sound_definitions.json'])['sound_definitions'])
    self.assertEqual(data,self.bedrock['sounds/yetiboss/'+name+'.ogg'])
  def test_bedrock_contains_all_poses_and_preserves_pivots(self):
   self.assertEqual(len(MODELS),len(mappings()['items']['minecraft:paper']))

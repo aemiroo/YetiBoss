@@ -203,6 +203,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         });
         encounter=new Encounter(body,model,hitbox,at.clone(),tick);
         updateViewers(encounter);
+        bossEffect(at,"spawn",Sound.ENTITY_ENDER_DRAGON_GROWL);
+        encounter.voiceUntil=tick+103;
         Bukkit.broadcastMessage(prefix()+ChatColor.RED+"The Giant Yeti has appeared!");
     }
     private ItemStack modelItem(String name) {
@@ -394,6 +396,16 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             player.playSound(at,Sound.ENTITY_ENDER_DRAGON_GROWL,SoundCategory.HOSTILE,volume,pitch);
         }
     }
+    private void bossEffect(Location at,String name,Sound fallback) {
+        for(Player player:Bukkit.getOnlinePlayers()) {
+            if(!player.getWorld().equals(at.getWorld())||player.getLocation().distanceSquared(at)>48*48)continue;
+            if(BedrockPlayers.contains(player.getUniqueId()))
+                player.playSound(at,"yetiboss."+name,SoundCategory.HOSTILE,3f,1f);
+            else if(bossPackReady.contains(player.getUniqueId()))
+                player.playSound(at,"yetiboss:"+name,SoundCategory.HOSTILE,3f,1f);
+            else player.playSound(at,fallback,SoundCategory.HOSTILE,3f,1f);
+        }
+    }
     private void telegraph(Encounter e) {
         Location at=e.body.getLocation();World world=at.getWorld();
         world.spawnParticle(Particle.SNOWFLAKE,at.clone().add(0,2,0),12,1,1,1,.02);
@@ -495,7 +507,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                     p.getLocation().toVector().subtract(e.body.getLocation().toVector()),
                     getConfig().getDouble("attacks.grab-slam.knockback"),40);
             held.getWorld().spawnParticle(Particle.SNOWFLAKE,held,55,1.2,.25,1.2,.08);
-            held.getWorld().playSound(held,Sound.ENTITY_IRON_GOLEM_ATTACK,1,.5f);
+            bossEffect(held,"grab_slam",Sound.ENTITY_IRON_GOLEM_ATTACK);
         }
     }
     private void playGolemAttack(IronGolem body) {
@@ -688,6 +700,12 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                     player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS,duration,0));
             });
         }
+        if(e!=null&&event.getEntity().equals(e.body)&&!e.defeated
+                &&event.getFinalDamage()<e.body.getHealth()&&tick>=e.nextHurtSound) {
+            boolean first=random.nextBoolean();
+            e.nextHurtSound=tick+(first?10:30);
+            bossEffect(e.body.getLocation(),first?"hurt_1":"hurt_2",Sound.ENTITY_IRON_GOLEM_HURT);
+        }
         if(e!=null&&allied(event.getEntity())) {
             Player p=attacker(event.getDamager());if(p!=null)e.participation.damage(p.getUniqueId(),event.getFinalDamage());
         }
@@ -749,6 +767,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         }
         if(!event.getEntity().equals(encounter.body))return;
         event.getDrops().clear();event.setDroppedExp(0);encounter.defeated=true;
+        bossEffect(event.getEntity().getLocation(),"death",Sound.ENTITY_ENDER_DRAGON_DEATH);
         encounter.recipients=encounter.participation.finish();
         encounter.model.remove();encounter.hitbox.remove();encounter.bar.removeAll();
         victory(encounter);
@@ -892,7 +911,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         long nextWardenAttempt,grabStarted;UUID grabbed;Location grabLanding;
         final AttackSelector selector=new AttackSelector();final Participation participation=new Participation();
         final BossBar bar=Bukkit.createBossBar("Giant Yeti",BarColor.BLUE,BarStyle.SEGMENTED_10);
-        Attack pending,recovery;long recoveryStarted,recoveryUntil,nextGrowl,voiceUntil;UUID target,chaseTarget;boolean enraged,defeated,customVisible;int barrageRemaining;
+        Attack pending,recovery;long recoveryStarted,recoveryUntil,nextGrowl,voiceUntil,nextHurtSound;UUID target,chaseTarget;boolean enraged,defeated,customVisible;int barrageRemaining;
         double walk;String modelName="giant_yeti";Set<UUID> recipients=Set.of();
         final Set<UUID> warned=new HashSet<>();
         Encounter(IronGolem body,ItemDisplay model,IronGolem hitbox,Location origin,long tick) {

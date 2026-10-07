@@ -146,3 +146,7 @@ torso and head, rather than every animated arm or horn. Melee and projectile
 damage relay to the original body through normal damage events and participation
 tracking. The proxy cannot take environmental damage, drop items, or split rewards.
 It is removed on death/stop and disabled with the vanilla model fallback.
+
+### 0.5.5 — boss event sounds
+
+Adds the five supplied clips: spawn once per encounter, death once, two randomly selected hurt clips, and grab-slam landing. Hurt clips have a short overlap cooldown and skip lethal hits. Combat retains the Ender Dragon growl. Custom audio requires the updated resource pack and enabled Hostile Creatures volume; Java players without the pack hear vanilla fallback sounds. Replace the Bedrock pack for Geyser clients as well.

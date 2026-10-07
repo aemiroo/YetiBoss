@@ -75,8 +75,8 @@ def files():
     source = java_files()
     result = {'manifest.json':encoded({'format_version':2,
         'header':{'name':'YetiBoss Bedrock','description':'Original Giant Yeti boss',
-                  'uuid':'f5d7fcef-34a7-48fa-a98f-2155802ef6e4','version':[0,5,1],'min_engine_version':[1,21,0]},
-        'modules':[{'type':'resources','uuid':'ec728d89-387d-4a04-bdb0-7263d53d0a33','version':[0,5,1]}]}),
+                  'uuid':'f5d7fcef-34a7-48fa-a98f-2155802ef6e4','version':[0,5,5],'min_engine_version':[1,21,0]},
+        'modules':[{'type':'resources','uuid':'ec728d89-387d-4a04-bdb0-7263d53d0a33','version':[0,5,5]}]}),
         'LICENSE.txt':source['LICENSE.txt'],
         'render_controllers/yetiboss.json':encoded({'format_version':'1.8.0','render_controllers':{
             'controller.render.yetiboss':{'geometry':'Geometry.default',
@@ -86,10 +86,10 @@ def files():
         'geometry':'Geometry.default','materials':[{'*':'Material.default'},{'pet_light':'Material.glow'}],
         'textures':['Texture.default']}
     result['render_controllers/yetiboss.json']=encoded(controllers)
+    from build_pack import SOUNDS
     result['sounds/sound_definitions.json']=encoded({'format_version':'1.14.0','sound_definitions':{
-        'yetiboss.idle':{'category':'hostile','sounds':['sounds/yetiboss/idle']},
-        'yetiboss.angry':{'category':'hostile','sounds':['sounds/yetiboss/angry']}}})
-    for name in ('idle','angry'):
+        'yetiboss.'+name:{'category':'hostile','sounds':['sounds/yetiboss/'+name]} for name in SOUNDS}})
+    for name in SOUNDS:
         result['sounds/yetiboss/'+name+'.ogg']=source['assets/yetiboss/sounds/'+name+'.ogg']
     texture_data = {}
     for pet in PETS:
