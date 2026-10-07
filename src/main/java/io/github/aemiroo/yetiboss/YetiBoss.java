@@ -19,7 +19,8 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.*;
 import org.bukkit.util.*;
-import org.joml.*;
+import org.joml.Vector3f;
+import org.joml.Quaternionf;
 import static io.github.aemiroo.yetiboss.AttackSelector.Attack;
 
 public final class YetiBoss extends JavaPlugin implements Listener {
