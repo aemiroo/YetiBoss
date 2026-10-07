@@ -1,13 +1,21 @@
 # YetiBoss
-A Giant Yeti encounter for LARP SMP, targeting Paper/Purpur 26.3 using the compatible 1.21.4 Bukkit API. Java 21 or newer is required; the server's Java 25 is suitable. Version 0.1.0 is an initial server-test build.
+A Giant Yeti encounter for LARP SMP, targeting Paper/Purpur 26.3 using the compatible 1.21.4 Bukkit API. Java 21 or newer is required; the server's Java 25 is suitable. Version 0.2.0 is an initial server-test build.
 
 ## Install
 1. Install CosmeticPets **1.5.0 or newer**, its required PacketEvents dependency, and the current CosmeticPets resource packs/mappings.
 2. Download the **YetiBoss** artifact from this repository's successful GitHub Actions build. Place its JAR in plugins.
-3. Restart the server. Accept the pet resource pack on Java. Bedrock needs the existing GeyserDisplayEntity installation, both required Bedrock packs, and CosmeticPets mappings.
+3. Restart the server. Accept **both** the CosmeticPets pack (pets) and the dedicated YetiBoss pack (boss) on Java.
+   The boss ZIP is automatically requested from https://github.com/aemiroo/YetiBoss/releases/download/yeti-pack/YetiBoss-Pack.zip.
+   Existing configs without resource-pack.url use that default.
+   Bedrock needs the existing GeyserDisplayEntity extension/pack plus YetiBoss-Bedrock.mcpack and both boss mappings.
+   Keep the CosmeticPets pack/mappings installed for the reward pet. After installing the boss files, set bedrock.enabled: true in YetiBoss config and restart Geyser/server.
 4. As an operator, run /yetiboss spawn in an open arena. It spawns about six blocks ahead, requiring solid ground and five blocks of headroom.
 
-The boss uses the existing Yeti model at giant scale over an invisible, damageable iron golem. Its hitbox stays present; clients do not need custom packets. Players without the required pack cannot see the custom boss. Verify Java and Bedrock visuals and attacks before running a public event. The current attack wind-up uses an existing raised-arm pose and particles; a dedicated attack animation is a future improvement.
+The boss now has its own original hulking model inspired by the supplied visual reference: shaggy white fur, a shoulder mane, a dark snarling face, glowing-colored eyes, long tusks, claws and icy shoulder spikes. It has twelve golem-style walking poses and eight raised-arm attack poses. The Baby Yeti pet is unchanged.
+
+The model is drawn over a damageable iron golem whose client-side hitbox stays tracked. **If any nearby viewer has not loaded the boss pack, everyone sees a visible golem fallback** instead of an invisible fight. Once all viewers within 96 blocks have the pack, the custom model appears. Pack failure/decline does not kick players. /yetiboss status reports the active model and the caller's boss-pack loading status. This independent pack status no longer relies on CosmeticPets reporting its pack loaded.
+
+Bedrock readiness is an explicit server configuration assertion: the plugin can detect the display extension, but cannot verify the contents of a Bedrock client's packs. Keep bedrock.enabled false until the boss pack and mappings have been installed. Verify Java and Bedrock rendering before a public event.
 
 ## Commands
 All commands require yetiboss.admin (operators by default).
@@ -49,3 +57,14 @@ GitHub Actions runs attack-selection, participation and reward-persistence tests
 - Stop/unload/restart cleanup and no block/snow-layer changes.
 
 Existing repository GPL-3.0 license applies.
+
+## Boss pack troubleshooting
+- Use /yetiboss status. SUCCESSFULLY_LOADED is required on Java; merely ACCEPTED or DOWNLOADED is not enough.
+- FAILED_DOWNLOAD: verify the repository/release are public, and that resource-pack.url serves the exact YetiBoss-Pack.zip from this build.
+- DECLINED: enable server resource packs in the client's server settings and reconnect.
+- SUCCESSFULLY_LOADED with fallback: another viewer within 96 blocks has not loaded the boss pack.
+- Bedrock: install the dedicated boss mcpack alongside the display extension's own pack. Put the boss JSON beside the working CosmeticPets Geyser JSON, and the boss display YAML beside the working CosmeticPets display YAML. Keep each plugin's mappings as separate files. Restart before reconnecting.
+- Stop the boss and run /yetiboss reload to request the pack again, or reconnect.
+- The release is published only after all build checks pass. If using a custom host, update its ZIP together with the plugin JAR.
+
+For local builds, generate both packs with the resource-pack Python scripts before running mvn verify. GitHub Actions does this automatically.

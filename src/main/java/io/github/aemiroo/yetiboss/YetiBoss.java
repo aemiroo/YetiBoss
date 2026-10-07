@@ -12,6 +12,8 @@ import org.bukkit.entity.*;
 import org.bukkit.event.*;
 import org.bukkit.event.entity.*;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.event.world.*;
 import org.bukkit.inventory.*;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -33,6 +35,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private long tick,snowUntil;
     private final Random random=new Random();
     private boolean scriptedDamage;
+    private static final UUID BOSS_PACK_ID=UUID.fromString("01fd25be-18dd-4bb4-8974-c7873cd2f902");
+    private final Set<UUID> bossPackReady=new HashSet<>();
+    private final Map<UUID,String> packStates=new HashMap<>();
+    private byte[] bossPackHash;
 
     @Override public void onEnable() {
         saveDefaultConfig();
@@ -46,10 +52,16 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             getLogger().severe("Cannot enable YetiBoss: "+ex.getMessage()+". CosmeticPets 1.5.0 or newer is required.");
             getServer().getPluginManager().disablePlugin(this);return;
         }
+        try(var input=getResource("yeti-pack.sha1")) {
+            if(input==null)throw new IOException("Missing built boss pack hash");
+            bossPackHash=HexFormat.of().parseHex(new String(input.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8).trim());
+        } catch(Exception ex) {
+            getLogger().warning("Boss pack unavailable: "+ex.getMessage()+". The visible golem fallback will be used.");
+        }
         getServer().getPluginManager().registerEvents(this,this);
         for(World world:Bukkit.getWorlds()) for(Entity entity:world.getEntities()) cleanupStale(entity);
         getServer().getScheduler().runTaskTimer(this,this::tick,1,1);
-        for(Player player:Bukkit.getOnlinePlayers()) claim(player);
+        for(Player player:Bukkit.getOnlinePlayers()) { claim(player);requestBossPack(player); }
     }
     @Override public void onDisable() {
         stop(false);
@@ -125,7 +137,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             Objects.requireNonNull(golem.getAttribute(Attribute.MOVEMENT_SPEED)).setBaseValue(getConfig().getDouble("boss.movement-speed"));
             Objects.requireNonNull(golem.getAttribute(Attribute.KNOCKBACK_RESISTANCE)).setBaseValue(1);
             golem.setHealth(health);
-            golem.setSilent(true);golem.setInvisible(true);
+            golem.setSilent(true);golem.setInvisible(false);
         });
         getServer().getMobGoals().removeAllGoals(body);
         ItemDisplay model=at.getWorld().spawn(at,ItemDisplay.class,display->{
@@ -137,14 +149,15 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             display.setTransformation(new Transformation(new Vector3f(),new Quaternionf(),new Vector3f(scale),new Quaternionf()));
             display.setTeleportDuration(2);display.setInterpolationDuration(2);
             display.setDisplayWidth(scale);display.setDisplayHeight(scale);display.setViewRange(2);
-            display.setItemStack(modelItem("yeti"));
+            display.setItemStack(modelItem("giant_yeti"));
         });
         encounter=new Encounter(body,model,at.clone(),tick);
+        updateViewers(encounter);
         Bukkit.broadcastMessage(prefix()+ChatColor.RED+"The Giant Yeti has appeared!");
     }
     private ItemStack modelItem(String name) {
         ItemStack item=new ItemStack(Material.PAPER);ItemMeta meta=item.getItemMeta();
-        meta.setItemModel(new NamespacedKey("cosmeticpets",name));item.setItemMeta(meta);return item;
+        meta.setItemModel(new NamespacedKey("yetiboss",name));item.setItemMeta(meta);return item;
     }
     private void tick() {
         tick++;
@@ -186,7 +199,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(e.pending==null&&moved>.002&&moved<2) e.walk=(e.walk+moved)%1.8;
         else if(e.pending==null) e.walk=0;
         int frame=e.pending==null&&moved>.002?(int)(e.walk/1.8*12):-1;
-        String model=e.pending!=null?"yeti_walk_3":frame<0?"yeti":"yeti_walk_"+frame;
+        int attackFrame=e.pending==null?-1:Math.max(0,Math.min(7,
+                (int)((tick-e.windupStarted)*8/Math.max(1,e.releaseTick-e.windupStarted))));
+        String model=e.pending!=null?"giant_yeti_attack_"+attackFrame:
+                frame<0?"giant_yeti":"giant_yeti_walk_"+frame;
         if(!model.equals(e.modelName)) { e.model.setItemStack(modelItem(model));e.modelName=model; }
         e.model.teleport(at);e.last=at;
         if(e.barrageRemaining>0&&tick>=e.nextShot) {
@@ -219,7 +235,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         Player attackTarget=target;
         e.selector.choose(tick,e.enraged,distance,getConfig().getDouble("attacks.swipe.range"),
             getConfig().getDouble("attacks.slam.radius"),weights,random).ifPresent(attack->{
-                e.pending=attack;e.target=attackTarget.getUniqueId();
+                e.pending=attack;e.windupStarted=tick;e.target=attackTarget.getUniqueId();
                 e.aim=attackTarget.getEyeLocation().clone();
                 e.direction=attackTarget.getLocation().toVector().subtract(e.body.getLocation().toVector()).setY(0);
                 if(e.direction.lengthSquared()>0) e.direction.normalize();
@@ -239,11 +255,49 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         return players.stream().min(Comparator.comparingDouble(p->p.getLocation().distanceSquared(body.getLocation()))).orElse(null);
     }
     private void updateViewers(Encounter e) {
+        List<Player> viewers=e.body.getWorld().getPlayers().stream()
+            .filter(p->p.getLocation().distanceSquared(e.body.getLocation())<96*96).toList();
+        boolean custom=BossVisibility.custom(viewers.size(),(int)viewers.stream()
+            .filter(p->bossPackReady.contains(p.getUniqueId())).count(),e.model.isValid());
+        // Keep the living entity tracked for client-side melee selection.
+        // Mixed pack readiness uses a visible fallback for everyone.
+        e.body.setInvisible(custom);
+        e.customVisible=custom;
         for(Player player:e.body.getWorld().getPlayers()) {
-            boolean custom=pets.ready(player)&&player.getLocation().distanceSquared(e.body.getLocation())<96*96;
-            if(custom) player.showEntity(this,e.model);
+            boolean visible=custom&&viewers.contains(player);
+            if(visible)player.showEntity(this,e.model);
             else player.hideEntity(this,e.model);
+            if(viewers.contains(player)&&!bossPackReady.contains(player.getUniqueId())
+                    &&e.warned.add(player.getUniqueId()))
+                player.sendMessage(prefix()+"Using the visible golem fallback while the YetiBoss pack is unavailable. "+
+                    "Pack status: "+packStates.getOrDefault(player.getUniqueId(),"not requested")+".");
         }
+    }
+    private void requestBossPack(Player player) {
+        UUID id=player.getUniqueId();bossPackReady.remove(id);
+        if(BedrockPlayers.contains(id)) {
+            boolean installed=getConfig().getBoolean("bedrock.enabled",false)&&BedrockPlayers.displayBridgeEnabled();
+            if(installed)bossPackReady.add(id);
+            packStates.put(id,installed?"BEDROCK_CONFIGURED":"BEDROCK_PACKS_NOT_ENABLED");
+            return;
+        }
+        String url=getConfig().getString("resource-pack.url",
+            "https://github.com/aemiroo/YetiBoss/releases/download/yeti-pack/YetiBoss-Pack.zip");
+        if(bossPackHash==null||url==null||url.isBlank()) { packStates.put(id,"DISABLED");return; }
+        packStates.put(id,"REQUESTED");
+        try { player.addResourcePack(BOSS_PACK_ID,url,bossPackHash,"Giant Yeti boss model",false); }
+        catch(IllegalArgumentException ex) { packStates.put(id,"INVALID_URL");getLogger().warning("Invalid boss resource-pack URL"); }
+    }
+    @EventHandler public void bossPackStatus(PlayerResourcePackStatusEvent event) {
+        if(!BOSS_PACK_ID.equals(event.getID()))return;
+        UUID id=event.getPlayer().getUniqueId();
+        packStates.put(id,event.getStatus().name());
+        if(event.getStatus()==PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED)bossPackReady.add(id);
+        else bossPackReady.remove(id);
+        if(encounter!=null&&!encounter.defeated)updateViewers(encounter);
+    }
+    @EventHandler public void leave(PlayerQuitEvent event) {
+        UUID id=event.getPlayer().getUniqueId();bossPackReady.remove(id);packStates.remove(id);
     }
     private void telegraph(Encounter e) {
         Location at=e.body.getLocation();World world=at.getWorld();
@@ -434,7 +488,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         } catch(Exception ex) { getLogger().warning("Reward remains queued for "+id+": "+ex.getMessage()); }
     }
     @EventHandler public void join(PlayerJoinEvent event) {
-        Bukkit.getScheduler().runTaskLater(this,()->{if(event.getPlayer().isOnline())claim(event.getPlayer());},40);
+        Bukkit.getScheduler().runTaskLater(this,()->{if(event.getPlayer().isOnline()) {claim(event.getPlayer());requestBossPack(event.getPlayer());}},40);
     }
     @EventHandler public void target(EntityTargetLivingEntityEvent event) {
         if(encounter!=null&&event.getEntity().equals(encounter.body))event.setCancelled(true);
@@ -484,12 +538,17 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 if(encounter!=null&&encounter.defeated){sender.sendMessage(prefix()+"Rewards are pending; fix the save error first.");return true;}
                 stop(true);sender.sendMessage(prefix()+"Encounter stopped.");
             }
-            case "status" -> sender.sendMessage(prefix()+(encounter==null?"No active Yeti.":"Health: "+Math.ceil(encounter.body.getHealth())+
-                    " | Participants: "+encounter.participation.size()+" | Phase: "+(encounter.enraged?"enraged":"normal")));
+            case "status" -> {
+                sender.sendMessage(prefix()+(encounter==null?"No active Yeti.":"Health: "+Math.ceil(encounter.body.getHealth())+
+                    " | Participants: "+encounter.participation.size()+" | Phase: "+(encounter.enraged?"enraged":"normal")+
+                    " | Model: "+(encounter.customVisible?"Giant Yeti":"visible golem fallback")));
+                if(sender instanceof Player player)sender.sendMessage(prefix()+"Your boss pack: "+
+                    packStates.getOrDefault(player.getUniqueId(),"not requested"));
+            }
             case "reload" -> {
                 if(encounter!=null){sender.sendMessage(prefix()+"Stop the encounter before reloading.");return true;}
                 FileConfiguration old=getConfig();reloadConfig();
-                try { validate(getConfig());sender.sendMessage(prefix()+"Configuration reloaded."); }
+                try { validate(getConfig());for(Player player:Bukkit.getOnlinePlayers())requestBossPack(player);sender.sendMessage(prefix()+"Configuration reloaded; boss pack requested again."); }
                 catch(IllegalArgumentException ex) {
                     getConfig().getKeys(false).forEach(key->getConfig().set(key,null));
                     old.getValues(false).forEach((key,value)->getConfig().set(key,value));
@@ -509,11 +568,12 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private static final class Encounter {
         final UUID id=UUID.randomUUID();final IronGolem body;final ItemDisplay model;
         final Location origin;Location last,aim;org.bukkit.util.Vector direction;
-        final long started;long lastPlayers,nextAttack,releaseTick,nextShot,retryReward,nextRetarget;
+        final long started;long lastPlayers,nextAttack,releaseTick,nextShot,retryReward,nextRetarget,windupStarted;
         final AttackSelector selector=new AttackSelector();final Participation participation=new Participation();
         final BossBar bar=Bukkit.createBossBar("Giant Yeti",BarColor.BLUE,BarStyle.SEGMENTED_10);
-        Attack pending;UUID target,chaseTarget;boolean enraged,defeated;int barrageRemaining;
-        double walk;String modelName="yeti";Set<UUID> recipients=Set.of();
+        Attack pending;UUID target,chaseTarget;boolean enraged,defeated,customVisible;int barrageRemaining;
+        double walk;String modelName="giant_yeti";Set<UUID> recipients=Set.of();
+        final Set<UUID> warned=new HashSet<>();
         Encounter(IronGolem body,ItemDisplay model,Location origin,long tick) {
             this.body=body;this.model=model;this.origin=origin;last=origin.clone();started=tick;lastPlayers=tick;
         }

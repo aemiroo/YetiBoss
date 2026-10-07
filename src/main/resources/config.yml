@@ -56,3 +56,10 @@ snowfall:
   enabled: true
   duration-seconds: 300
   particles-per-player: 12
+
+resource-pack:
+  # Dedicated pack, independent of the CosmeticPets pack.
+  url: 'https://github.com/aemiroo/YetiBoss/releases/download/yeti-pack/YetiBoss-Pack.zip'
+bedrock:
+  # Enable only after installing the boss Bedrock pack and both boss mappings.
+  enabled: false
