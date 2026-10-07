@@ -1,0 +1,58 @@
+prefix: '&b[Yeti] &7'
+boss:
+  name: 'Giant Yeti'
+  health: 700.0
+  golem-scale: 1.4
+  model-scale: 4.3
+  movement-speed: 0.24
+  arena-radius: 64.0
+  leash-radius: 80.0
+  idle-despawn-seconds: 180
+  maximum-duration-seconds: 1800
+attacks:
+  global-cooldown-ticks: 35
+  ice-ball:
+    weight: 5
+    cooldown-ticks: 90
+    windup-ticks: 25
+    damage: 6.0
+    speed: 1.3
+    knockback: 0.6
+    slow-ticks: 40
+  swipe:
+    weight: 4
+    cooldown-ticks: 60
+    windup-ticks: 20
+    damage: 9.0
+    range: 5.0
+    knockback: 0.8
+  slam:
+    weight: 2
+    cooldown-ticks: 150
+    windup-ticks: 40
+    damage: 12.0
+    radius: 7.0
+    knockback: 1.1
+  barrage:
+    weight: 3
+    cooldown-ticks: 220
+    windup-ticks: 35
+    damage: 5.0
+    speed: 1.4
+    knockback: 0.5
+    slow-ticks: 30
+    count: 4
+    interval-ticks: 10
+rewards:
+  # XP points, not levels. Anyone who deals accepted positive damage participates.
+  experience: 3000
+  sword:
+    name: '&bFrostfang'
+    damage-enchantment-level: 5
+    frost-chance: 0.2
+    frost-cooldown-ticks: 80
+    slow-ticks: 60
+snowfall:
+  enabled: true
+  duration-seconds: 300
+  particles-per-player: 12
