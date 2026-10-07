@@ -11,36 +11,45 @@ def model(frame=None,attack=None):
    for y in range(a[1],b[1]):
     for z in range(a[2],b[2]):cells[x,y,z]=(material,part)
  # 32-voxel construction, exported at half-unit resolution.
- box((8,10,13),(24,23,25),'fur')
+ # Broad upper torso narrowing towards the hips.
+ box((10,10,13),(22,16,25),'fur')
+ box((8,16,13),(24,23,25),'fur')
  box((10,13,12),(22,21,13),'fur')
- box((1,7,12),(8,23,23),'fur','arm_l')
- box((24,7,12),(31,23,23),'fur','arm_r')
- box((0,4,10),(8,10,23),'frost_dark','arm_l')
- box((24,4,10),(32,10,23),'frost_dark','arm_r')
+ # Sloping upper arms, tapered forearms, shoulders overlap torso at the joints.
+ for y in range(7,24):
+  inner=0 if y<11 else 1 if y<16 else 2 if y<20 else 3
+  width=7 if y<16 else 8
+  box((inner,y,12),(inner+width,y+1,23),'fur','arm_l')
+  box((32-inner-width,y,12),(32-inner,y+1,23),'fur','arm_r')
+ box((0,4,10),(7,10,23),'frost_dark','arm_l')
+ box((25,4,10),(32,10,23),'frost_dark','arm_r')
  # Individual fingers and icy claws instead of square mittens.
  for x in (0,2,4,6):
   box((x,2,10),(x+1,6,13),'face','arm_l')
   box((x,2,9),(x+1,3,10),'tooth','arm_l')
   box((24+x,2,10),(25+x,6,13),'face','arm_r')
   box((24+x,2,9),(25+x,3,10),'tooth','arm_r')
- box((9,0,13),(15,12,24),'fur','leg_l')
- box((17,0,13),(23,12,24),'fur','leg_r')
- box((9,0,10),(15,3,24),'frost_dark','leg_l')
- box((17,0,10),(23,3,24),'frost_dark','leg_r')
- box((11,21,7),(23,32,21),'fur')
+ # Wide planted feet and slightly outward-stepped legs.
+ for y in range(12):
+  offset=0 if y<4 else 1 if y<8 else 2
+  box((7+offset,y,13),(13+offset,y+1,24),'fur','leg_l')
+  box((19-offset,y,13),(25-offset,y+1,24),'fur','leg_r')
+ box((6,0,10),(13,3,24),'frost_dark','leg_l')
+ box((19,0,10),(26,3,24),'frost_dark','leg_r')
+ box((11,19,7),(23,32,21),'fur')
  # Deep mouth: remove fur from the opening, leaving a dark recessed back.
  for x in range(13,21):
-  for y in range(23,28):
+  for y in range(21,28):
    for z in range(6,16):cells.pop((x,y,z),None)
- box((13,23,15),(21,28,16),'mouth')
- box((13,22,6),(21,23,16),'face')
- box((12,23,6),(13,28,16),'face');box((21,23,6),(22,28,16),'face')
+ box((13,21,15),(21,28,16),'mouth')
+ box((13,20,6),(21,21,16),'face')
+ box((12,21,6),(13,28,16),'face');box((21,21,6),(22,28,16),'face')
  box((13,28,6),(21,29,10),'face')
- box((14,23,10),(20,24,15),'tongue')
+ box((14,21,10),(20,22,15),'tongue')
  for x in (13,15,18,20):
-  depth=3 if x in (13,20) else 1
+  depth=4 if x in (13,20) else 2
   box((x,28-depth,6),(x+1,28,8),'tooth')
-  box((x,23,6),(x+1,24,8),'tooth')
+  box((x,21,6),(x+1,23,8),'tooth')
  # Recessed red eyes under a heavy brow, small squared muzzle.
  box((12,29,6),(16,31,7),'eye_shadow');box((18,29,6),(22,31,7),'eye_shadow')
  box((13,29,5),(15,30,6),'eye');box((19,29,5),(21,30,6),'eye')
@@ -53,7 +62,15 @@ def model(frame=None,attack=None):
   box((x,23,14),(x+2,24,21),'fur_light',part)
   box((x,17,11),(x+1,20,12),'fur',part)
  for x in (10,22):box((x,24,7),(x+1,30,9),'fur_light')
- for x in (12,15,18,21):box((x,20,8),(x+1,23,10),'fur_light')
+ for x in (12,15,18,21):box((x,18,8),(x+1,21,10),'fur_light')
+ # Stepped fur ends extend the silhouette on the upper arms and back.
+ for side in ('arm_l','arm_r'):
+  for top in (19,15,11):
+   outer=1 if top<16 else 2
+   for yy in range(top-3,top):
+    x=outer-1 if side=='arm_l' else 32-outer
+    box((x,yy,15),(x+1,yy+1,20),'fur_light',side)
+ for x in (9,12,19,22):box((x,20,25),(x+1,23,27),'fur_shadow')
  for (x,y,z),(material,part) in list(cells.items()):
   noise=(x*7+(y//2)*5+z*11)%23
   if material=='fur':
@@ -64,6 +81,14 @@ def model(frame=None,attack=None):
  directions={'west':(-1,0,0),'east':(1,0,0),'down':(0,-1,0),'up':(0,1,0),'north':(0,0,-1),'south':(0,0,1)}
  pivots={'arm_l':[2,9,8.5],'arm_r':[14,9,8.5],'leg_l':[6.5,5,8.5],'leg_r':[10.5,5,8.5]}
  elements=[]
+ # Stepped fur ends extend the silhouette on the upper arms and back.
+ for side in ('arm_l','arm_r'):
+  for top in (19,15,11):
+   outer=1 if top<16 else 2
+   for yy in range(top-3,top):
+    x=outer-1 if side=='arm_l' else 32-outer
+    box((x,yy,15),(x+1,yy+1,20),'fur_light',side)
+ for x in (9,12,19,22):box((x,20,25),(x+1,23,27),'fur_shadow')
  for (x,y,z),(material,part) in sorted(cells.items()):
   faces={}
   for face,(dx,dy,dz) in directions.items():

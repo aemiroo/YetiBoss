@@ -1,5 +1,5 @@
 # YetiBoss
-A Giant Yeti encounter for LARP SMP, targeting Paper/Purpur 26.3 using the compatible 1.21.4 Bukkit API. Java 21 or newer is required; the server's Java 25 is suitable. Version 0.3.1 is an initial server-test build.
+A Giant Yeti encounter for LARP SMP, targeting Paper/Purpur 26.3 using the compatible 1.21.4 Bukkit API. Java 21 or newer is required; the server's Java 25 is suitable. Version 0.3.2 is an initial server-test build.
 
 ## Install
 1. Install CosmeticPets **1.5.0 or newer**, its required PacketEvents dependency, and the current CosmeticPets resource packs/mappings.
@@ -90,3 +90,8 @@ The Yeti has longer, distinct legs and red eyes and a recessed fang-lined mouth.
 Live verification: test both summons navigating around obstacles, grab dodging/cancellation/disconnect, and Java/Bedrock visual poses on the target server.
 
 The latest boss model uses the second supplied mountain-Yeti reference: white/grey fur, heavy shoulders, long arms, distinct fingers and claws, red eyes and a deep mouth. It is an original block-built interpretation, not an imported mesh from the image.
+
+### 0.3.2 Warden damage
+Ice Warden targeting now permits eligible arena participants and refreshes native anger. Its native melee event is allowed, uses the configured damage, and applies Slowness only after accepted positive damage. Sonic-boom damage, friendly fire and hits outside the arena remain blocked; shields, armor and protection plugins still affect damage. The attack cooldown starts only after an accepted hit.
+
+The reference-based model now has broader shoulders, tapered and outward-stepped limbs, shaggy silhouette details and a taller fang-lined cavity. A single image does not contain the original mesh/textures or unseen sides: this is a closer reconstruction, not an exact imported model.

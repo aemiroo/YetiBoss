@@ -533,16 +533,13 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             if(delta.clone().setY(0).lengthSquared()>.001)mob.setRotation(
                     (float)Math.toDegrees(Math.atan2(-delta.getX(),delta.getZ())),0);
             if(minion.warden) {
-                double distance=delta.length();
-                if(distance>3) {
-                    if(tick%10==0)mob.getPathfinder().moveTo(target,1);
-                } else if(tick>=minion.nextAttack) {
-                    mob.getPathfinder().stopPathfinding();
-                    hitWithEffects(target,getConfig().getDouble("minions.ice-warden.damage"),delta,.65,
-                            getConfig().getInt("minions.ice-warden.slow-ticks"),mob);
-                    minion.nextAttack=tick+getConfig().getInt("minions.ice-warden.attack-cooldown-ticks");
-                    mob.swingMainHand();
+                // Warden movement/attacks use its native brain, not a second scripted hit.
+                if(tick%20==0) {
+                    ((Warden)mob).setAnger(target,150);
+                    ((Warden)mob).setDisturbanceLocation(target.getLocation());
+                    mob.setTarget(target);
                 }
+                if(delta.lengthSquared()>9&&tick%10==0)mob.getPathfinder().moveTo(target,1);
             } else {
                 if(delta.lengthSquared()>36) {
                     if(tick%10==0)mob.getPathfinder().moveTo(target,1);
@@ -570,7 +567,16 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(encounter!=null&&allied(event.getEntity())&&!(event instanceof EntityDamageByEntityEvent)) event.setCancelled(true);
         if(event instanceof EntityDamageByEntityEvent by) {
             if(by.getDamager().getPersistentDataContainer().has(entityKey,PersistentDataType.BYTE)
-                    &&!scriptedDamage) event.setCancelled(true);
+                    &&!scriptedDamage) {
+                IceMinion minion=encounter==null?null:encounter.minions.get(by.getDamager().getUniqueId());
+                if(minion!=null&&minion.warden) {
+                    boolean playerEligible=by.getEntity() instanceof Player player
+                        &&eligible(player,encounter.origin,getConfig().getDouble("boss.arena-radius"));
+                    if(!WardenStrikeGate.allowed(event.getCause()==EntityDamageEvent.DamageCause.ENTITY_ATTACK,
+                            playerEligible,tick,minion.nextAttack))event.setCancelled(true);
+                    else by.setDamage(getConfig().getDouble("minions.ice-warden.damage"));
+                } else event.setCancelled(true);
+            }
             if(allied(event.getEntity())) {
                 Player p=attacker(by.getDamager());
                 if(p==null||!eligible(p,encounter.origin,getConfig().getDouble("boss.arena-radius"))) event.setCancelled(true);
@@ -586,6 +592,15 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     public void acceptedDamage(EntityDamageByEntityEvent event) {
         if(event.getFinalDamage()<=0) return;
         Encounter e=encounter;
+        IceMinion striking=e==null?null:e.minions.get(event.getDamager().getUniqueId());
+        if(striking!=null&&striking.warden&&!scriptedDamage&&event.getEntity() instanceof Player player) {
+            striking.nextAttack=tick+getConfig().getInt("minions.ice-warden.attack-cooldown-ticks");
+            int duration=getConfig().getInt("minions.ice-warden.slow-ticks");
+            Bukkit.getScheduler().runTask(this,()->{
+                if(player.isOnline()&&!player.isDead())
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS,duration,0));
+            });
+        }
         if(e!=null&&allied(event.getEntity())) {
             Player p=attacker(event.getDamager());if(p!=null)e.participation.damage(p.getUniqueId(),event.getFinalDamage());
         }
@@ -693,7 +708,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         Bukkit.getScheduler().runTaskLater(this,()->{if(event.getPlayer().isOnline()) {claim(event.getPlayer());requestBossPack(event.getPlayer());}},40);
     }
     @EventHandler public void target(EntityTargetLivingEntityEvent event) {
-        if(allied(event.getEntity()))event.setCancelled(true);
+        if(!allied(event.getEntity()))return;
+        IceMinion minion=encounter.minions.get(event.getEntity().getUniqueId());
+        if(minion!=null&&minion.warden&&event.getTarget() instanceof Player player
+                &&eligible(player,encounter.origin,getConfig().getDouble("boss.arena-radius")))return;
+        event.setCancelled(true);
     }
     @EventHandler public void chunkLoad(ChunkLoadEvent event) {
         for(Entity entity:event.getChunk().getEntities())cleanupStale(entity);
