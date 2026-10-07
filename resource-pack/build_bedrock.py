@@ -77,6 +77,7 @@ def files():
                   'uuid':'f5d7fcef-34a7-48fa-a98f-2155802ef6e4','version':[0,2,1],'min_engine_version':[1,21,0]},
         'modules':[{'type':'resources','uuid':'ec728d89-387d-4a04-bdb0-7263d53d0a33','version':[0,2,1]}]}),
         'LICENSE.txt':source['LICENSE.txt'],
+        'LICENSE-CosmeticPets.txt':source['LICENSE-CosmeticPets.txt'],
         'render_controllers/yetiboss.json':encoded({'format_version':'1.8.0','render_controllers':{
             'controller.render.yetiboss':{'geometry':'Geometry.default',
                 'materials':[{'*':'Material.default'}],'textures':['Texture.default']}}})}
