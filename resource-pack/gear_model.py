@@ -1,14 +1,54 @@
 """Original low-poly frost gear, with hand and inventory transforms."""
-import struct,zlib
-MATERIALS={'gear_ice':(81,199,230),'gear_edge':(202,246,255),'gear_core':(29,119,165),
- 'gear_steel':(38,58,77),'gear_grip':(61,78,91),'gear_silver':(151,187,205),'gear_string':(225,242,249)}
+import math,struct,zlib
+MATERIALS={'gear_ice':(118,173,200),'gear_edge':(221,242,249),'gear_core':(35,83,120),
+ 'gear_steel':(35,43,55),'gear_grip':(70,49,38),'gear_silver':(153,173,186),'gear_string':(212,223,230)}
+def color(name,x,y):
+ base=MATERIALS[name]
+ grain=((x*13+y*7+x*y*3)%11)-5
+ if name=='gear_ice':
+  crack=3+(y//2)%4;branch=11-(y//3)%4
+  if x in (crack,branch):return (42,96,130)
+  if x in (crack+1,branch+1) or (x*7+y*11)%29==0:return (186,229,242)
+  rim=17 if min(x,y,15-x,15-y)<2 else 0
+  return tuple(min(255,c+grain+rim) for c in base)
+ if name=='gear_edge':
+  shade=-24 if x in (0,15) else 5 if (x+y)%9==0 else grain
+ elif name=='gear_steel':
+  shade=45 if x in (0,15) or y in (0,15) else 11 if y%4==0 else grain
+ elif name=='gear_grip':
+  if x in (2,13) and y%4==1:return (151,125,91)
+  shade=17 if y%4 in (0,1) else -10
+ elif name=='gear_core':
+  if (x in (6,9) and 3<=y<=12) or (y in (3,7,12) and 6<=x<=9):return (99,212,237)
+  shade=grain
+ elif name=='gear_silver':shade=23 if x<3 else -20 if x>12 else grain
+ else:shade=grain//2
+ return tuple(max(0,min(255,c+shade)) for c in base)
+def grip_point(name):
+ if name=='frostfang':return (8,2.85,8)
+ if name=='frostpickaxe':return (8,3,8)
+ return (8.4,8,8)
+def hand_pose(name,rotation,scale,target,left=False):
+ # Anchor the physical grip to the vanilla holder's palm, before parent transforms.
+ x,y,z=(v-8 for v in grip_point(name))
+ rx,ry,rz=rotation
+ if left:
+  ry,rz=-ry,-rz
+  target=(-target[0],target[1],target[2])
+ for axis,degrees in (('z',rz),('y',ry),('x',rx)):
+  c=math.cos(math.radians(degrees));s=math.sin(math.radians(degrees))
+  if axis=='z':x,y=x*c-y*s,x*s+y*c
+  elif axis=='y':x,z=x*c+z*s,-x*s+z*c
+  else:y,z=y*c-z*s,y*s+z*c
+ translation=[round(t-v*scale,6) for t,v in zip(target,(x,y,z))]
+ if left:translation[0]=-translation[0]
+ return {'rotation':rotation,'translation':translation,'scale':[scale]*3}
 GEAR_MODELS=('frostfang','frostbow','frostbow_pull_0','frostbow_pull_1','frostbow_pull_2','frostpickaxe')
 GEAR_ITEMS={'frostfang':'minecraft:netherite_sword','frostbow':'minecraft:bow','frostpickaxe':'minecraft:netherite_pickaxe'}
 def texture(name):
  def chunk(kind,data):return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
  def pixel(x,y):
-  base=MATERIALS[name];shade=((x//3+y//4)%3-1)*5
-  return bytes(max(0,min(255,c+shade)) for c in base)+b'\xff'
+  return bytes(color(name,x,y))+b'\xff'
  raw=b''.join(b'\0'+b''.join(pixel(x,y) for x in range(16)) for y in range(16))
  return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',16,16,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
 def model(name):
@@ -59,17 +99,15 @@ def model(name):
    box([13.7,7.55,7.6],[14.8,8.45,8.2],'gear_ice')
  display={'gui':{'rotation':[15,-20,-30],'translation':[0,0,0],'scale':[.85,.85,.85]},
  'ground':{'rotation':[0,0,0],'translation':[0,3,0],'scale':[.45,.45,.45]},
- 'fixed':{'rotation':[0,180,0],'translation':[0,0,0],'scale':[.8,.8,.8]},
- 'thirdperson_righthand':{'rotation':[0,-90,-90],'translation':[0,4,0],'scale':[.85,.85,.85]},
- 'thirdperson_lefthand':{'rotation':[0,90,90],'translation':[0,4,0],'scale':[.85,.85,.85]},
- 'firstperson_righthand':{'rotation':[0,-90,0],'translation':[1.13,3.2,1.13],'scale':[.68,.68,.68]},
- 'firstperson_lefthand':{'rotation':[0,90,0],'translation':[1.13,3.2,1.13],'scale':[.68,.68,.68]}}
- if name.startswith('frostbow'):
-  # Bow uses its own hand poses; the central grip stays near the palm in all draw stages.
-  display['thirdperson_righthand']={'rotation':[-80,260,-40],'translation':[-1,-2,2.5],'scale':[.9,.9,.9]}
-  display['thirdperson_lefthand']={'rotation':[-80,-280,40],'translation':[-1,-2,2.5],'scale':[.9,.9,.9]}
-  display['firstperson_righthand']={'rotation':[0,-90,25],'translation':[1.13,3.2,1.13],'scale':[.68,.68,.68]}
-  display['firstperson_lefthand']={'rotation':[0,90,-25],'translation':[1.13,3.2,1.13],'scale':[.68,.68,.68]}
+ 'fixed':{'rotation':[0,180,0],'translation':[0,0,0],'scale':[.8,.8,.8]}}
+ # The palm anchors are measured in item-model units; left-hand mirroring is applied by Minecraft.
+ bow=name.startswith('frostbow')
+ right=[-90,0,0] if bow else [0,-90,-90]
+ left=[-90,0,0] if bow else [0,90,90]
+ display['thirdperson_righthand']=hand_pose(name,right,.85,(0,-2,1))
+ display['thirdperson_lefthand']=hand_pose(name,left,.85,(0,-2,1),True)
+ display['firstperson_righthand']=hand_pose(name,[0,-90,0],.68,(1.13,-1.3,-.5))
+ display['firstperson_lefthand']=hand_pose(name,[0,90,0],.68,(1.13,-1.3,-.5),True)
  return {'textures':{n:'yetiboss:gear/'+n for n in MATERIALS},'elements':es,'display':display}
 def item_definition(name):
  def reference(n):return {'type':'minecraft:model','model':'yetiboss:gear/'+n}
@@ -89,7 +127,7 @@ def icon(name):
   a,b=e['from'],e['to'];mat=e['faces']['north']['texture'][1:]
   for y in range(16):
    for x in range(16):
-    if a[0]<x+1 and x<b[0] and a[1]<16-y and 15-y<b[1]:pixels[y*16+x]=MATERIALS[mat]+(255,)
+    if a[0]<x+1 and x<b[0] and a[1]<16-y and 15-y<b[1]:pixels[y*16+x]=color(mat,x,15-y)+(255,)
  def chunk(kind,data):return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
  raw=b''.join(b'\0'+b''.join(bytes(p) for p in pixels[y*16:(y+1)*16]) for y in range(16))
  return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',16,16,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')

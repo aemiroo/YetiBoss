@@ -182,3 +182,10 @@ This release implements appearance; Frost Bow and Glacier Pickaxe currently reta
 ## Gear hand pose corrections (0.6.3)
 
 Frostfang and Glacier Pickaxe use third-person transforms aligned with their upright geometry, so their blades/heads extend upward from the hand. Their first-person transforms no longer apply the diagonal tilt intended for generated vanilla sprites. Frost Bow has separate bow holding transforms for both hands, shared by all drawing stages. Update the plugin (contains the pack hash) and resource pack, then restart and reconnect.
+
+
+## Grip anchoring and frost textures (0.6.4)
+
+The sword, pickaxe and all bow draw stages now anchor their actual grip point to the palm, instead of placing the item by its overall bounding-box center. Java first/third-person left and right poses account for Minecraft's hand mirroring. Bedrock hand-bound geometries use the same physical grip as their origin.
+
+All three items have new darker forged metal, stitched leather wraps, pale rime edges, branching ice cracks, and restrained cyan runic inlays. Bedrock inventory icons now sample the same patterned materials rather than flat color swatches. Replace the JAR and Java/Bedrock packs, then restart and reconnect to load the new pack hash.

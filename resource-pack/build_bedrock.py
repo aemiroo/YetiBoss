@@ -6,7 +6,7 @@ bundled here. All generated model/texture content remains original MIT content.
 import json, struct, zlib, zipfile
 from build_pack import ROOT, MODELS, files as java_files
 
-from gear_model import GEAR_MODELS,GEAR_ITEMS,icon as gear_icon
+from gear_model import GEAR_MODELS,GEAR_ITEMS,grip_point,icon as gear_icon
 PETS = MODELS+GEAR_MODELS
 
 def encoded(value):
@@ -41,6 +41,7 @@ def geometry(pet, model, names):
     glowing = []
     translate = model['display']['fixed']['translation']
     gear=pet in GEAR_MODELS
+    gx,gy,gz=grip_point(pet) if gear else (8,0,8)
     for element in model['elements']:
         a, b = element['from'], element['to']
         uv = {}
@@ -50,12 +51,12 @@ def geometry(pet, model, names):
             tile = names.index(definition['texture'][1:])
             uv[bedrock_face] = {'uv':[tile*16,0], 'uv_size':[16,16]}
         destination = glowing if element.get('light_emission',0) else cubes
-        cube={'origin':[8-b[0]-translate[0],a[1]+translate[1]-(8 if gear else 0),a[2]-8+translate[2]],
+        cube={'origin':[gx-b[0]-translate[0],a[1]+translate[1]-gy,a[2]-gz+translate[2]],
                       'size':[b[i]-a[i] for i in range(3)],'uv':uv}
         if 'rotation' in element:
             rotation=element['rotation']
             px,py,pz=rotation['origin']
-            cube['pivot']=[8-px-translate[0],py+translate[1],pz-8+translate[2]]
+            cube['pivot']=[gx-px-translate[0],py+translate[1]-gy,pz-gz+translate[2]]
             # Bedrock cube rotations use the opposite X rotation convention.
             cube['rotation']=[-rotation['angle'] if rotation['axis']=='x' else 0,
                               rotation['angle'] if rotation['axis']=='y' else 0,
@@ -77,8 +78,8 @@ def files():
     source = java_files()
     result = {'manifest.json':encoded({'format_version':2,
         'header':{'name':'YetiBoss Bedrock','description':'Original Father and Mother Yeti bosses',
-                  'uuid':'f5d7fcef-34a7-48fa-a98f-2155802ef6e4','version':[0,6,3],'min_engine_version':[1,21,0]},
-        'modules':[{'type':'resources','uuid':'ec728d89-387d-4a04-bdb0-7263d53d0a33','version':[0,6,3]}]}),
+                  'uuid':'f5d7fcef-34a7-48fa-a98f-2155802ef6e4','version':[0,6,4],'min_engine_version':[1,21,0]},
+        'modules':[{'type':'resources','uuid':'ec728d89-387d-4a04-bdb0-7263d53d0a33','version':[0,6,4]}]}),
         'LICENSE.txt':source['LICENSE.txt'],
         'render_controllers/yetiboss.json':encoded({'format_version':'1.8.0','render_controllers':{
             'controller.render.yetiboss':{'geometry':'Geometry.default',

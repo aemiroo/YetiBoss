@@ -39,6 +39,8 @@ class GearPackTest(unittest.TestCase):
   for name in ('frostfang','frostpickaxe'):
    for hand in ('thirdperson_righthand','thirdperson_lefthand'):
     pose=model(name)['display'][hand];v=(0,1,0)
+    pose=dict(pose)
+    if hand.endswith('lefthand'):pose['rotation']=[pose['rotation'][0],-pose['rotation'][1],-pose['rotation'][2]]
     for axis,degrees in reversed(list(zip('xyz',pose['rotation']))):v=rotate(v,axis,degrees)
     # Minecraft's third-person item holder applies Y=180 and X=-90.
     v=rotate(rotate(v,'y',180),'x',-90)
@@ -49,3 +51,34 @@ class GearPackTest(unittest.TestCase):
   for name in ('frostbow_pull_0','frostbow_pull_1','frostbow_pull_2'):
    self.assertEqual(bow,model(name)['display'])
    self.assertEqual(model('frostbow')['elements'][0],model(name)['elements'][0])
+
+ def test_grip_reaches_palm_in_every_hand_and_draw_stage(self):
+  import math
+  from gear_model import grip_point
+  def rotate(v,axis,degrees):
+   x,y,z=v;c=math.cos(math.radians(degrees));s=math.sin(math.radians(degrees))
+   return ((x,y*c-z*s,y*s+z*c) if axis=='x' else
+           (x*c+z*s,y,-x*s+z*c) if axis=='y' else (x*c-y*s,x*s+y*c,z))
+  for name in GEAR_MODELS:
+   for hand in ('thirdperson_righthand','thirdperson_lefthand','firstperson_righthand','firstperson_lefthand'):
+    pose=model(name)['display'][hand];left=hand.endswith('lefthand')
+    rotations=list(pose['rotation']);translation=list(pose['translation'])
+    if left:rotations[1]*=-1;rotations[2]*=-1;translation[0]*=-1
+    v=tuple(p-8 for p in grip_point(name))
+    for axis,degrees in reversed(list(zip('xyz',rotations))):v=rotate(v,axis,degrees)
+    actual=[p*scale+t for p,scale,t in zip(v,pose['scale'],translation)]
+    target=(0,-2,1) if hand.startswith('thirdperson') else (-1.13 if left else 1.13,-1.3,-.5)
+    for a,b in zip(actual,target):self.assertAlmostEqual(a,b,places=5)
+ def test_bedrock_gear_is_originated_at_actual_grip(self):
+  from gear_model import grip_point
+  for name in GEAR_MODELS:
+   m=model(name);gx,gy,gz=grip_point(name)
+   geo=json.loads(self.bedrock['models/entity/'+name+'.geo.json'])['minecraft:geometry'][0]
+   for element,cube in zip(m['elements'],geo['bones'][0]['cubes']):
+    self.assertEqual([gx-element['to'][0],element['from'][1]-gy,element['from'][2]-gz],cube['origin'])
+ def test_frost_materials_have_cracks_wrapping_and_highlights(self):
+  from gear_model import color
+  self.assertNotEqual(color('gear_ice',3,0),color('gear_ice',4,0))
+  self.assertGreater(color('gear_steel',0,8)[0],color('gear_steel',8,8)[0])
+  self.assertNotEqual(color('gear_grip',8,0),color('gear_grip',8,2))
+  self.assertGreater(color('gear_core',6,7)[1],color('gear_core',2,7)[1])
