@@ -177,3 +177,8 @@ Mother is now 25% smaller than Father by default, with a narrower silhouette, pa
 Frostfang now uses an original jagged ice blade with a dark hilt. Frost Bow uses curved ice limbs and three Java draw stages. Glacier Pickaxe uses a broad two-sided frozen head. All have first/third person, inventory, frame and ground transforms, with Bedrock held-item geometries and mappings on their real sword/bow/pickaxe base items. Father drops the new Frostfang model automatically. Admins can inspect each with `/yetiboss give frostfang`, `/yetiboss give frostbow`, and `/yetiboss give frostpickaxe`.
 
 This release implements appearance; Frost Bow and Glacier Pickaxe currently retain their vanilla abilities. Slowing/homing arrows, 3×3 mining, throwable boss ice and configurable additional loot are still pending. Update both packs and the Geyser item mappings, replace the plugin, then restart and reconnect.
+
+
+## Gear hand pose corrections (0.6.3)
+
+Frostfang and Glacier Pickaxe use third-person transforms aligned with their upright geometry, so their blades/heads extend upward from the hand. Their first-person transforms no longer apply the diagonal tilt intended for generated vanilla sprites. Frost Bow has separate bow holding transforms for both hands, shared by all drawing stages. Update the plugin (contains the pack hash) and resource pack, then restart and reconnect.

@@ -60,12 +60,16 @@ def model(name):
  display={'gui':{'rotation':[15,-20,-30],'translation':[0,0,0],'scale':[.85,.85,.85]},
  'ground':{'rotation':[0,0,0],'translation':[0,3,0],'scale':[.45,.45,.45]},
  'fixed':{'rotation':[0,180,0],'translation':[0,0,0],'scale':[.8,.8,.8]},
- 'thirdperson_righthand':{'rotation':[0,-90,55],'translation':[0,4,0],'scale':[.85,.85,.85]},
- 'thirdperson_lefthand':{'rotation':[0,90,-55],'translation':[0,4,0],'scale':[.85,.85,.85]},
- 'firstperson_righthand':{'rotation':[0,-90,25],'translation':[1.13,3.2,1.13],'scale':[.68,.68,.68]},
- 'firstperson_lefthand':{'rotation':[0,90,-25],'translation':[1.13,3.2,1.13],'scale':[.68,.68,.68]}}
+ 'thirdperson_righthand':{'rotation':[0,-90,-90],'translation':[0,4,0],'scale':[.85,.85,.85]},
+ 'thirdperson_lefthand':{'rotation':[0,90,90],'translation':[0,4,0],'scale':[.85,.85,.85]},
+ 'firstperson_righthand':{'rotation':[0,-90,0],'translation':[1.13,3.2,1.13],'scale':[.68,.68,.68]},
+ 'firstperson_lefthand':{'rotation':[0,90,0],'translation':[1.13,3.2,1.13],'scale':[.68,.68,.68]}}
  if name.startswith('frostbow'):
+  # Bow uses its own hand poses; the central grip stays near the palm in all draw stages.
+  display['thirdperson_righthand']={'rotation':[-80,260,-40],'translation':[-1,-2,2.5],'scale':[.9,.9,.9]}
+  display['thirdperson_lefthand']={'rotation':[-80,-280,40],'translation':[-1,-2,2.5],'scale':[.9,.9,.9]}
   display['firstperson_righthand']={'rotation':[0,-90,25],'translation':[1.13,3.2,1.13],'scale':[.68,.68,.68]}
+  display['firstperson_lefthand']={'rotation':[0,90,-25],'translation':[1.13,3.2,1.13],'scale':[.68,.68,.68]}
  return {'textures':{n:'yetiboss:gear/'+n for n in MATERIALS},'elements':es,'display':display}
 def item_definition(name):
  def reference(n):return {'type':'minecraft:model','model':'yetiboss:gear/'+n}

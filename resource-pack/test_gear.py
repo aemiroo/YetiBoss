@@ -29,3 +29,23 @@ class GearPackTest(unittest.TestCase):
    geo=json.loads(self.bedrock['models/entity/'+name+'.geo.json'])
    self.assertEqual('query.item_slot_to_bone_name(context.item_slot)',geo['minecraft:geometry'][0]['bones'][0]['binding'])
    self.assertIn('textures/yetiboss/'+name+'_icon.png',self.bedrock)
+
+ def test_upright_tools_point_up_in_both_third_person_hands(self):
+  import math
+  def rotate(v,axis,degrees):
+   x,y,z=v;c=math.cos(math.radians(degrees));s=math.sin(math.radians(degrees))
+   return ((x,y*c-z*s,y*s+z*c) if axis=='x' else
+           (x*c+z*s,y,-x*s+z*c) if axis=='y' else (x*c-y*s,x*s+y*c,z))
+  for name in ('frostfang','frostpickaxe'):
+   for hand in ('thirdperson_righthand','thirdperson_lefthand'):
+    pose=model(name)['display'][hand];v=(0,1,0)
+    for axis,degrees in reversed(list(zip('xyz',pose['rotation']))):v=rotate(v,axis,degrees)
+    # Minecraft's third-person item holder applies Y=180 and X=-90.
+    v=rotate(rotate(v,'y',180),'x',-90)
+    self.assertLess(v[1],-.99) # Render-space negative Y is upward.
+ def test_bow_has_distinct_hand_pose_and_draw_stages_keep_same_grip(self):
+  bow=model('frostbow')['display'];sword=model('frostfang')['display']
+  self.assertNotEqual(sword['thirdperson_righthand'],bow['thirdperson_righthand'])
+  for name in ('frostbow_pull_0','frostbow_pull_1','frostbow_pull_2'):
+   self.assertEqual(bow,model(name)['display'])
+   self.assertEqual(model('frostbow')['elements'][0],model(name)['elements'][0])

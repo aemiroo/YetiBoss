@@ -77,8 +77,8 @@ def files():
     source = java_files()
     result = {'manifest.json':encoded({'format_version':2,
         'header':{'name':'YetiBoss Bedrock','description':'Original Father and Mother Yeti bosses',
-                  'uuid':'f5d7fcef-34a7-48fa-a98f-2155802ef6e4','version':[0,6,2],'min_engine_version':[1,21,0]},
-        'modules':[{'type':'resources','uuid':'ec728d89-387d-4a04-bdb0-7263d53d0a33','version':[0,6,2]}]}),
+                  'uuid':'f5d7fcef-34a7-48fa-a98f-2155802ef6e4','version':[0,6,3],'min_engine_version':[1,21,0]},
+        'modules':[{'type':'resources','uuid':'ec728d89-387d-4a04-bdb0-7263d53d0a33','version':[0,6,3]}]}),
         'LICENSE.txt':source['LICENSE.txt'],
         'render_controllers/yetiboss.json':encoded({'format_version':'1.8.0','render_controllers':{
             'controller.render.yetiboss':{'geometry':'Geometry.default',
