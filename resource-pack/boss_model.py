@@ -201,18 +201,27 @@ def model(frame=None,attack=None,kind='slam'):
  # Pale blue fringe beneath the square muzzle.
  for j,x in enumerate((6.1,7.2,8.3,9.4)):
   box((x,8.55-(j%2)*.25,3.5),(x+.65,9.21,4.25),'fur_shadow')
- # Branched antlers: outward beam plus upward tips and lower tines.
+ # Antlers use shared joint coordinates; extend each beam into its joint.
+ # Rotating disconnected boxes about their own centers left floating tips.
  for side in (-1,1):
-  def antler(a,b,angle=0):
-   if side==1:a,b=(16-b[0],a[1],a[2]),(16-a[0],b[1],b[2])
-   center=[(a[i]+b[i])/2 for i in range(3)]
-   box(a,b,'horn',angle=angle*(-side),pivot=center,axis='z')
-  antler((3.4,12.8,5.6),(5.8,13.48,6.5),22.5)
-  antler((1.9,13.6,5.65),(3.65,14.26,6.45),22.5)
-  antler((1.12,14.18,5.7),(1.78,15.65,6.4),22.5)
-  antler((3.05,14.05,5.62),(3.65,15.0,6.35),-22.5)
-  antler((3.5,11.95,5.58),(4.12,13.1,6.3),-22.5)
-  antler((2.65,12.5,5.55),(3.3,13.45,6.25),-22.5)
+  def beam(start,length,vertical=False,angle=-22.5,width=.62):
+   radians=math.radians(angle)
+   direction=(-math.sin(radians),math.cos(radians)) if vertical else (-math.cos(radians),-math.sin(radians))
+   end=(start[0]+direction[0]*length,start[1]+direction[1]*length)
+   center=[(start[0]+end[0])/2,(start[1]+end[1])/2,6.02]
+   half=[width/2,(length+.28)/2] if vertical else [(length+.28)/2,width/2]
+   a=(center[0]-half[0],center[1]-half[1],5.62)
+   b=(center[0]+half[0],center[1]+half[1],6.42)
+   if side==1:
+    a,b=(16-b[0],a[1],a[2]),(16-a[0],b[1],b[2]);center[0]=16-center[0]
+   box(a,b,'horn',angle=angle if side==-1 else -angle,pivot=center,axis='z')
+   return end
+  root=(5.32,12.68)
+  joint=beam(root,1.8)
+  tip=beam(joint,1.65,width=.55)
+  beam(tip,1.5,vertical=True,angle=22.5,width=.46)
+  beam(joint,1.1,vertical=True,angle=-22.5,width=.48)
+  beam((joint[0]+.35,joint[1]-.15),.95,vertical=True,angle=22.5,width=.45)
  # Lowered head and antlers sit forward of the shoulder mantle.
  for e in es[18:]:
   for bound in ('from','to'):

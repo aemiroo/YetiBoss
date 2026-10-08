@@ -128,3 +128,27 @@ class BossPackTest(unittest.TestCase):
    self.assertEqual(a['angle'],b['angle'])
    self.assertEqual(round(8+(a['origin'][0]-8)*.9,6),b['origin'][0])
    self.assertEqual(a['origin'][1:],b['origin'][1:])
+
+ def test_father_antler_branches_form_two_connected_groups(self):
+  import math
+  def polygon(e):
+   a,b=e['from'],e['to'];r=e['rotation'];ox,oy,_=r['origin']
+   c,s=math.cos(math.radians(r['angle'])),math.sin(math.radians(r['angle']))
+   return [(ox+(x-ox)*c-(y-oy)*s,oy+(x-ox)*s+(y-oy)*c) for x,y in ((a[0],a[1]),(b[0],a[1]),(b[0],b[1]),(a[0],b[1]))]
+  def intersects(a,b):
+   for poly in (a,b):
+    for i,(x,y) in enumerate(poly):
+     nx,ny=poly[(i+1)%4];axis=(y-ny,nx-x)
+     aa=[x*axis[0]+y*axis[1] for x,y in a];bb=[x*axis[0]+y*axis[1] for x,y in b]
+     if min(max(aa),max(bb))-max(min(aa),min(bb))<=1e-8:return False
+   return True
+  for pose in (model(),model(frame=3),model(attack=3)):
+   horns=[e for e in pose['elements'] if e['faces']['north']['texture']=='#horn']
+   for right in (False,True):
+    group=[polygon(e) for e in horns if (e['from'][0]>8)==right]
+    seen={0}
+    while True:
+     expanded=seen|{j for j in range(len(group)) if any(intersects(group[i],group[j]) for i in seen)}
+     if expanded==seen:break
+     seen=expanded
+    self.assertEqual(len(group),len(seen),'Floating antler segment')
