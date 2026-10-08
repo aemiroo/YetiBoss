@@ -153,12 +153,12 @@ def texture_color(mat,x,y):
  return _previous_texture_color(name,x,y)
 
 def model(frame=None,attack=None,kind='slam'):
- """Antlered Father draft reconstructed from the supplied front reference."""
+ """Antlered Father with forward shoulders and a low knuckle stance."""
  es=[];phase=2*math.pi*(frame or 0)/12
  def box(a,b,mat,part=None,angle=0,pivot=None,axis='x'):
   if part:
    side=-1 if part.endswith('l') else 1
-   pivot=[8+side*4.5,10.8,8] if part.startswith('arm') else [8+side*1.7,4.4,8.5]
+   pivot=[8+side*4.5,10.3,7.2] if part.startswith('arm') else [8+side*1.7,4.4,8.5]
    if frame is not None:angle=round(math.sin(phase))*22.5*(side if part.startswith('leg') else -side)
    if attack is not None and part.startswith('arm'):
     peak=round(math.sin(math.pi*attack/7)*2)*22.5
@@ -170,23 +170,24 @@ def model(frame=None,attack=None,kind='slam'):
   if angle:e['rotation']={'origin':pivot,'angle':angle,'axis':axis,'rescale':False}
   es.append(e);return e
  # Deep shoulder mantle, low hips and a head recessed into the chest.
- box((3.6,6.5,6.4),(12.4,12.1,11.8),'fur')
- box((4.2,10.9,7.5),(11.8,13.35,11.75),'fur_light')
+ box((3.6,6.5,6.4),(12.4,11.5,11.8),'fur',angle=22.5,pivot=[8,6.5,8])
+ box((4.2,10.35,6.2),(11.8,12.6,10.9),'fur_light')
  box((5.5,4.2,7.0),(10.5,6.48,10.8),'fur_shadow')
  box((6.3,3.65,6.7),(9.7,4.18,10.5),'fur')
  for side in (-1,1):
   part='leg_l' if side==-1 else 'leg_r';x=5.2 if side==-1 else 8.6
-  box((x,1.0,7.2),(x+2.2,4.25,10.35),'fur',part)
+  box((x,2.45,8.05),(x+2.2,4.25,11.0),'fur',part)
+  box((x,1.0,7.2),(x+2.2,2.42,10.35),'fur_shadow',part)
   box((x-.15,0,6.3),(x+2.35,1.03,10.7),'fur_light',part)
   part='arm_l' if side==-1 else 'arm_r'
   def arm(a,b,mat):
    if side==1:a,b=(16-b[0],a[1],a[2]),(16-a[0],b[1],b[2])
    return box(a,b,mat,part)
-  arm((.8,7.6,6.2),(3.58,11.9,10.9),'fur_light')
-  arm((1.35,2.6,6.7),(3.55,7.58,10.5),'fur')
-  arm((.85,0.1,5.5),(3.85,2.63,10.8),'fur_shadow')
+  arm((.8,6.6,5.7),(3.58,10.9,10.4),'fur_light')
+  arm((1.35,2.6,4.8),(3.55,6.58,8.8),'fur')
+  arm((.85,0.1,3.6),(3.85,2.63,8.9),'fur_shadow')
   # Light cuff and subtly striped oversized fist.
-  arm((.79,2.5,5.44),(3.91,3.1,10.86),'fur_light')
+  arm((.79,2.5,3.54),(3.91,3.1,8.96),'fur_light')
  box((5.25,10.3,4.8),(10.75,13.4,8.0),'fur_light')
  face=box((5.85,11.15,4.49),(10.15,12.95,4.78),'face_plain')
  face['faces']['north']['texture']='#ice_face'
@@ -212,5 +213,13 @@ def model(frame=None,attack=None,kind='slam'):
   antler((3.05,14.05,5.62),(3.65,15.0,6.35),-22.5)
   antler((3.5,11.95,5.58),(4.12,13.1,6.3),-22.5)
   antler((2.65,12.5,5.55),(3.3,13.45,6.25),-22.5)
+ # Lowered head and antlers sit forward of the shoulder mantle.
+ for e in es[18:]:
+  for bound in ('from','to'):
+   e[bound][1]=round(e[bound][1]-1.1,6)
+   e[bound][2]=round(e[bound][2]-.45,6)
+  if 'rotation' in e:
+   e['rotation']['origin'][1]-=1.1
+   e['rotation']['origin'][2]-=.45
  return {'elements':es,'textures':{n:'yetiboss:boss/father_'+n for n in BASE_MATERIALS},
          'display':{'fixed':{'rotation':[0,0,0],'translation':[0,8,0],'scale':[1,1,1]}}}

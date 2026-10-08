@@ -43,7 +43,7 @@ class BossPackTest(unittest.TestCase):
   self.assertTrue(all(e['to'][2]<=3.65 for e in teeth))
  def test_walk_swings_arms_and_alternates_legs(self):
   walk=model(frame=3)
-  for start in ([.85,.1,5.5],[12.15,.1,5.5]):
+  for start in ([.85,.1,3.6],[12.15,.1,3.6]):
    e=next(e for e in walk['elements'] if e['from']==start)
    self.assertEqual(22.5 if start[0]<8 else -22.5,e['rotation']['angle'])
    self.assertEqual('x',e['rotation']['axis'])
@@ -51,11 +51,11 @@ class BossPackTest(unittest.TestCase):
    e=next(e for e in walk['elements'] if e['from']==start)
    self.assertEqual(sign*22.5,e['rotation']['angle'])
   back=model(frame=9)
-  e=next(e for e in back['elements'] if e['from']==[.85,.1,5.5])
+  e=next(e for e in back['elements'] if e['from']==[.85,.1,3.6])
   self.assertEqual(-22.5,e['rotation']['angle'])
  def test_attack_poses_raise_both_arms(self):
   rotations=[e['rotation'] for e in model(attack=3)['elements'] if 'rotation' in e]
-  for pivot in ([3.5,10.8,8],[12.5,10.8,8]):
+  for pivot in ([3.5,10.3,7.2],[12.5,10.3,7.2]):
    self.assertTrue(any(r['origin']==pivot and r['axis']=='x' and r['angle']==45 for r in rotations))
  def test_custom_sounds_are_in_both_packs(self):
   for name in ('idle','angry','spawn','death','hurt_1','hurt_2','grab_slam'):
