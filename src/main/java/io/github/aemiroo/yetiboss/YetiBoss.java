@@ -434,6 +434,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         String url=getConfig().getString("resource-pack.url",
             "https://github.com/aemiroo/YetiBoss/releases/download/yeti-pack/YetiBoss-Pack.zip");
         if(bossPackHash==null||url==null||url.isBlank()) { packStates.put(id,"DISABLED");return; }
+        // Match the pack to this JAR, including draft builds; the legacy URL
+        // otherwise serves a different ZIP after a model update.
+        if(url.equals("https://github.com/aemiroo/YetiBoss/releases/download/yeti-pack/YetiBoss-Pack.zip"))
+            url="https://github.com/aemiroo/YetiBoss/releases/download/yeti-pack-assets/YetiBoss-Pack-"
+                +HexFormat.of().formatHex(bossPackHash)+".zip";
         packStates.put(id,"REQUESTED");
         try { player.addResourcePack(BOSS_PACK_ID,url,bossPackHash,"Cyborg Father Yeti boss model",false); }
         catch(IllegalArgumentException ex) { packStates.put(id,"INVALID_URL");getLogger().warning("Invalid boss resource-pack URL"); }
