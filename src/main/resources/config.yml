@@ -1,7 +1,7 @@
-schema-version: 5
+schema-version: 6
 prefix: '&b[Yeti] &7'
 boss:
-  name: 'Giant Yeti'
+  name: 'Father Yeti'
   health: 700.0
   golem-scale: 1.0
   model-scale: 6.4
@@ -10,6 +10,11 @@ boss:
   leash-radius: 80.0
   idle-despawn-seconds: 180
   maximum-duration-seconds: 1800
+mother:
+  enabled: true
+  name: 'Mother Yeti'
+  # Summoned once at Father's 50% HP; her max HP is this fraction of Father's.
+  health-fraction: 0.25
 attacks:
   roar:
     weight: 2

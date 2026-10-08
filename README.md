@@ -158,3 +158,10 @@ The eyes now appear only on the front of the face. Top, back, sides and undersid
 ### 0.5.7 — overlapping surfaces
 
 Separates coplanar overlapping surfaces at the hip/legs, feet and curled horn segments. Small geometry offsets preserve the silhouette and prevent surface flicker across all 45 poses. Includes the front-only eye fix from 0.5.6.
+
+
+## Father and Mother Yeti (0.6.0)
+
+The main boss is named Father Yeti. Once at or below 50% health he summons Mother Yeti, using the same model, walking/attack animations and randomized combat. Mother has 25% of Father's maximum HP (175 HP with the default 700 HP), her own health bar and attack cooldowns. Only Father summons snow golems and the Ice Warden; the 35% Warden trigger stays independent. Summoning retries every five seconds until safe loaded ground is available, then never repeats even if Mother dies.
+
+Damage to either Yeti counts toward participation. Mother drops no separate rewards. Father's defeat completes the event and removes Mother and other summons; stopping, unloading or disabling cleans them up too. Set `mother.enabled`, `mother.name`, and `mother.health-fraction` in config.yml, then `/yetiboss reload` while no encounter is active. Existing default boss name migrates to Father Yeti; custom names remain. No resource-pack changes are required.
