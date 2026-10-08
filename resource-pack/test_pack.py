@@ -43,20 +43,20 @@ class BossPackTest(unittest.TestCase):
   self.assertTrue(all(e['to'][2]<=3.65 for e in teeth))
  def test_walk_swings_arms_and_alternates_legs(self):
   walk=model(frame=3)
-  for start in ([1.3,1.2,5.8],[12,1.2,5.8]):
+  for start in ([.85,.1,5.5],[12.15,.1,5.5]):
    e=next(e for e in walk['elements'] if e['from']==start)
-   self.assertEqual(22.5,e['rotation']['angle'])
+   self.assertEqual(22.5 if start[0]<8 else -22.5,e['rotation']['angle'])
    self.assertEqual('x',e['rotation']['axis'])
-  for start,sign in (([4.8,1,6.6],1),([8.8,1,6.6],-1)):
+  for start,sign in (([5.2,1,7.2],-1),([8.6,1,7.2],1)):
    e=next(e for e in walk['elements'] if e['from']==start)
    self.assertEqual(sign*22.5,e['rotation']['angle'])
   back=model(frame=9)
-  e=next(e for e in back['elements'] if e['from']==[1.3,1.2,5.8])
+  e=next(e for e in back['elements'] if e['from']==[.85,.1,5.5])
   self.assertEqual(-22.5,e['rotation']['angle'])
  def test_attack_poses_raise_both_arms(self):
   rotations=[e['rotation'] for e in model(attack=3)['elements'] if 'rotation' in e]
-  for pivot in ([3.5,9,8],[12.5,9,8]):
-   self.assertTrue(any(r['origin']==pivot and r['axis']=='x' and r['angle']==-45 for r in rotations))
+  for pivot in ([3.5,10.8,8],[12.5,10.8,8]):
+   self.assertTrue(any(r['origin']==pivot and r['axis']=='x' and r['angle']==45 for r in rotations))
  def test_custom_sounds_are_in_both_packs(self):
   for name in ('idle','angry','spawn','death','hurt_1','hurt_2','grab_slam'):
    data=self.java['assets/yetiboss/sounds/'+name+'.ogg']
@@ -92,7 +92,7 @@ class BossPackTest(unittest.TestCase):
     if png[pos+4:pos+8]==b'IDAT':return zlib.decompress(png[pos+8:pos+8+n])
     pos+=n+12
   m=model();names=list(m['textures']);tile=names.index('fur')
-  java=raw(self.java['assets/yetiboss/textures/boss/fur.png'])
+  java=raw(self.java['assets/yetiboss/textures/boss/father_fur.png'])
   bedrock=raw(self.bedrock['textures/yetiboss/giant_yeti.png'])
   width=len(names)*64+1
   for y in range(16):
@@ -119,8 +119,8 @@ class BossPackTest(unittest.TestCase):
     self.assertIn('assets/yetiboss/items/'+counterpart+'.json',self.java)
     self.assertIn('attachables/'+counterpart+'.json',self.bedrock)
  def test_mother_walk_keeps_shared_rig_attached_to_slimmer_body(self):
-  from boss_model import mother_model
-  father,mother=model(frame=3),mother_model(frame=3)
+  from boss_model import mother_model,legacy_model
+  father,mother=legacy_model(frame=3),mother_model(frame=3)
   f=[e['rotation'] for e in father['elements'] if 'rotation' in e and e['rotation']['axis']=='x']
   m=[e['rotation'] for e in mother['elements'] if 'rotation' in e and e['rotation']['axis']=='x']
   self.assertEqual(len(f),len(m))

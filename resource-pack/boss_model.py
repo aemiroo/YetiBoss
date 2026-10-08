@@ -51,7 +51,7 @@ def texture_color(mat,x,y):
   return tuple(max(0,min(255,v+delta)) for v in c)
  return COLORS['ice_dark' if n<5 else 'ice_light' if n>18 else 'ice'][:3]
 
-def model(frame=None,attack=None,kind='slam'):
+def legacy_model(frame=None,attack=None,kind='slam'):
  pose='scream' if kind=='roar' and attack is not None else 'idle'
  phase=2*math.pi*(frame or 0)/12
  es=[]
@@ -119,7 +119,7 @@ def model(frame=None,attack=None,kind='slam'):
 
 def mother_model(frame=None,attack=None,kind='slam'):
  """Distinct slender glacier guardian, with swept ice horns and shared rig."""
- m=model(frame,attack,kind)
+ m=legacy_model(frame,attack,kind)
  # Narrow the body and animated pivot positions together, so every limb stays attached.
  for e in m['elements']:
   for bound in ('from','to'):e[bound][0]=round(8+(e[bound][0]-8)*.9,6)
@@ -134,3 +134,83 @@ def mother_model(frame=None,attack=None,kind='slam'):
     'faces':{f:{'uv':[0,0,16,16],'texture':'#horn'} for f in ('north','south','east','west','up','down')}})
  m['textures']={n:'yetiboss:boss/mother_'+n for n in BASE_MATERIALS}
  return m
+
+# Father materials are independent from the Mother's established palette.
+COLORS.update({'father_'+n:COLORS[n] for n in BASE_MATERIALS})
+_previous_texture_color=texture_color
+def texture_color(mat,x,y):
+ if not mat.startswith('father_'):return _previous_texture_color(mat,x,y)
+ name=mat[7:]
+ if name in ('fur','fur_light','fur_shadow','horn','muzzle'):
+  base={'fur':(226,234,232),'fur_light':(238,242,235),'fur_shadow':(198,215,216),'horn':(207,219,207),'muzzle':(220,229,227)}[name]
+  patch=((x//3)*7+(y//3)*11+(x//3)*(y//3))%9
+  delta=(-10,-5,0,0,0,3,5,7,9)[patch]
+  return tuple(max(0,min(255,c+delta)) for c in base)
+ if name=='ice_face':
+  return (37,53,56) if 3<=x<=12 and 5<=y<=10 else (84,105,108)
+ if name=='face_plain':return (84,105,108)
+ if name=='scream':return (28,41,44) if 3<=x<=12 and 3<=y<=12 else (198,215,216)
+ return _previous_texture_color(name,x,y)
+
+def model(frame=None,attack=None,kind='slam'):
+ """Antlered Father draft reconstructed from the supplied front reference."""
+ es=[];phase=2*math.pi*(frame or 0)/12
+ def box(a,b,mat,part=None,angle=0,pivot=None,axis='x'):
+  if part:
+   side=-1 if part.endswith('l') else 1
+   pivot=[8+side*4.5,10.8,8] if part.startswith('arm') else [8+side*1.7,4.4,8.5]
+   if frame is not None:angle=round(math.sin(phase))*22.5*(side if part.startswith('leg') else -side)
+   if attack is not None and part.startswith('arm'):
+    peak=round(math.sin(math.pi*attack/7)*2)*22.5
+    angle=peak if kind=='slam' else -peak
+    if kind=='swipe' and side==1:angle=0
+    if kind=='throw' and side==-1:angle=0
+    if kind=='roar':angle=22.5
+  e={'from':list(a),'to':list(b),'faces':{f:{'uv':[0,0,16,16],'texture':'#'+mat} for f in ('north','south','east','west','up','down')}}
+  if angle:e['rotation']={'origin':pivot,'angle':angle,'axis':axis,'rescale':False}
+  es.append(e);return e
+ # Deep shoulder mantle, low hips and a head recessed into the chest.
+ box((3.6,6.5,6.4),(12.4,12.1,11.8),'fur')
+ box((4.2,10.9,7.5),(11.8,13.35,11.75),'fur_light')
+ box((5.5,4.2,7.0),(10.5,6.48,10.8),'fur_shadow')
+ box((6.3,3.65,6.7),(9.7,4.18,10.5),'fur')
+ for side in (-1,1):
+  part='leg_l' if side==-1 else 'leg_r';x=5.2 if side==-1 else 8.6
+  box((x,1.0,7.2),(x+2.2,4.25,10.35),'fur',part)
+  box((x-.15,0,6.3),(x+2.35,1.03,10.7),'fur_light',part)
+  part='arm_l' if side==-1 else 'arm_r'
+  def arm(a,b,mat):
+   if side==1:a,b=(16-b[0],a[1],a[2]),(16-a[0],b[1],b[2])
+   return box(a,b,mat,part)
+  arm((.8,7.6,6.2),(3.58,11.9,10.9),'fur_light')
+  arm((1.35,2.6,6.7),(3.55,7.58,10.5),'fur')
+  arm((.85,0.1,5.5),(3.85,2.63,10.8),'fur_shadow')
+  # Light cuff and subtly striped oversized fist.
+  arm((.79,2.5,5.44),(3.91,3.1,10.86),'fur_light')
+ box((5.25,10.3,4.8),(10.75,13.4,8.0),'fur_light')
+ face=box((5.85,11.15,4.49),(10.15,12.95,4.78),'face_plain')
+ face['faces']['north']['texture']='#ice_face'
+ # Wide projecting muzzle conceals the lower face, rather than a small nose.
+ box((5.35,9.25,2.8),(10.65,11.17,4.47),'muzzle')
+ if kind=='roar' and attack is not None:
+  mouth=box((6.0,8.9,2.75),(10.0,9.23,3.9),'face_plain')
+  mouth['faces']['north']['texture']='#scream'
+  for x in (6.15,6.7,7.25,7.8,8.35,8.9,9.45):
+   box((x,9.0,2.69),(x+.28,9.215,2.74),'tooth')
+ # Pale blue fringe beneath the square muzzle.
+ for j,x in enumerate((6.1,7.2,8.3,9.4)):
+  box((x,8.55-(j%2)*.25,3.5),(x+.65,9.21,4.25),'fur_shadow')
+ # Branched antlers: outward beam plus upward tips and lower tines.
+ for side in (-1,1):
+  def antler(a,b,angle=0):
+   if side==1:a,b=(16-b[0],a[1],a[2]),(16-a[0],b[1],b[2])
+   center=[(a[i]+b[i])/2 for i in range(3)]
+   box(a,b,'horn',angle=angle*(-side),pivot=center,axis='z')
+  antler((3.4,12.8,5.6),(5.8,13.48,6.5),22.5)
+  antler((1.9,13.6,5.65),(3.65,14.26,6.45),22.5)
+  antler((1.12,14.18,5.7),(1.78,15.65,6.4),22.5)
+  antler((3.05,14.05,5.62),(3.65,15.0,6.35),-22.5)
+  antler((3.5,11.95,5.58),(4.12,13.1,6.3),-22.5)
+  antler((2.65,12.5,5.55),(3.3,13.45,6.25),-22.5)
+ return {'elements':es,'textures':{n:'yetiboss:boss/father_'+n for n in BASE_MATERIALS},
+         'display':{'fixed':{'rotation':[0,0,0],'translation':[0,8,0],'scale':[1,1,1]}}}
