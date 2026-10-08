@@ -189,3 +189,10 @@ Frostfang and Glacier Pickaxe use third-person transforms aligned with their upr
 The sword, pickaxe and all bow draw stages now anchor their actual grip point to the palm, instead of placing the item by its overall bounding-box center. Java first/third-person left and right poses account for Minecraft's hand mirroring. Bedrock hand-bound geometries use the same physical grip as their origin.
 
 All three items have new darker forged metal, stitched leather wraps, pale rime edges, branching ice cracks, and restrained cyan runic inlays. Bedrock inventory icons now sample the same patterned materials rather than flat color swatches. Replace the JAR and Java/Bedrock packs, then restart and reconnect to load the new pack hash.
+
+
+## Approved frost-forged gear remodel (0.7.0)
+
+Rebuilds all three items from the approved concept sheet: Frostfang has a long dark fuller, cyan rune panels, jagged ice edges, hooked guard and faceted jewels; Glacier Pickaxe has a downward-curved two-sided head, socket jewel, decorated wrapped haft and silver collars; Frost Bow has stepped recurve limbs, crystal clusters, metallic reinforcement, a jewel-trimmed central grip, connected string and three nocked-arrow draw stages.
+
+The models use native cuboids and legal 45-degree diamond accents, with matching textures and 64px geometry-derived Bedrock icons. First/third-person grip anchors remain shared across Java and Bedrock. All gear IDs and commands remain compatible. Update both packs and the plugin for the new pack hash, then restart and reconnect. This release remodels the visuals; the previously planned bow/mining/loot mechanics are still pending.

@@ -82,3 +82,35 @@ class GearPackTest(unittest.TestCase):
   self.assertGreater(color('gear_steel',0,8)[0],color('gear_steel',8,8)[0])
   self.assertNotEqual(color('gear_grip',8,0),color('gear_grip',8,2))
   self.assertGreater(color('gear_core',6,7)[1],color('gear_core',2,7)[1])
+
+ def test_concept_models_have_jewels_runic_panels_and_legal_facets(self):
+  from gear_model import model
+  for name in GEAR_MODELS:
+   m=model(name)
+   materials={face['texture'] for e in m['elements'] for face in e['faces'].values()}
+   self.assertIn('#gear_gem',materials);self.assertIn('#gear_rune',materials)
+   self.assertIn('#gear_binding',materials)
+   self.assertLess(len(m['elements']),140)
+   for e in m['elements']:
+    if 'rotation' in e:self.assertIn(e['rotation']['angle'],(-45,-22.5,0,22.5,45))
+ def test_gear_front_faces_do_not_z_fight(self):
+  import math
+  def polygon(e):
+   a,b=e['from'],e['to'];points=[(a[0],a[1]),(b[0],a[1]),(b[0],b[1]),(a[0],b[1])]
+   if 'rotation' not in e:return points
+   r=e['rotation'];self.assertEqual('z',r['axis']);ox,oy,_=r['origin'];c=math.cos(math.radians(r['angle']));s=math.sin(math.radians(r['angle']))
+   return [(ox+(x-ox)*c-(y-oy)*s,oy+(x-ox)*s+(y-oy)*c) for x,y in points]
+  def overlap(a,b):
+   for poly in (a,b):
+    for i,(x,y) in enumerate(poly):
+     nx,ny=poly[(i+1)%4];axis=(y-ny,nx-x)
+     aa=[x*axis[0]+y*axis[1] for x,y in a];bb=[x*axis[0]+y*axis[1] for x,y in b]
+     if min(max(aa),max(bb))-max(min(aa),min(bb))<=1e-8:return False
+   return True
+  for name in GEAR_MODELS:
+   es=model(name)['elements']
+   for i,e in enumerate(es):
+    for j,old in enumerate(es[:i]):
+     for bound in ('from','to'):
+      if abs(e[bound][2]-old[bound][2])<1e-8:
+       self.assertFalse(overlap(polygon(e),polygon(old)),(name,i,j,bound))
