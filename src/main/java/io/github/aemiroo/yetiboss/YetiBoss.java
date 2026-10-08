@@ -70,6 +70,12 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             if(!getConfig().contains("mother.size-multiplier",true))getConfig().set("mother.size-multiplier",.75);
             getConfig().set("schema-version",7);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<8) {
+            String previous=getConfig().getString("boss.name");
+            if("Father Yeti".equals(previous)||"Giant Yeti".equals(previous))
+                getConfig().set("boss.name","Cyborg Father Yeti");
+            getConfig().set("schema-version",8);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
@@ -182,11 +188,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 &&shots.values().stream().noneMatch(shot->entity.equals(shot.visual))) entity.remove();
     }
     private void spawn(Location at) {
-        encounter=createYeti(at,getConfig().getDouble("boss.health"),getConfig().getString("boss.name","Father Yeti"),false);
+        encounter=createYeti(at,getConfig().getDouble("boss.health"),getConfig().getString("boss.name","Cyborg Father Yeti"),false);
         updateViewers(encounter);
         bossEffect(at,"spawn",Sound.ENTITY_ENDER_DRAGON_GROWL);
         encounter.voiceUntil=tick+103;
-        Bukkit.broadcastMessage(prefix()+ChatColor.RED+"The Father Yeti has appeared!");
+        Bukkit.broadcastMessage(prefix()+ChatColor.RED+"The Cyborg Father Yeti has appeared!");
     }
     private Encounter createYeti(Location at,double health,String name,boolean mother) {
         double size=mother?getConfig().getDouble("mother.size-multiplier",.75):1;
@@ -297,7 +303,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                     summoned.origin.setX(e.origin.getX());summoned.origin.setY(e.origin.getY());summoned.origin.setZ(e.origin.getZ());
                     e.mother=summoned;e.motherTrigger.spawned();updateViewers(summoned);
                     bossEffect(at,"spawn",Sound.ENTITY_ENDER_DRAGON_GROWL);summoned.voiceUntil=tick+103;
-                    for(Player player:players)player.sendMessage(prefix()+ChatColor.RED+"The Father Yeti summoned the Mother Yeti!");
+                    for(Player player:players)player.sendMessage(prefix()+ChatColor.RED+"The Cyborg Father Yeti summoned the Mother Yeti!");
                 }
             }
         }
@@ -429,7 +435,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             "https://github.com/aemiroo/YetiBoss/releases/download/yeti-pack/YetiBoss-Pack.zip");
         if(bossPackHash==null||url==null||url.isBlank()) { packStates.put(id,"DISABLED");return; }
         packStates.put(id,"REQUESTED");
-        try { player.addResourcePack(BOSS_PACK_ID,url,bossPackHash,"Giant Yeti boss model",false); }
+        try { player.addResourcePack(BOSS_PACK_ID,url,bossPackHash,"Cyborg Father Yeti boss model",false); }
         catch(IllegalArgumentException ex) { packStates.put(id,"INVALID_URL");getLogger().warning("Invalid boss resource-pack URL"); }
     }
     @EventHandler public void bossPackStatus(PlayerResourcePackStatusEvent event) {
@@ -857,7 +863,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 Player p=Bukkit.getPlayer(id);if(p!=null)claim(p);
             }
             if(getConfig().getBoolean("snowfall.enabled"))snowUntil=tick+getConfig().getInt("snowfall.duration-seconds")*20L;
-            Bukkit.broadcastMessage(prefix()+ChatColor.AQUA+"The Giant Yeti was defeated! Participants earned a Baby Yeti and XP. Frostfang is on the ground!");
+            Bukkit.broadcastMessage(prefix()+ChatColor.AQUA+"The Cyborg Father Yeti was defeated! Participants earned a Baby Yeti and XP. Frostfang is on the ground!");
         }
         stop(false);
     }
@@ -921,7 +927,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         e.minions.clear();
         for(Player player:Bukkit.getOnlinePlayers()) player.hideEntity(this,e.model);
         for(IceShot shot:shots.values()) { shot.entity.remove();if(shot.visual!=null)shot.visual.remove(); }shots.clear();
-        if(announce)Bukkit.broadcastMessage(prefix()+"The Giant Yeti encounter ended without rewards.");
+        if(announce)Bukkit.broadcastMessage(prefix()+"The Cyborg Father Yeti encounter ended without rewards.");
     }
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args) {
         if(!sender.hasPermission("yetiboss.admin"))return true;
@@ -965,7 +971,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             case "status" -> {
                 sender.sendMessage(prefix()+(encounter==null?"No active Yeti.":"Health: "+Math.ceil(encounter.body.getHealth())+
                     " | Mother: "+(encounter.mother==null?"absent":Math.ceil(encounter.mother.body.getHealth())+" HP")+" | Summons: "+encounter.minions.size()+" | Participants: "+encounter.participation.size()+" | Phase: "+(encounter.enraged?"enraged":"normal")+
-                    " | Model: "+(encounter.customVisible?"Giant Yeti":"visible golem fallback")));
+                    " | Model: "+(encounter.customVisible?"Cyborg Father Yeti":"visible golem fallback")));
                 if(sender instanceof Player player)sender.sendMessage(prefix()+"Your boss pack: "+
                     packStates.getOrDefault(player.getUniqueId(),"not requested"));
             }
@@ -1005,7 +1011,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         final Map<UUID,IceMinion> minions=new HashMap<>();
         long nextWardenAttempt,grabStarted;UUID grabbed;Location grabLanding;
         final AttackSelector selector=new AttackSelector();final Participation participation=new Participation();
-        final BossBar bar=Bukkit.createBossBar("Giant Yeti",BarColor.BLUE,BarStyle.SEGMENTED_10);
+        final BossBar bar=Bukkit.createBossBar("Cyborg Father Yeti",BarColor.BLUE,BarStyle.SEGMENTED_10);
         Attack pending,recovery;long recoveryStarted,recoveryUntil,nextGrowl,voiceUntil,nextHurtSound;UUID target,chaseTarget;boolean enraged,defeated,customVisible;int barrageRemaining;
         double walk;String modelName="giant_yeti";Set<UUID> recipients=Set.of();
         final Set<UUID> warned=new HashSet<>();

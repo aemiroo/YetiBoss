@@ -6,7 +6,7 @@ author: aemiroo
 depend: [CosmeticPets]
 commands:
   yetiboss:
-    description: Manage the Giant Yeti encounter
+    description: Manage the Cyborg Father Yeti encounter
     usage: /yetiboss <spawn|stop|status|reload|give frostfang|give frostbow|give frostpickaxe>
     permission: yetiboss.admin
 permissions:

@@ -1,7 +1,7 @@
-schema-version: 7
+schema-version: 8
 prefix: '&b[Yeti] &7'
 boss:
-  name: 'Father Yeti'
+  name: 'Cyborg Father Yeti'
   health: 700.0
   golem-scale: 1.0
   model-scale: 6.4
