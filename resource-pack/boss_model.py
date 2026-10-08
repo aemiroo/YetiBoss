@@ -137,10 +137,22 @@ def mother_model(frame=None,attack=None,kind='slam'):
 
 # Father materials are independent from the Mother's established palette.
 COLORS.update({'father_'+n:COLORS[n] for n in BASE_MATERIALS})
+CYBORG_MATERIALS={'steel':(73,91,106,255),'metal_edge':(150,176,190,255),
+ 'mechanism':(28,39,49,255),'cable':(43,58,62,255),'reactor':(43,220,235,255),'optic':(246,66,47,255)}
+COLORS.update({'father_'+n:c for n,c in CYBORG_MATERIALS.items()})
 _previous_texture_color=texture_color
 def texture_color(mat,x,y):
  if not mat.startswith('father_'):return _previous_texture_color(mat,x,y)
  name=mat[7:]
+ if name in CYBORG_MATERIALS:
+  c=CYBORG_MATERIALS[name][:3]
+  if name in ('reactor','optic'):
+   return tuple(min(255,v+35) for v in c) if 5<=x<=10 and 5<=y<=10 else c
+  if name=='steel':
+   delta=26 if x in (1,14) or y in (1,14) else -14 if x in (3,12) or y in (3,12) else ((x//4+y//4)%3-1)*5
+  elif name=='metal_edge':delta=18 if x<5 else -15 if x>12 else 0
+  else:delta=((x//2+y//2)%3-1)*7
+  return tuple(max(0,min(255,v+delta)) for v in c)
  if name in ('fur','fur_light','fur_shadow','horn','muzzle'):
   base={'fur':(226,234,232),'fur_light':(238,242,235),'fur_shadow':(198,215,216),'horn':(207,219,207),'muzzle':(220,229,227)}[name]
   patch=((x//3)*7+(y//3)*11+(x//3)*(y//3))%9
@@ -188,6 +200,7 @@ def model(frame=None,attack=None,kind='slam'):
   arm((.85,0.1,3.6),(3.85,2.63,8.9),'fur_shadow')
   # Light cuff and subtly striped oversized fist.
   arm((.79,2.5,3.54),(3.91,3.1,8.96),'fur_light')
+ head_start=len(es)
  box((5.25,10.3,4.8),(10.75,13.4,8.0),'fur_light')
  face=box((5.85,11.15,4.49),(10.15,12.95,4.78),'face_plain')
  face['faces']['north']['texture']='#ice_face'
@@ -223,12 +236,62 @@ def model(frame=None,attack=None,kind='slam'):
   beam(joint,1.1,vertical=True,angle=-22.5,width=.48)
   beam((joint[0]+.35,joint[1]-.15),.95,vertical=True,angle=22.5,width=.45)
  # Lowered head and antlers sit forward of the shoulder mantle.
- for e in es[18:]:
+ for e in es[head_start:]:
   for bound in ('from','to'):
    e[bound][1]=round(e[bound][1]-1.1,6)
    e[bound][2]=round(e[bound][2]-.45,6)
   if 'rotation' in e:
    e['rotation']['origin'][1]-=1.1
    e['rotation']['origin'][2]-=.45
- return {'elements':es,'textures':{n:'yetiboss:boss/father_'+n for n in BASE_MATERIALS},
+ # Replace the right half with metal, leaving the opposite half organic.
+ import copy
+ rebuilt=[]
+ for e in es:
+  mat=e['faces']['up']['texture'][1:]
+  if mat not in ('fur','fur_light','fur_shadow','muzzle'):
+   rebuilt.append(e);continue
+  if e['to'][0]<=8:
+   rebuilt.append(e);continue
+  mechanical=e
+  if e['from'][0]<8:
+   organic=copy.deepcopy(e);organic['to'][0]=8
+   mechanical=copy.deepcopy(e);mechanical['from'][0]=8
+   # The seam is internal; do not draw opposing coplanar faces.
+   organic['faces'].pop('east');mechanical['faces'].pop('west')
+   rebuilt.append(organic)
+  replacement={'fur':'mechanism','fur_light':'steel','fur_shadow':'metal_edge','muzzle':'steel'}[mat]
+  for f in mechanical['faces'].values():f['texture']='#'+replacement
+  rebuilt.append(mechanical)
+ es=rebuilt
+ # Exposed elbow/forearm pistons and finger armor follow the same shoulder rig.
+ box((12.0,6.2,4.42),(15.25,7.12,5.67),'metal_edge','arm_r')
+ box((12.18,3.2,4.08),(12.55,6.26,4.40),'metal_edge','arm_r')
+ box((14.65,3.25,4.02),(15.03,6.21,4.39),'metal_edge','arm_r')
+ box((12.80,3.15,4.32),(14.38,6.14,4.70),'mechanism','arm_r')
+ box((13.31,3.7,4.10),(13.86,5.76,4.30),'reactor','arm_r')
+ for j in range(3):
+  x=12.28+j*.92
+  box((x,.35,3.21),(x+.70,2.34,3.54),'steel','arm_r')
+  box((x+.16,.68,3.05),(x+.53,1.05,3.19),'metal_edge','arm_r')
+ # A shoulder cap and external conduit leave the dark frame visible.
+ box((12.1,9.7,5.33),(15.45,10.99,10.59),'steel','arm_r')
+ box((15.46,7.44,6.1),(15.72,9.55,6.47),'cable','arm_r')
+ # Half chest plate, reactor and exposed lower rib rails tilt with the torso.
+ def chest(a,b,mat):return box(a,b,mat,angle=22.5,pivot=[8,6.5,8])
+ chest((8.12,8.72,6.04),(12.15,10.22,6.34),'steel')
+ chest((8.15,6.72,5.96),(11.88,8.66,6.29),'mechanism')
+ chest((9.1,7.18,5.68),(10.76,8.44,5.94),'metal_edge')
+ chest((9.35,7.38,5.49),(10.52,8.23,5.67),'reactor')
+ for y in (6.91,7.42,7.93):chest((10.91,y,5.70),(11.65,y+.18,5.95),'metal_edge')
+ chest((8.25,7.04,5.71),(8.57,8.51,5.95),'cable')
+ # Mechanical eye covers only one side of the recessed face.
+ box((8.15,10.05,3.78),(10.2,11.89,4.025),'steel')
+ box((8.53,10.55,3.59),(9.7,11.35,3.77),'mechanism')
+ lens=box((8.70,10.68,3.48),(9.52,11.18,3.58),'steel')
+ lens['faces']['north']['texture']='#optic'
+ # Jaw bolts and a boot/shin plate finish the repaired mechanical half.
+ box((9.54,8.8,2.15),(10.32,9.28,2.34),'metal_edge')
+ box((8.91,1.2,6.81),(10.48,2.34,7.19),'steel','leg_r')
+ box((9.42,1.38,6.60),(9.97,2.11,6.80),'reactor','leg_r')
+ return {'elements':es,'textures':{n:'yetiboss:boss/father_'+n for n in (*BASE_MATERIALS,*CYBORG_MATERIALS)},
          'display':{'fixed':{'rotation':[0,0,0],'translation':[0,8,0],'scale':[1,1,1]}}}

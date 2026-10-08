@@ -29,6 +29,7 @@ class BossPackTest(unittest.TestCase):
     for b in elements[:i]:
      if a.get('rotation')!=b.get('rotation'):continue
      for side,(axis,high) in axes.items():
+      if side not in a['faces'] or side not in b['faces']:continue
       bound='to' if high else 'from'
       if abs(a[bound][axis]-b[bound][axis])>1e-8:continue
       overlap=all(min(a['to'][k],b['to'][k])-max(a['from'][k],b['from'][k])>1e-8 for k in range(3) if k!=axis)
@@ -100,7 +101,7 @@ class BossPackTest(unittest.TestCase):
   self.assertGreater(len(set(java[1:65])),4)
 
  def test_roar_mouth_is_in_front_of_chest_and_mesh_is_compact(self):
-  m=model(attack=3,kind='roar');self.assertLess(len(m['elements']),80)
+  m=model(attack=3,kind='roar');self.assertLess(len(m['elements']),120)
   cavity=[e for e in m['elements'] if e['faces']['north']['texture']=='#scream']
   self.assertLess(max(e['to'][2] for e in cavity),6)
 
@@ -108,7 +109,7 @@ class BossPackTest(unittest.TestCase):
   from boss_model import mother_model,texture_color
   father,mother=model(),mother_model()
   self.assertNotEqual(father['elements'],mother['elements'])
-  self.assertLess(mother['elements'][0]['to'][0]-mother['elements'][0]['from'][0],father['elements'][0]['to'][0]-father['elements'][0]['from'][0])
+  self.assertLess(mother['elements'][0]['to'][0]-mother['elements'][0]['from'][0],12.4-3.6)
   self.assertEqual(13.1,max(e['to'][1] for e in mother['elements']))
   self.assertEqual(0,min(e['from'][1] for e in mother['elements']))
   self.assertNotEqual(texture_color('ice_face',3,10),texture_color('mother_ice_face',3,10))
@@ -152,3 +153,14 @@ class BossPackTest(unittest.TestCase):
      if expanded==seen:break
      seen=expanded
     self.assertEqual(len(group),len(seen),'Floating antler segment')
+
+ def test_cyborg_parts_follow_arm_rig_and_optic_is_front_only(self):
+  for frame,attack in ((None,None),(3,None),(9,None),(None,3)):
+   m=model(frame=frame,attack=attack)
+   arm=next(e for e in m['elements'] if e['from']==[12.15,.1,3.6])
+   piston=next(e for e in m['elements'] if e['from']==[12.18,3.2,4.08])
+   self.assertEqual(arm.get('rotation'),piston.get('rotation'))
+   optics=[side for e in m['elements'] for side,f in e['faces'].items() if f['texture']=='#optic']
+   self.assertEqual(['north'],optics)
+   mats={f['texture'] for e in m['elements'] for f in e['faces'].values()}
+   self.assertTrue({'#fur','#steel','#mechanism','#reactor','#cable'}<=mats)
