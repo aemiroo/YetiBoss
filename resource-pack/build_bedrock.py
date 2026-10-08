@@ -6,7 +6,8 @@ bundled here. All generated model/texture content remains original MIT content.
 import json, struct, zlib, zipfile
 from build_pack import ROOT, MODELS, files as java_files
 
-PETS = MODELS
+from gear_model import GEAR_MODELS,GEAR_ITEMS,icon as gear_icon
+PETS = MODELS+GEAR_MODELS
 
 def encoded(value):
     return json.dumps(value, indent=2).encode()
@@ -39,6 +40,7 @@ def geometry(pet, model, names):
     cubes = []
     glowing = []
     translate = model['display']['fixed']['translation']
+    gear=pet in GEAR_MODELS
     for element in model['elements']:
         a, b = element['from'], element['to']
         uv = {}
@@ -48,7 +50,7 @@ def geometry(pet, model, names):
             tile = names.index(definition['texture'][1:])
             uv[bedrock_face] = {'uv':[tile*16,0], 'uv_size':[16,16]}
         destination = glowing if element.get('light_emission',0) else cubes
-        cube={'origin':[8-b[0]-translate[0],a[1]+translate[1],a[2]-8+translate[2]],
+        cube={'origin':[8-b[0]-translate[0],a[1]+translate[1]-(8 if gear else 0),a[2]-8+translate[2]],
                       'size':[b[i]-a[i] for i in range(3)],'uv':uv}
         if 'rotation' in element:
             rotation=element['rotation']
@@ -61,7 +63,7 @@ def geometry(pet, model, names):
         destination.append(cube)
     # The extension's geyser_z bone is at Y=8, with mapping y-offset=-0.5.
     # This keeps Java's item centre (and pumpkin's fixed translation) aligned.
-    bones=[{'name':'pet','binding':"'geyser_z'",'pivot':[0,8,0],'cubes':cubes}]
+    bones=[{'name':'pet','binding':('query.item_slot_to_bone_name(context.item_slot)' if gear else "'geyser_z'"),'pivot':([0,0,0] if gear else [0,8,0]),'cubes':cubes}]
     if glowing:
         bones.append({'name':'pet_light','parent':'pet','pivot':[0,8,0],'cubes':glowing})
     return {'format_version':'1.16.0','minecraft:geometry':[{
@@ -75,8 +77,8 @@ def files():
     source = java_files()
     result = {'manifest.json':encoded({'format_version':2,
         'header':{'name':'YetiBoss Bedrock','description':'Original Father and Mother Yeti bosses',
-                  'uuid':'f5d7fcef-34a7-48fa-a98f-2155802ef6e4','version':[0,6,1],'min_engine_version':[1,21,0]},
-        'modules':[{'type':'resources','uuid':'ec728d89-387d-4a04-bdb0-7263d53d0a33','version':[0,6,1]}]}),
+                  'uuid':'f5d7fcef-34a7-48fa-a98f-2155802ef6e4','version':[0,6,2],'min_engine_version':[1,21,0]},
+        'modules':[{'type':'resources','uuid':'ec728d89-387d-4a04-bdb0-7263d53d0a33','version':[0,6,2]}]}),
         'LICENSE.txt':source['LICENSE.txt'],
         'render_controllers/yetiboss.json':encoded({'format_version':'1.8.0','render_controllers':{
             'controller.render.yetiboss':{'geometry':'Geometry.default',
@@ -93,7 +95,7 @@ def files():
         result['sounds/yetiboss/'+name+'.ogg']=source['assets/yetiboss/sounds/'+name+'.ogg']
     texture_data = {}
     for pet in PETS:
-        model = json.loads(source['assets/yetiboss/models/boss/'+pet+'.json'])
+        model = json.loads(source['assets/yetiboss/models/'+('gear' if pet in GEAR_MODELS else 'boss')+'/'+pet+'.json'])
         names = list(model['textures'])
         colors = [pixels(source['assets/'+model['textures'][n].replace(':','/textures/')+'.png']) for n in names]
         if pet=='pumpkin':
@@ -103,6 +105,7 @@ def files():
             result['textures/yetiboss/'+pet+'_icon.png'] = atlas(colors)
         else:
             result['textures/yetiboss/'+pet+'.png'] = atlas(colors)
+        if pet in GEAR_MODELS:result['textures/yetiboss/'+pet+'_icon.png']=gear_icon(pet)
         result['models/entity/'+pet+'.geo.json'] = encoded(geometry(pet,model,names))
         result['attachables/'+pet+'.json'] = encoded({'format_version':'1.10.0','minecraft:attachable':{
             'description':{'identifier':'yetiboss:'+pet,
@@ -111,17 +114,21 @@ def files():
                 'textures':{'default':'textures/yetiboss/'+pet},
                 'geometry':{'default':'geometry.yetiboss.'+pet},
                 'render_controllers':['controller.render.yetiboss'+('.pumpkin' if pet=='pumpkin' else '')]}}})
-        texture_data['yetiboss.'+pet] = {'textures':'textures/yetiboss/'+pet+('_icon' if pet=='pumpkin' else '')}
+        texture_data['yetiboss.'+pet] = {'textures':'textures/yetiboss/'+pet+('_icon' if pet=='pumpkin' or pet in GEAR_MODELS else '')}
     result['textures/item_texture.json'] = encoded({'resource_pack_name':'YetiBoss','texture_name':'atlas.items','texture_data':texture_data})
     return result
 
 def mappings():
-    return {'format_version':2,'items':{'minecraft:paper':[
+    items={'minecraft:paper':[
         {'type':'definition','model':'yetiboss:'+pet,'bedrock_identifier':'yetiboss:'+pet,
-         'display_name':pet.title()+' Companion'} for pet in PETS]}}
+         'display_name':pet.title()+' Boss'} for pet in MODELS]}
+    for name,base in GEAR_ITEMS.items():
+        items[base]=[{'type':'definition','model':'yetiboss:'+name,'bedrock_identifier':'yetiboss:'+name,
+                      'display_name':{'frostfang':'Frostfang','frostbow':'Frost Bow','frostpickaxe':'Glacier Pickaxe'}[name]}]
+    return {'format_version':2,'items':items}
 
 def display_mappings():
-    return 'mappings:\n'+''.join('  yetiboss_'+pet+':\n    type: "minecraft:paper"\n    item-identifier: "yetiboss:'+pet+'"\n    displayentityoptions:\n      y-offset: -0.5\n      vanilla-scale: false\n      vanilla-scale-multiplier: 1\n      hand: false\n' for pet in PETS)
+    return 'mappings:\n'+''.join('  yetiboss_'+pet+':\n    type: "minecraft:paper"\n    item-identifier: "yetiboss:'+pet+'"\n    displayentityoptions:\n      y-offset: -0.5\n      vanilla-scale: false\n      vanilla-scale-multiplier: 1\n      hand: false\n' for pet in MODELS)
 
 if __name__ == '__main__':
     target = ROOT/'target'

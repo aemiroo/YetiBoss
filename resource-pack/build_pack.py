@@ -1,6 +1,7 @@
 """Original frost Yeti boss resource pack."""
 import base64,hashlib,json,math,pathlib,struct,zlib,zipfile
 ROOT=pathlib.Path(__file__).resolve().parents[1]
+from gear_model import GEAR_MODELS, MATERIALS, model as gear_model, texture as gear_texture, item_definition
 from boss_model import model,mother_model,COLORS,texture_color
 def png(name):
  def chunk(kind,data): return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
@@ -26,8 +27,12 @@ def files():
    m=make(frame=index) if kind=='walk' else make(attack=index,kind='slam' if kind=='attack' else kind)
   result['assets/yetiboss/models/boss/'+name+'.json']=json.dumps(m).encode()
   result['assets/yetiboss/items/'+name+'.json']=json.dumps({'model':{'type':'minecraft:model','model':'yetiboss:boss/'+name}}).encode()
+ for name in GEAR_MODELS:
+  result['assets/yetiboss/models/gear/'+name+'.json']=json.dumps(gear_model(name)).encode()
+  if '_pull_' not in name:result['assets/yetiboss/items/'+name+'.json']=json.dumps(item_definition(name)).encode()
+ for name in MATERIALS:result['assets/yetiboss/textures/gear/'+name+'.png']=gear_texture(name)
  for name,color in COLORS.items():result['assets/yetiboss/textures/boss/'+name+'.png']=png(name)
- result['assets/minecraft/atlases/items.json']=json.dumps({'sources':[{'type':'minecraft:single','resource':'yetiboss:boss/'+name,'sprite':'yetiboss:boss/'+name} for name in COLORS]}).encode()
+ result['assets/minecraft/atlases/items.json']=json.dumps({'sources':[{'type':'minecraft:single','resource':'yetiboss:boss/'+name,'sprite':'yetiboss:boss/'+name} for name in COLORS]+[{'type':'minecraft:single','resource':'yetiboss:gear/'+name,'sprite':'yetiboss:gear/'+name} for name in MATERIALS]}).encode()
  result['assets/yetiboss/sounds.json']=json.dumps({name:{'sounds':[{'name':'yetiboss:'+name,'stream':False}]} for name in SOUNDS}).encode()
  for name in SOUNDS:
   result['assets/yetiboss/sounds/'+name+'.ogg']=base64.b64decode((ROOT/'resource-pack/sounds'/ (name+'.ogg.b64')).read_text())

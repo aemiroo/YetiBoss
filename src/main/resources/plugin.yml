@@ -1,5 +1,5 @@
 name: YetiBoss
-version: 0.6.1
+version: 0.6.2
 main: io.github.aemiroo.yetiboss.YetiBoss
 api-version: '1.21'
 author: aemiroo
@@ -7,7 +7,7 @@ depend: [CosmeticPets]
 commands:
   yetiboss:
     description: Manage the Giant Yeti encounter
-    usage: /yetiboss <spawn|stop|status|reload>
+    usage: /yetiboss <spawn|stop|status|reload|give frostfang|give frostbow|give frostpickaxe>
     permission: yetiboss.admin
 permissions:
   yetiboss.admin:

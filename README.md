@@ -170,3 +170,10 @@ Damage to either Yeti counts toward participation. Mother drops no separate rewa
 ## Distinct Mother model (0.6.1)
 
 Mother is now 25% smaller than Father by default, with a narrower silhouette, pale glacier fur, cyan eyes and outward swept ice horns. She has separate idle, walking, slam, swipe, throw and roar models in both Java and Bedrock packs. Animations never switch back to Father's model. Display size, navigation body, collision clearance and combat hitbox scale together. Health and summon thresholds remain unchanged. `mother.size-multiplier` controls size relative to Father (0.5 to below 1.0). Update the JAR and Java/Bedrock resource packs, plus both Geyser mapping files for Bedrock players, then restart and reconnect.
+
+
+## Frost gear models (0.6.2)
+
+Frostfang now uses an original jagged ice blade with a dark hilt. Frost Bow uses curved ice limbs and three Java draw stages. Glacier Pickaxe uses a broad two-sided frozen head. All have first/third person, inventory, frame and ground transforms, with Bedrock held-item geometries and mappings on their real sword/bow/pickaxe base items. Father drops the new Frostfang model automatically. Admins can inspect each with `/yetiboss give frostfang`, `/yetiboss give frostbow`, and `/yetiboss give frostpickaxe`.
+
+This release implements appearance; Frost Bow and Glacier Pickaxe currently retain their vanilla abilities. Slowing/homing arrows, 3×3 mining, throwable boss ice and configurable additional loot are still pending. Update both packs and the Geyser item mappings, replace the plugin, then restart and reconnect.

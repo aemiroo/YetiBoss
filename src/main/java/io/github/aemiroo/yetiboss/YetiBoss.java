@@ -863,12 +863,21 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private ItemStack sword() {
         ItemStack sword=new ItemStack(Material.NETHERITE_SWORD);ItemMeta meta=sword.getItemMeta();
+        meta.setItemModel(new NamespacedKey("yetiboss","frostfang"));
         meta.setDisplayName(ChatColor.translateAlternateColorCodes('&',getConfig().getString("rewards.sword.name","&bFrostfang")));
         meta.setLore(List.of(ChatColor.AQUA+"Frost Strike",ChatColor.GRAY+"Hits can briefly slow your target."));
         meta.getPersistentDataContainer().set(swordKey,PersistentDataType.BYTE,(byte)1);
         int level=getConfig().getInt("rewards.sword.damage-enchantment-level");
         if(level>0)meta.addEnchant(Enchantment.SHARPNESS,level,false);
         sword.setItemMeta(meta);return sword;
+    }
+    private ItemStack frostGear(String kind) {
+        if(kind.equals("frostfang"))return sword();
+        ItemStack item=new ItemStack(kind.equals("frostbow")?Material.BOW:Material.NETHERITE_PICKAXE);
+        ItemMeta meta=item.getItemMeta();
+        meta.setItemModel(new NamespacedKey("yetiboss",kind));
+        meta.setDisplayName(ChatColor.AQUA+(kind.equals("frostbow")?"Frost Bow":"Glacier Pickaxe"));
+        item.setItemMeta(meta);return item;
     }
     private void claim(Player player) {
         UUID id=player.getUniqueId();if(!ledger.hasYeti(id))return;
@@ -916,6 +925,14 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args) {
         if(!sender.hasPermission("yetiboss.admin"))return true;
+        if(args.length==2&&args[0].equalsIgnoreCase("give")) {
+            String kind=args[1].toLowerCase(Locale.ROOT);
+            if(!(sender instanceof Player player)) {sender.sendMessage("Use this command in-game.");return true;}
+            if(!List.of("frostfang","frostbow","frostpickaxe").contains(kind))return false;
+            for(ItemStack leftover:player.getInventory().addItem(frostGear(kind)).values())
+                player.getWorld().dropItemNaturally(player.getLocation(),leftover);
+            requestBossPack(player);return true;
+        }
         if(args.length!=1)return false;
         switch(args[0].toLowerCase(Locale.ROOT)) {
             case "spawn" -> {
@@ -967,8 +984,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         return true;
     }
     @Override public List<String> onTabComplete(CommandSender sender,Command command,String alias,String[] args) {
-        if(!sender.hasPermission("yetiboss.admin")||args.length!=1)return List.of();
-        return List.of("spawn","stop","status","reload").stream().filter(s->s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        if(!sender.hasPermission("yetiboss.admin"))return List.of();
+        if(args.length==2&&args[0].equalsIgnoreCase("give"))
+            return List.of("frostfang","frostbow","frostpickaxe").stream().filter(s->s.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
+        if(args.length!=1)return List.of();
+        return List.of("spawn","stop","status","reload","give").stream().filter(s->s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
     }
     private record IceShot(Snowball entity,BlockDisplay visual,long created,Attack attack,LivingEntity caster,double damage,double knockback,int slow) {}
     private record Hit(UUID player,org.bukkit.util.Vector direction,double knockback,int slow) {}
