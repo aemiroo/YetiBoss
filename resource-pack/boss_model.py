@@ -166,12 +166,12 @@ def texture_color(mat,x,y):
 
 def model(frame=None,attack=None,kind='slam'):
  """Antlered Father with forward shoulders and a low knuckle stance."""
- es=[];phase=2*math.pi*(frame or 0)/12
+ es=[];phase=2*math.pi*(frame or 0)/24
  def box(a,b,mat,part=None,angle=0,pivot=None,axis='x'):
   if part:
    side=-1 if part.endswith('l') else 1
    pivot=[8+side*4.5,10.3,7.2] if part.startswith('arm') else [8+side*1.7,4.4,8.5]
-   if frame is not None:angle=round(math.sin(phase))*22.5*(side if part.startswith('leg') else -side)
+   if frame is not None:angle=round(math.sin(phase)*22.5,6)*(side if part.startswith('leg') else -side)
    if attack is not None and part.startswith('arm'):
     peak=round(math.sin(math.pi*attack/7)*2)*22.5
     angle=peak if kind=='slam' else -peak

@@ -327,10 +327,18 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             e.nextGrowl=tick+240+random.nextInt(240);
         }
         Location at=e.body.getLocation();at.setPitch(0);
-        double moved=at.distance(e.last);
-        if(e.pending==null&&moved>.002&&moved<2) e.walk=(e.walk+moved)%1.8;
-        else if(e.pending==null) e.walk=0;
-        int frame=e.pending==null&&moved>.002?(int)(e.walk/1.8*12):-1;
+        double dx=at.getX()-e.last.getX(),dz=at.getZ()-e.last.getZ();
+        double moved=Math.hypot(dx,dz);
+        if(e.pending==null&&moved>.002&&moved<2) {
+            e.walk=(e.walk+moved)%1.8;e.lastWalkTick=tick;
+        } else if(e.pending==null&&tick-e.lastWalkTick>3) {
+            // Settle toward the nearest neutral pose instead of snapping to idle.
+            double neutral=Math.round(e.walk/.9)*.9;
+            double delta=neutral-e.walk;
+            e.walk=Math.abs(delta)<.06?0:(e.walk+Math.copySign(.06,delta)+1.8)%1.8;
+        }
+        int walkFrames=e.modelPrefix.equals("giant_yeti")?24:12;
+        int frame=e.pending==null&&(moved>.002||e.walk!=0)?Math.min(walkFrames-1,(int)(e.walk/1.8*walkFrames)):-1;
         int attackFrame=e.pending==null?-1:Math.max(0,Math.min(3,
                 (int)((tick-e.windupStarted)*4/Math.max(1,e.releaseTick-e.windupStarted))));
         if(e.recovery!=null&&tick>=e.recoveryUntil)e.recovery=null;
@@ -342,7 +350,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         String model=e.grabbed!=null?e.modelPrefix+"_attack_3":animated!=null?e.modelPrefix+"_"+pose+"_"+poseFrame:
                 frame<0?e.modelPrefix:e.modelPrefix+"_walk_"+frame;
         if(!model.equals(e.modelName)) { e.model.setItemStack(modelItem(model));e.modelName=model; }
-        e.model.teleport(at);e.hitbox.teleport(at);e.last=at;
+        float turn=(float)Math.IEEEremainder(at.getYaw()-e.visualYaw,360);
+        e.visualYaw+=Math.max(-12f,Math.min(12f,turn));
+        Location visual=at.clone();visual.setYaw(e.visualYaw);
+        e.model.teleport(visual);e.hitbox.teleport(at);e.last=at;
         if(e.barrageRemaining>0&&tick>=e.nextShot) {
             Player target=chooseTarget(players,e.body);
             if(target!=null) launchAt(e,target.getEyeLocation(),Attack.BARRAGE);
@@ -1009,6 +1020,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private static final class Encounter {
         final UUID id=UUID.randomUUID();final IronGolem body,hitbox;final ItemDisplay model;
+        float visualYaw;long lastWalkTick;
         final Location origin;Location last,aim;org.bukkit.util.Vector direction;
         final long started;long lastPlayers,nextAttack,releaseTick,nextShot,retryReward,nextRetarget,windupStarted;
         final ThresholdSummon wardenTrigger=new ThresholdSummon(),motherTrigger=new ThresholdSummon(.5);
@@ -1021,7 +1033,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         double walk;String modelName="giant_yeti";Set<UUID> recipients=Set.of();
         final Set<UUID> warned=new HashSet<>();
         Encounter(IronGolem body,ItemDisplay model,IronGolem hitbox,Location origin,long tick,String name,double maximumHealth,String modelPrefix,double modelScale) {
-            this.modelPrefix=modelPrefix;this.modelName=modelPrefix;this.modelScale=modelScale;this.name=name;this.maximumHealth=maximumHealth;this.body=body;this.model=model;this.hitbox=hitbox;this.origin=origin;last=origin.clone();started=tick;lastPlayers=tick;
+            this.modelPrefix=modelPrefix;this.modelName=modelPrefix;this.modelScale=modelScale;this.name=name;this.maximumHealth=maximumHealth;this.body=body;this.model=model;this.hitbox=hitbox;this.origin=origin;last=origin.clone();visualYaw=origin.getYaw();lastWalkTick=tick;started=tick;lastPlayers=tick;
         }
     }
 }

@@ -15,7 +15,7 @@ class BossPackTest(unittest.TestCase):
    for element in m['elements']:
     self.assertTrue(element['faces'])
     for bound in ('from','to'):self.assertTrue(all(0<=v<=16 for v in element[bound]))
-    if 'rotation' in element:self.assertIn(element['rotation']['angle'],(-45,-22.5,0,22.5,45))
+    if 'rotation' in element:self.assertTrue(-45<=element['rotation']['angle']<=45)
  def test_eyes_only_appear_on_front_in_every_pose(self):
   for name in MODELS:
    m=json.loads(self.java['assets/yetiboss/models/boss/'+name+'.json'])
@@ -43,7 +43,7 @@ class BossPackTest(unittest.TestCase):
   self.assertGreater(len(teeth),6)
   self.assertTrue(all(e['to'][2]<=3.65 for e in teeth))
  def test_walk_swings_arms_and_alternates_legs(self):
-  walk=model(frame=3)
+  walk=model(frame=6)
   for start in ([.85,.1,3.6],[12.15,.1,3.6]):
    e=next(e for e in walk['elements'] if e['from']==start)
    self.assertEqual(22.5 if start[0]<8 else -22.5,e['rotation']['angle'])
@@ -51,7 +51,7 @@ class BossPackTest(unittest.TestCase):
   for start,sign in (([5.2,1,7.2],-1),([8.6,1,7.2],1)):
    e=next(e for e in walk['elements'] if e['from']==start)
    self.assertEqual(sign*22.5,e['rotation']['angle'])
-  back=model(frame=9)
+  back=model(frame=18)
   e=next(e for e in back['elements'] if e['from']==[.85,.1,3.6])
   self.assertEqual(-22.5,e['rotation']['angle'])
  def test_attack_poses_raise_both_arms(self):
@@ -117,6 +117,7 @@ class BossPackTest(unittest.TestCase):
   for name in MODELS:
    if name.startswith('giant_yeti'):
     counterpart=name.replace('giant_yeti','mother_yeti')
+    if '_walk_' in name and int(name.rsplit('_',1)[1])>=12:continue
     self.assertIn('assets/yetiboss/items/'+counterpart+'.json',self.java)
     self.assertIn('attachables/'+counterpart+'.json',self.bedrock)
  def test_mother_walk_keeps_shared_rig_attached_to_slimmer_body(self):
@@ -164,3 +165,15 @@ class BossPackTest(unittest.TestCase):
    self.assertEqual(['north'],optics)
    mats={f['texture'] for e in m['elements'] for f in e['faces'].values()}
    self.assertTrue({'#fur','#steel','#mechanism','#reactor','#cable'}<=mats)
+
+ def test_walk_has_small_continuous_steps_and_matching_cyborg_pistons(self):
+  angles=[]
+  for i in range(24):
+   m=model(frame=i)
+   fist=next(e for e in m['elements'] if e['from']==[12.15,.1,3.6])
+   piston=next(e for e in m['elements'] if e['from']==[12.18,3.2,4.08])
+   self.assertEqual(fist.get('rotation'),piston.get('rotation'))
+   angles.append(fist.get('rotation',{}).get('angle',0))
+   self.assertIn('assets/yetiboss/items/giant_yeti_walk_'+str(i)+'.json',self.java)
+  self.assertGreater(len(set(angles)),10)
+  self.assertLess(max(abs(angles[(i+1)%24]-a) for i,a in enumerate(angles)),6)
