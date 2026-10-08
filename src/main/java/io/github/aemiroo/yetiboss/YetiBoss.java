@@ -66,6 +66,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 if(!getConfig().contains("mother."+key,true))getConfig().set("mother."+key,getConfig().getDefaults().get("mother."+key));
             getConfig().set("schema-version",6);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<7) {
+            if(!getConfig().contains("mother.size-multiplier",true))getConfig().set("mother.size-multiplier",.75);
+            getConfig().set("schema-version",7);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
@@ -106,6 +110,9 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         double fraction=c.getDouble("mother.health-fraction",.25);
         if(!Double.isFinite(fraction)||fraction<=0||fraction>=1||c.getDouble("boss.health")*fraction<1)
             throw new IllegalArgumentException("Mother health must be at least 1 and below Father health");
+        double motherSize=c.getDouble("mother.size-multiplier",.75);
+        if(!Double.isFinite(motherSize)||motherSize<.5||motherSize>=1)
+            throw new IllegalArgumentException("mother.size-multiplier must be at least 0.5 and below 1");
         validateSummons(c);
         for(Attack a:Attack.values()) {
             String path="attacks."+a.key+".";
@@ -175,19 +182,23 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 &&shots.values().stream().noneMatch(shot->entity.equals(shot.visual))) entity.remove();
     }
     private void spawn(Location at) {
-        encounter=createYeti(at,getConfig().getDouble("boss.health"),getConfig().getString("boss.name","Father Yeti"));
+        encounter=createYeti(at,getConfig().getDouble("boss.health"),getConfig().getString("boss.name","Father Yeti"),false);
         updateViewers(encounter);
         bossEffect(at,"spawn",Sound.ENTITY_ENDER_DRAGON_GROWL);
         encounter.voiceUntil=tick+103;
         Bukkit.broadcastMessage(prefix()+ChatColor.RED+"The Father Yeti has appeared!");
     }
-    private Encounter createYeti(Location at,double health,String name) {
+    private Encounter createYeti(Location at,double health,String name,boolean mother) {
+        double size=mother?getConfig().getDouble("mother.size-multiplier",.75):1;
+        double modelScale=getConfig().getDouble("boss.model-scale")*size;
+        double bodyScale=getConfig().getDouble("boss.golem-scale")*size;
+        String modelPrefix=mother?"mother_yeti":"giant_yeti";
         IronGolem body=at.getWorld().spawn(at,IronGolem.class,golem->{
             tagged(golem);golem.setPlayerCreated(true);golem.setRemoveWhenFarAway(false);
             golem.customName(net.kyori.adventure.text.Component.text(name));
             golem.setCustomNameVisible(true);
             Objects.requireNonNull(golem.getAttribute(Attribute.MAX_HEALTH)).setBaseValue(health);
-            Objects.requireNonNull(golem.getAttribute(Attribute.SCALE)).setBaseValue(getConfig().getDouble("boss.golem-scale"));
+            Objects.requireNonNull(golem.getAttribute(Attribute.SCALE)).setBaseValue(bodyScale);
             Objects.requireNonNull(golem.getAttribute(Attribute.MOVEMENT_SPEED)).setBaseValue(getConfig().getDouble("boss.movement-speed"));
             Objects.requireNonNull(golem.getAttribute(Attribute.KNOCKBACK_RESISTANCE)).setBaseValue(1);
             golem.setHealth(health);
@@ -200,11 +211,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             display.setGravity(false);display.setInvulnerable(true);
             display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
             display.setBillboard(Display.Billboard.FIXED);
-            float scale=(float)getConfig().getDouble("boss.model-scale");
+            float scale=(float)modelScale;
             display.setTransformation(new Transformation(new Vector3f(),new Quaternionf(),new Vector3f(scale),new Quaternionf()));
             display.setTeleportDuration(2);display.setInterpolationDuration(2);
             display.setDisplayWidth(scale);display.setDisplayHeight(scale);display.setViewRange(2);
-            display.setItemStack(modelItem("giant_yeti"));
+            display.setItemStack(modelItem(modelPrefix));
         });
         IronGolem hitbox=at.getWorld().spawn(at,IronGolem.class,golem->{
             tagged(golem);golem.setAI(false);golem.setGravity(false);golem.setSilent(true);
@@ -214,9 +225,9 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             golem.setHealth(1024);
             // The approved mesh is 13.1 model units high; normal golem height is 2.7 blocks.
             Objects.requireNonNull(golem.getAttribute(Attribute.SCALE)).setBaseValue(
-                getConfig().getDouble("boss.model-scale")*13.1/16/2.7);
+                modelScale*13.1/16/2.7);
         });
-        return new Encounter(body,model,hitbox,at.clone(),tick,name,health);
+        return new Encounter(body,model,hitbox,at.clone(),tick,name,health,modelPrefix,modelScale);
     }
     private boolean belongsTo(Encounter e,Entity entity) {
         return e!=null&&(entity.equals(e.body)||entity.equals(e.model)||entity.equals(e.hitbox));
@@ -278,10 +289,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             tickMinions(e,players);
             if(getConfig().getBoolean("mother.enabled",true)&&e.motherTrigger.ready(e.bar.getProgress())&&tick>=e.nextMotherAttempt) {
                 e.nextMotherAttempt=tick+100;
-                double scale=getConfig().getDouble("boss.model-scale");
-                Location at=spawnPoint(e,Math.max(getConfig().getDouble("boss.golem-scale")*.7,scale*.4),Math.max(scale,getConfig().getDouble("boss.golem-scale")*2.7));
+                double size=getConfig().getDouble("mother.size-multiplier",.75);
+                double scale=getConfig().getDouble("boss.model-scale")*size;
+                Location at=spawnPoint(e,Math.max(getConfig().getDouble("boss.golem-scale")*size*.7,scale*.4),Math.max(scale,getConfig().getDouble("boss.golem-scale")*size*2.7));
                 if(at!=null) {
-                    Encounter summoned=createYeti(at,e.maximumHealth*getConfig().getDouble("mother.health-fraction",.25),getConfig().getString("mother.name","Mother Yeti"));
+                    Encounter summoned=createYeti(at,e.maximumHealth*getConfig().getDouble("mother.health-fraction",.25),getConfig().getString("mother.name","Mother Yeti"),true);
                     summoned.origin.setX(e.origin.getX());summoned.origin.setY(e.origin.getY());summoned.origin.setZ(e.origin.getZ());
                     e.mother=summoned;e.motherTrigger.spawned();updateViewers(summoned);
                     bossEffect(at,"spawn",Sound.ENTITY_ENDER_DRAGON_GROWL);summoned.voiceUntil=tick+103;
@@ -321,8 +333,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 Math.min(7,4+(int)((tick-e.recoveryStarted)*4/Math.max(1,e.recoveryUntil-e.recoveryStarted)));
         String pose=animated==Attack.SWIPE?"swipe":animated==Attack.ICE_BALL||animated==Attack.BARRAGE?"throw":
                 animated==Attack.ROAR||animated==Attack.SNOW_GOLEMS?"roar":"attack";
-        String model=e.grabbed!=null?"giant_yeti_attack_3":animated!=null?"giant_yeti_"+pose+"_"+poseFrame:
-                frame<0?"giant_yeti":"giant_yeti_walk_"+frame;
+        String model=e.grabbed!=null?e.modelPrefix+"_attack_3":animated!=null?e.modelPrefix+"_"+pose+"_"+poseFrame:
+                frame<0?e.modelPrefix:e.modelPrefix+"_walk_"+frame;
         if(!model.equals(e.modelName)) { e.model.setItemStack(modelItem(model));e.modelName=model; }
         e.model.teleport(at);e.hitbox.teleport(at);e.last=at;
         if(e.barrageRemaining>0&&tick>=e.nextShot) {
@@ -392,7 +404,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         e.body.setInvisible(custom);
         e.customVisible=custom;
         Objects.requireNonNull(e.hitbox.getAttribute(Attribute.SCALE)).setBaseValue(custom?
-            getConfig().getDouble("boss.model-scale")*13.1/16/2.7:.01);
+            e.modelScale*13.1/16/2.7:.01);
         for(Player player:e.body.getWorld().getPlayers()) {
             if(custom&&viewers.contains(player))player.showEntity(this,e.hitbox);
             else player.hideEntity(this,e.hitbox);
@@ -969,7 +981,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         final Location origin;Location last,aim;org.bukkit.util.Vector direction;
         final long started;long lastPlayers,nextAttack,releaseTick,nextShot,retryReward,nextRetarget,windupStarted;
         final ThresholdSummon wardenTrigger=new ThresholdSummon(),motherTrigger=new ThresholdSummon(.5);
-        Encounter mother;long nextMotherAttempt;final String name;final double maximumHealth;
+        Encounter mother;long nextMotherAttempt;final String name,modelPrefix;final double maximumHealth,modelScale;
         final Map<UUID,IceMinion> minions=new HashMap<>();
         long nextWardenAttempt,grabStarted;UUID grabbed;Location grabLanding;
         final AttackSelector selector=new AttackSelector();final Participation participation=new Participation();
@@ -977,8 +989,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         Attack pending,recovery;long recoveryStarted,recoveryUntil,nextGrowl,voiceUntil,nextHurtSound;UUID target,chaseTarget;boolean enraged,defeated,customVisible;int barrageRemaining;
         double walk;String modelName="giant_yeti";Set<UUID> recipients=Set.of();
         final Set<UUID> warned=new HashSet<>();
-        Encounter(IronGolem body,ItemDisplay model,IronGolem hitbox,Location origin,long tick,String name,double maximumHealth) {
-            this.name=name;this.maximumHealth=maximumHealth;this.body=body;this.model=model;this.hitbox=hitbox;this.origin=origin;last=origin.clone();started=tick;lastPlayers=tick;
+        Encounter(IronGolem body,ItemDisplay model,IronGolem hitbox,Location origin,long tick,String name,double maximumHealth,String modelPrefix,double modelScale) {
+            this.modelPrefix=modelPrefix;this.modelName=modelPrefix;this.modelScale=modelScale;this.name=name;this.maximumHealth=maximumHealth;this.body=body;this.model=model;this.hitbox=hitbox;this.origin=origin;last=origin.clone();started=tick;lastPlayers=tick;
         }
     }
 }

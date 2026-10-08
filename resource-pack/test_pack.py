@@ -103,3 +103,28 @@ class BossPackTest(unittest.TestCase):
   m=model(attack=3,kind='roar');self.assertLess(len(m['elements']),80)
   cavity=[e for e in m['elements'] if e['faces']['north']['texture']=='#scream']
   self.assertLess(max(e['to'][2] for e in cavity),6)
+
+ def test_mother_has_distinct_shape_palette_and_every_animation(self):
+  from boss_model import mother_model,texture_color
+  father,mother=model(),mother_model()
+  self.assertNotEqual(father['elements'],mother['elements'])
+  self.assertLess(mother['elements'][0]['to'][0]-mother['elements'][0]['from'][0],father['elements'][0]['to'][0]-father['elements'][0]['from'][0])
+  self.assertEqual(13.1,max(e['to'][1] for e in mother['elements']))
+  self.assertEqual(0,min(e['from'][1] for e in mother['elements']))
+  self.assertNotEqual(texture_color('ice_face',3,10),texture_color('mother_ice_face',3,10))
+  for texture in mother['textures'].values():self.assertIn('/mother_',texture)
+  for name in MODELS:
+   if name.startswith('giant_yeti'):
+    counterpart=name.replace('giant_yeti','mother_yeti')
+    self.assertIn('assets/yetiboss/items/'+counterpart+'.json',self.java)
+    self.assertIn('attachables/'+counterpart+'.json',self.bedrock)
+ def test_mother_walk_keeps_shared_rig_attached_to_slimmer_body(self):
+  from boss_model import mother_model
+  father,mother=model(frame=3),mother_model(frame=3)
+  f=[e['rotation'] for e in father['elements'] if 'rotation' in e and e['rotation']['axis']=='x']
+  m=[e['rotation'] for e in mother['elements'] if 'rotation' in e and e['rotation']['axis']=='x']
+  self.assertEqual(len(f),len(m))
+  for a,b in zip(f,m):
+   self.assertEqual(a['angle'],b['angle'])
+   self.assertEqual(round(8+(a['origin'][0]-8)*.9,6),b['origin'][0])
+   self.assertEqual(a['origin'][1:],b['origin'][1:])

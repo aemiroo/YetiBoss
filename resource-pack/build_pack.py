@@ -1,7 +1,7 @@
 """Original frost Yeti boss resource pack."""
 import base64,hashlib,json,math,pathlib,struct,zlib,zipfile
 ROOT=pathlib.Path(__file__).resolve().parents[1]
-from boss_model import model,COLORS,texture_color
+from boss_model import model,mother_model,COLORS,texture_color
 def png(name):
  def chunk(kind,data): return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
  rows=[]
@@ -13,15 +13,17 @@ def png(name):
  raw=b''.join(rows)
  return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',16,16,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
 SOUNDS=('idle','angry','spawn','death','hurt_1','hurt_2','grab_slam')
-MODELS=('giant_yeti',)+tuple('giant_yeti_walk_'+str(i) for i in range(12))+tuple('giant_yeti_attack_'+str(i) for i in range(8))+tuple('giant_yeti_'+kind+'_'+str(i) for kind in ('swipe','throw','roar') for i in range(8))
+FATHER_MODELS=('giant_yeti',)+tuple('giant_yeti_walk_'+str(i) for i in range(12))+tuple('giant_yeti_attack_'+str(i) for i in range(8))+tuple('giant_yeti_'+kind+'_'+str(i) for kind in ('swipe','throw','roar') for i in range(8))
+MODELS=FATHER_MODELS+tuple(name.replace('giant_yeti','mother_yeti') for name in FATHER_MODELS)
 def files():
- result={'pack.mcmeta':json.dumps({'pack':{'description':'YetiBoss - Giant Yeti','min_format':[97,1],'max_format':[97,1]}}).encode(),
+ result={'pack.mcmeta':json.dumps({'pack':{'description':'YetiBoss - Father and Mother Yeti','min_format':[97,1],'max_format':[97,1]}}).encode(),
          'LICENSE.txt':b'Original YetiBoss model and textures: GPL-3.0. Audio clips supplied by the server owner; original audio rights remain with their respective creators.\n'}
  for name in MODELS:
-  if name=='giant_yeti':m=model()
+  make=mother_model if name.startswith('mother_yeti') else model
+  if name in ('giant_yeti','mother_yeti'):m=make()
   else:
    kind=name.split('_')[-2];index=int(name.rsplit('_',1)[1])
-   m=model(frame=index) if kind=='walk' else model(attack=index,kind='slam' if kind=='attack' else kind)
+   m=make(frame=index) if kind=='walk' else make(attack=index,kind='slam' if kind=='attack' else kind)
   result['assets/yetiboss/models/boss/'+name+'.json']=json.dumps(m).encode()
   result['assets/yetiboss/items/'+name+'.json']=json.dumps({'model':{'type':'minecraft:model','model':'yetiboss:boss/'+name}}).encode()
  for name,color in COLORS.items():result['assets/yetiboss/textures/boss/'+name+'.png']=png(name)

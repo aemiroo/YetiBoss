@@ -8,7 +8,24 @@ COLORS['muzzle']=(61,86,97,255)
 COLORS['scream']=(61,86,97,255)
 COLORS['tooth']=(231,235,216,255)
 COLORS.update({'horn':(54,70,82,255),'nose':(78,89,100,255)})
+BASE_MATERIALS=tuple(COLORS)
+MOTHER_COLORS={'fur':(230,242,248,255),'fur_light':(250,253,255,255),
+ 'fur_shadow':(177,204,222,255),'horn':(87,164,198,255),'nose':(66,90,109,255),
+ 'face_plain':(49,70,91,255),'muzzle':(49,70,91,255),'scream':(49,70,91,255),
+ 'ice_face':(49,70,91,255)}
+COLORS.update({'mother_'+n:MOTHER_COLORS.get(n,COLORS[n]) for n in BASE_MATERIALS})
 def texture_color(mat,x,y):
+ if mat.startswith('mother_'):
+  original=mat[len('mother_'):]
+  color=texture_color(original,x,y)
+  if original=='ice_face':
+   return (135,248,255) if color in ((255,145,99),(217,24,29)) else MOTHER_COLORS['ice_face'][:3]
+  if original in ('muzzle','scream') and color in ((24,27,36),(17,19,27),(102,35,47)):return color
+  if original.startswith('fur'):
+   delta=color[0]-COLORS[original][0]
+   return tuple(max(0,min(255,v+delta)) for v in MOTHER_COLORS[original][:3])
+  return MOTHER_COLORS.get(original,COLORS[original])[:3]
+
  if mat in ('tooth','face_plain'):return COLORS[mat][:3]
  if mat in ('horn','nose'):
   c=COLORS[mat];return tuple(max(0,min(255,v+(((x//3+y//3)%3)-1)*4)) for v in c[:3])
@@ -96,5 +113,24 @@ def model(frame=None,attack=None,kind='slam'):
   horn((4.3,10.8,3.5),(5.7,12.3,5.4))
   horn((4.1,12,4),(5.5,13.1,6.4))
   horn((4.4,12.02,6),(5.6,13,7.5))
- return {'elements':es,'textures':{n:'yetiboss:boss/'+n for n in COLORS},
+ return {'elements':es,'textures':{n:'yetiboss:boss/'+n for n in BASE_MATERIALS},
          'display':{'fixed':{'rotation':[0,0,0],'translation':[0,8,0],'scale':[1,1,1]}}}
+
+
+def mother_model(frame=None,attack=None,kind='slam'):
+ """Distinct slender glacier guardian, with swept ice horns and shared rig."""
+ m=model(frame,attack,kind)
+ # Narrow the body and animated pivot positions together, so every limb stays attached.
+ for e in m['elements']:
+  for bound in ('from','to'):e[bound][0]=round(8+(e[bound][0]-8)*.9,6)
+  if 'rotation' in e:e['rotation']['origin'][0]=round(8+(e['rotation']['origin'][0]-8)*.9,6)
+ m['elements']=[e for e in m['elements'] if e['faces']['north']['texture']!='#horn']
+ for right in (False,True):
+  for a,b in (((4.5,10.8,4.6),(5.7,12.1,6.2)),
+              ((3.6,11.75,5),(4.8,12.8,7)),
+              ((3.7,12.6,6.5),(4.5,13.1,8))):
+   if right:a,b=(16-b[0],a[1],a[2]),(16-a[0],b[1],b[2])
+   m['elements'].append({'from':list(a),'to':list(b),
+    'faces':{f:{'uv':[0,0,16,16],'texture':'#horn'} for f in ('north','south','east','west','up','down')}})
+ m['textures']={n:'yetiboss:boss/mother_'+n for n in BASE_MATERIALS}
+ return m

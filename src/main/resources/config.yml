@@ -1,4 +1,4 @@
-schema-version: 6
+schema-version: 7
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Father Yeti'
@@ -15,6 +15,8 @@ mother:
   name: 'Mother Yeti'
   # Summoned once at Father's 50% HP; her max HP is this fraction of Father's.
   health-fraction: 0.25
+  # Relative to Father; accepted range is 0.5 to below 1.0.
+  size-multiplier: 0.75
 attacks:
   roar:
     weight: 2

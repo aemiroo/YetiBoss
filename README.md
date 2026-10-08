@@ -165,3 +165,8 @@ Separates coplanar overlapping surfaces at the hip/legs, feet and curled horn se
 The main boss is named Father Yeti. Once at or below 50% health he summons Mother Yeti, using the same model, walking/attack animations and randomized combat. Mother has 25% of Father's maximum HP (175 HP with the default 700 HP), her own health bar and attack cooldowns. Only Father summons snow golems and the Ice Warden; the 35% Warden trigger stays independent. Summoning retries every five seconds until safe loaded ground is available, then never repeats even if Mother dies.
 
 Damage to either Yeti counts toward participation. Mother drops no separate rewards. Father's defeat completes the event and removes Mother and other summons; stopping, unloading or disabling cleans them up too. Set `mother.enabled`, `mother.name`, and `mother.health-fraction` in config.yml, then `/yetiboss reload` while no encounter is active. Existing default boss name migrates to Father Yeti; custom names remain. No resource-pack changes are required.
+
+
+## Distinct Mother model (0.6.1)
+
+Mother is now 25% smaller than Father by default, with a narrower silhouette, pale glacier fur, cyan eyes and outward swept ice horns. She has separate idle, walking, slam, swipe, throw and roar models in both Java and Bedrock packs. Animations never switch back to Father's model. Display size, navigation body, collision clearance and combat hitbox scale together. Health and summon thresholds remain unchanged. `mother.size-multiplier` controls size relative to Father (0.5 to below 1.0). Update the JAR and Java/Bedrock resource packs, plus both Geyser mapping files for Bedrock players, then restart and reconnect.
