@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.1 — Bow facing and combat dialogue fix"
+run-name: "YetiBoss 0.8.2 — Upright bow grip alignment"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
