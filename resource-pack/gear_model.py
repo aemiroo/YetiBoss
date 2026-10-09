@@ -97,8 +97,8 @@ def model(name):
  bow=name.startswith('frostbow')
  right=[-80,260,95] if bow else [0,-90,10]
  left=[-80,-280,-95] if bow else [0,90,-10]
- display['thirdperson_righthand']=hand_pose(name,right,1.5 if name=='frostfang' else 1.15,((-1,-2,2.5) if bow else (0,-2,1)))
- display['thirdperson_lefthand']=hand_pose(name,left,1.5 if name=='frostfang' else 1.15,((-1,-2,2.5) if bow else (0,-2,1)),True)
+ display['thirdperson_righthand']=hand_pose(name,right,1.5 if name=='frostfang' else 1.15,((-1,-2,4.5) if bow else (0,-2,1)))
+ display['thirdperson_lefthand']=hand_pose(name,left,1.5 if name=='frostfang' else 1.15,((-1,-2,4.5) if bow else (0,-2,1)),True)
  # Present the sword blade in the same plane as vanilla handheld swords.
  first_right=[0,-90,25] if name=='frostfang' else ([0,-90,160] if bow else [0,-30,-15])
  first_left=[0,90,-25] if name=='frostfang' else ([0,90,-160] if bow else [0,30,15])

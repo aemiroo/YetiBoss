@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.3 — Match Frost Bow to vanilla hand transforms"
+run-name: "YetiBoss 0.8.4 — Lower Frost Bow hand position"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

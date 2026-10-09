@@ -69,7 +69,7 @@ class GearPackTest(unittest.TestCase):
     for axis,degrees in reversed(list(zip('xyz',rotations))):v=rotate(v,axis,degrees)
     actual=[p*scale+t for p,scale,t in zip(v,pose['scale'],translation)]
     if name.startswith('frostbow'):
-     target=((1 if left else -1),-2,2.5) if hand.startswith('thirdperson') else (-1.13 if left else 1.13,3.2,1.13)
+     target=((1 if left else -1),-2,4.5) if hand.startswith('thirdperson') else (-1.13 if left else 1.13,3.2,1.13)
     else:
      target=(0,-2,1) if hand.startswith('thirdperson') else (-1.13 if left else 1.13,-1.3,-.5)
     for a,b in zip(actual,target):self.assertAlmostEqual(a,b,places=5)
