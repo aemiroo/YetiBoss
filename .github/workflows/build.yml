@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.0 — Combat overhaul and bow carry fix"
+run-name: "YetiBoss 0.8.1 — Bow facing and combat dialogue fix"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

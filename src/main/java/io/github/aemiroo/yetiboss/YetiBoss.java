@@ -351,9 +351,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         int attackFrame=e.pending==null?-1:Math.max(0,Math.min(3,
                 (int)((tick-e.windupStarted)*4/Math.max(1,e.releaseTick-e.windupStarted))));
         if(e.recovery!=null&&tick>=e.recoveryUntil)e.recovery=null;
-        Attack animated=e.pending!=null?e.pending:e.recovery;
+        Attack animated=e.pending!=null?e.pending:e.comboRemaining==1?Attack.SLAM:e.recovery;
         int poseFrame=e.pending!=null?attackFrame:e.recovery==null?0:
                 Math.min(7,4+(int)((tick-e.recoveryStarted)*4/Math.max(1,e.recoveryUntil-e.recoveryStarted)));
+        if(e.comboRemaining==1&&e.pending==null)poseFrame=Math.max(0,Math.min(3,(int)(4-(e.comboNext-tick)*4/18)));
         String pose=animated==Attack.SWIPE?"swipe":animated==Attack.ICE_BALL||animated==Attack.BARRAGE?"throw":
                 animated==Attack.ROAR||animated==Attack.SNOW_GOLEMS?"roar":"attack";
         String model=e.chargeUntil>tick?e.modelPrefix+"_gallop_"+Math.max(0,frame):e.grabbed!=null?e.modelPrefix+"_attack_3":animated!=null?e.modelPrefix+"_"+pose+"_"+poseFrame:
@@ -410,7 +411,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 e.body.getPathfinder().stopPathfinding();
                 e.body.setVelocity(new org.bukkit.util.Vector(0,e.body.getVelocity().getY(),0));
                 for(Player p:players)p.sendActionBar(net.kyori.adventure.text.Component.text(
-                    e.name+": "+attack.key.replace('-',' ')+"!",net.kyori.adventure.text.format.NamedTextColor.AQUA));
+                    e.name+": "+AttackDialogue.warning(attack,father),net.kyori.adventure.text.format.NamedTextColor.AQUA));
                 bossSound(e,"angry",Sound.ENTITY_POLAR_BEAR_WARNING,3f);
                 telegraph(e);
             });
@@ -539,7 +540,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 if(landing.clone().add(0,-.1,0).getBlock().isPassable()||!room(landing,.35,4.5))return;
                 e.grabbed=victim.getUniqueId();e.grabLanding=landing;e.grabStarted=tick;
                 e.body.getPathfinder().stopPathfinding();
-                victim.sendActionBar(net.kyori.adventure.text.Component.text("The Yeti grabbed you!"));
+                victim.sendActionBar(net.kyori.adventure.text.Component.text("The Yeti grabbed you — brace for the throw!"));
             }
             case SNOW_GOLEMS -> {
                 int count=Math.min(getConfig().getInt("minions.snow-golems.per-wave"),
@@ -600,6 +601,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             try {execute(e,e.comboRemaining==2?Attack.SWIPE:Attack.SLAM,players);}
             finally {e.comboExecuting=false;}
             e.comboRemaining--;e.comboNext=tick+18;
+            if(e.comboRemaining==1) {
+                for(Player p:players)p.sendActionBar(net.kyori.adventure.text.Component.text(e.name+": Frost shockwave — jump or retreat!",net.kyori.adventure.text.format.NamedTextColor.AQUA));
+                e.pending=Attack.SLAM;telegraph(e);e.pending=null;
+            }
             e.recovery=e.comboRemaining==1?Attack.SWIPE:Attack.SLAM;e.recoveryStarted=tick;
         }
         if(e.waveOrigin!=null) {

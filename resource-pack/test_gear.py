@@ -90,7 +90,7 @@ class GearPackTest(unittest.TestCase):
      up=rotation(up,[-90,180,0]);front=rotation(front,[-90,180,0])
     if hand.startswith('thirdperson'):
      self.assertGreater(up[1],.6)
-     self.assertLess(front[2],-.6)
+     self.assertGreater(front[2],.6)
     else:
      self.assertAlmostEqual(up[1],1)
      self.assertAlmostEqual(front[2],-1)
