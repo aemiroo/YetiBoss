@@ -171,7 +171,12 @@ def model(frame=None,attack=None,kind='slam'):
   if part:
    side=-1 if part.endswith('l') else 1
    pivot=[8+side*4.5,10.3,7.2] if part.startswith('arm') else [8+side*1.7,4.4,8.5]
-   if frame is not None:angle=round(math.sin(phase)*22.5,6)*(side if part.startswith('leg') else -side)
+   if frame is not None:
+    limb_phase=phase+(.25*side if kind=='gallop' else math.pi if side==1 else 0)
+    if part.startswith('leg'):limb_phase+=math.pi*.65
+    angle=round(math.sin(limb_phase)*(20 if kind=='gallop' else 12 if part.startswith('leg') else 10),6)
+    lift=max(0,math.sin(limb_phase))*(.45 if part.startswith('leg') else .65)
+    a=(a[0],a[1]+lift,a[2]);b=(b[0],b[1]+lift,b[2])
    if attack is not None and part.startswith('arm'):
     peak=round(math.sin(math.pi*attack/7)*2)*22.5
     angle=peak if kind=='slam' else -peak
@@ -293,5 +298,12 @@ def model(frame=None,attack=None,kind='slam'):
  box((9.54,8.8,2.15),(10.32,9.28,2.34),'metal_edge')
  box((8.91,1.2,6.81),(10.48,2.34,7.19),'steel','leg_r')
  box((9.42,1.38,6.60),(9.97,2.11,6.80),'reactor','leg_r')
+ if frame is not None:
+  sway=.18*math.sin(phase);bob=(.35 if kind=='gallop' else .12)*(1-math.cos(2*phase))
+  for element in es:
+   for bound in ('from','to'):
+    element[bound][0]+=sway;element[bound][1]+=bob
+   if 'rotation' in element:
+    element['rotation']['origin'][0]+=sway;element['rotation']['origin'][1]+=bob
  return {'elements':es,'textures':{n:'yetiboss:boss/father_'+n for n in (*BASE_MATERIALS,*CYBORG_MATERIALS)},
          'display':{'fixed':{'rotation':[0,0,0],'translation':[0,8,0],'scale':[1,1,1]}}}

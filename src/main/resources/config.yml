@@ -1,4 +1,4 @@
-schema-version: 8
+schema-version: 9
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Cyborg Father Yeti'
@@ -18,6 +18,12 @@ mother:
   # Relative to Father; accepted range is 0.5 to below 1.0.
   size-multiplier: 0.75
 attacks:
+  charge:
+    weight: 4
+    cooldown-ticks: 200
+    windup-ticks: 30
+    damage: 10.0
+    knockback: 1.2
   roar:
     weight: 2
     cooldown-ticks: 260
@@ -33,7 +39,7 @@ attacks:
     range: 5.0
     damage: 14.0
     knockback: 0.5
-  global-cooldown-ticks: 35
+  global-cooldown-ticks: 25
   ice-ball:
     weight: 5
     cooldown-ticks: 90

@@ -93,8 +93,8 @@ def model(name):
  'fixed':{'rotation':[0,180,0],'translation':[0,0,0],'scale':[.8,.8,.8]}}
  # The palm anchors are measured in item-model units; left-hand mirroring is applied by Minecraft.
  bow=name.startswith('frostbow')
- right=[-90,90,0] if bow else [0,-90,10]
- left=[-90,-90,0] if bow else [0,90,-10]
+ right=[-80,-90,-40] if bow else [0,-90,10]
+ left=[-80,90,40] if bow else [0,90,-10]
  display['thirdperson_righthand']=hand_pose(name,right,1.5 if name=='frostfang' else 1.15,(0,-2,1))
  display['thirdperson_lefthand']=hand_pose(name,left,1.5 if name=='frostfang' else 1.15,(0,-2,1),True)
  # Present the sword blade in the same plane as vanilla handheld swords.

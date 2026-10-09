@@ -196,3 +196,12 @@ All three items have new darker forged metal, stitched leather wraps, pale rime 
 Rebuilds all three items from the approved concept sheet: Frostfang has a long dark fuller, cyan rune panels, jagged ice edges, hooked guard and faceted jewels; Glacier Pickaxe has a downward-curved two-sided head, socket jewel, decorated wrapped haft and silver collars; Frost Bow has stepped recurve limbs, crystal clusters, metallic reinforcement, a jewel-trimmed central grip, connected string and three nocked-arrow draw stages.
 
 The models use native cuboids and legal 45-degree diamond accents, with matching textures and 64px geometry-derived Bedrock icons. First/third-person grip anchors remain shared across Java and Bedrock. All gear IDs and commands remain compatible. Update both packs and the plugin for the new pack hash, then restart and reconnect. This release remodels the visuals; the previously planned bow/mining/loot mechanics are still pending.
+
+
+## 0.8.0 — Yeti combat overhaul
+
+Cyborg Father Yeti now uses a distance-driven knuckle gait and a bounding gallop during his telegraphed charge. His melee sequence performs two swipes 14 ticks apart, then a slam 18 ticks later. Slams send an expanding, jumpable frost ring out to 12 blocks; each ring and charge hits each player at most once. At half health, reactor sparks, faster attack cadence, longer/faster charges and stronger frost rings intensify the fight.
+
+Both Yetis now lift and throw a grabbed player instead of slamming them downward. The randomized 5–15 block distance is estimated for level ground; walls, elevation, water and player movement affect actual travel. Existing grab cancellation and cleanup rules remain. Mother Yeti retains her exact model, textures and animation assets.
+
+The idle bow carry pose has been retuned from the in-game screenshot. Actions run titles include version 0.8.0 and the commit description. Schema 9 adds charge settings and updates only the previous default global cooldown. Validate bow carrying/shooting in both hands, terrain collision during charge, throw distances and fight balance on the actual server before using this draft for an event.

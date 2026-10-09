@@ -88,8 +88,12 @@ class GearPackTest(unittest.TestCase):
     up=rotation((0,1,0),angles);front=rotation((1,0,0),angles)
     if hand.startswith('thirdperson'):
      up=rotation(up,[-90,180,0]);front=rotation(front,[-90,180,0])
-    self.assertAlmostEqual(up[1],1)
-    self.assertAlmostEqual(front[2],1 if hand.startswith('thirdperson') else -1)
+    if hand.startswith('thirdperson'):
+     self.assertGreater(up[1],.6)
+     self.assertLess(front[2],-.6)
+    else:
+     self.assertAlmostEqual(up[1],1)
+     self.assertAlmostEqual(front[2],-1)
  def test_bedrock_gear_is_originated_at_actual_grip(self):
   from gear_model import grip_point
   for name in GEAR_MODELS:

@@ -42,18 +42,15 @@ class BossPackTest(unittest.TestCase):
   teeth=[e for e in roar['elements'] if e['faces']['north']['texture']=='#tooth']
   self.assertGreater(len(teeth),6)
   self.assertTrue(all(e['to'][2]<=3.65 for e in teeth))
- def test_walk_swings_arms_and_alternates_legs(self):
-  walk=model(frame=6)
-  for start in ([.85,.1,3.6],[12.15,.1,3.6]):
-   e=next(e for e in walk['elements'] if e['from']==start)
-   self.assertEqual(22.5 if start[0]<8 else -22.5,e['rotation']['angle'])
-   self.assertEqual('x',e['rotation']['axis'])
-  for start,sign in (([5.2,1,7.2],-1),([8.6,1,7.2],1)):
-   e=next(e for e in walk['elements'] if e['from']==start)
-   self.assertEqual(sign*22.5,e['rotation']['angle'])
-  back=model(frame=18)
-  e=next(e for e in back['elements'] if e['from']==[.85,.1,3.6])
-  self.assertEqual(-22.5,e['rotation']['angle'])
+ def test_knuckle_gait_has_alternating_lifts_and_short_steps(self):
+  rest=model()['elements']
+  left=next(i for i,e in enumerate(rest) if e['from']==[.85,.1,3.6])
+  right=next(i for i,e in enumerate(rest) if e['from']==[12.15,.1,3.6])
+  front=model(frame=6)['elements'];back=model(frame=18)['elements']
+  self.assertGreater(front[left]['from'][1],front[right]['from'][1])
+  self.assertGreater(back[right]['from'][1],back[left]['from'][1])
+  self.assertAlmostEqual(front[left]['rotation']['angle'],10)
+  self.assertAlmostEqual(front[right]['rotation']['angle'],-10)
  def test_attack_poses_raise_both_arms(self):
   rotations=[e['rotation'] for e in model(attack=3)['elements'] if 'rotation' in e]
   for pivot in ([3.5,10.3,7.2],[12.5,10.3,7.2]):
@@ -117,7 +114,7 @@ class BossPackTest(unittest.TestCase):
   for name in MODELS:
    if name.startswith('giant_yeti'):
     counterpart=name.replace('giant_yeti','mother_yeti')
-    if '_walk_' in name and int(name.rsplit('_',1)[1])>=12:continue
+    if '_gallop_' in name or ('_walk_' in name and int(name.rsplit('_',1)[1])>=12):continue
     self.assertIn('assets/yetiboss/items/'+counterpart+'.json',self.java)
     self.assertIn('attachables/'+counterpart+'.json',self.bedrock)
  def test_mother_walk_keeps_shared_rig_attached_to_slimmer_body(self):
@@ -158,8 +155,8 @@ class BossPackTest(unittest.TestCase):
  def test_cyborg_parts_follow_arm_rig_and_optic_is_front_only(self):
   for frame,attack in ((None,None),(3,None),(9,None),(None,3)):
    m=model(frame=frame,attack=attack)
-   arm=next(e for e in m['elements'] if e['from']==[12.15,.1,3.6])
-   piston=next(e for e in m['elements'] if e['from']==[12.18,3.2,4.08])
+   arm=m['elements'][next(i for i,e in enumerate(model()['elements']) if e['from']==[12.15,.1,3.6])]
+   piston=m['elements'][next(i for i,e in enumerate(model()['elements']) if e['from']==[12.18,3.2,4.08])]
    self.assertEqual(arm.get('rotation'),piston.get('rotation'))
    optics=[side for e in m['elements'] for side,f in e['faces'].items() if f['texture']=='#optic']
    self.assertEqual(['north'],optics)
@@ -170,8 +167,8 @@ class BossPackTest(unittest.TestCase):
   angles=[]
   for i in range(24):
    m=model(frame=i)
-   fist=next(e for e in m['elements'] if e['from']==[12.15,.1,3.6])
-   piston=next(e for e in m['elements'] if e['from']==[12.18,3.2,4.08])
+   fist=m['elements'][next(i for i,e in enumerate(model()['elements']) if e['from']==[12.15,.1,3.6])]
+   piston=m['elements'][next(i for i,e in enumerate(model()['elements']) if e['from']==[12.18,3.2,4.08])]
    self.assertEqual(fist.get('rotation'),piston.get('rotation'))
    angles.append(fist.get('rotation',{}).get('angle',0))
    self.assertIn('assets/yetiboss/items/giant_yeti_walk_'+str(i)+'.json',self.java)

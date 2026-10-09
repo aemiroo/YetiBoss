@@ -15,7 +15,8 @@ def png(name):
  return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',16,16,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
 SOUNDS=('idle','angry','spawn','death','hurt_1','hurt_2','grab_slam')
 FATHER_MODELS=('giant_yeti',)+tuple('giant_yeti_walk_'+str(i) for i in range(24))+tuple('giant_yeti_attack_'+str(i) for i in range(8))+tuple('giant_yeti_'+kind+'_'+str(i) for kind in ('swipe','throw','roar') for i in range(8))
-MODELS=FATHER_MODELS+tuple(name.replace('giant_yeti','mother_yeti') for name in FATHER_MODELS if '_walk_' not in name or int(name.rsplit('_',1)[1])<12)
+FATHER_MODELS+=tuple('giant_yeti_gallop_'+str(i) for i in range(24))
+MODELS=FATHER_MODELS+tuple(name.replace('giant_yeti','mother_yeti') for name in FATHER_MODELS if '_gallop_' not in name and ('_walk_' not in name or int(name.rsplit('_',1)[1])<12))
 def files():
  result={'pack.mcmeta':json.dumps({'pack':{'description':'YetiBoss - Father and Mother Yeti','min_format':[97,1],'max_format':[97,1]}}).encode(),
          'LICENSE.txt':b'Original YetiBoss model and textures: GPL-3.0. Audio clips supplied by the server owner; original audio rights remain with their respective creators.\n'}
@@ -24,7 +25,7 @@ def files():
   if name in ('giant_yeti','mother_yeti'):m=make()
   else:
    kind=name.split('_')[-2];index=int(name.rsplit('_',1)[1])
-   m=make(frame=index) if kind=='walk' else make(attack=index,kind='slam' if kind=='attack' else kind)
+   m=make(frame=index,kind=kind) if kind in ('walk','gallop') else make(attack=index,kind='slam' if kind=='attack' else kind)
   result['assets/yetiboss/models/boss/'+name+'.json']=json.dumps(m).encode()
   result['assets/yetiboss/items/'+name+'.json']=json.dumps({'model':{'type':'minecraft:model','model':'yetiboss:boss/'+name}}).encode()
  result['GEAR-SOURCES.txt']=(ROOT/'resource-pack/imported/SOURCES.md').read_bytes()

@@ -47,6 +47,11 @@ class AttackSelectorTest {
         selector.used(roar,0,260);
         assertTrue(selector.choose(100,false,3,5,7,only,new Random()).isEmpty());
     }
+    @Test void chargeRequiresDodgeableMidRange() {
+        var weights=Map.of(AttackSelector.Attack.CHARGE,1);
+        for(double distance:new double[]{2,25})assertTrue(new AttackSelector().choose(0,false,distance,5,7,weights,new Random()).isEmpty());
+        assertEquals(AttackSelector.Attack.CHARGE,new AttackSelector().choose(0,false,10,5,7,weights,new Random()).orElseThrow());
+    }
     @Test void zeroWeightsNeverSelect() {
         assertTrue(new AttackSelector().choose(0,true,0,5,7,Map.of(),new Random()).isEmpty());
     }
