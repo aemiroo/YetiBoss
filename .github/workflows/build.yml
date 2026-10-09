@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.4 — Lower Frost Bow hand position"
+run-name: "YetiBoss 0.8.5 — Recess Cyborg Yeti jaw bolt"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

@@ -295,7 +295,7 @@ def model(frame=None,attack=None,kind='slam'):
  lens=box((8.70,10.68,3.48),(9.52,11.18,3.58),'steel')
  lens['faces']['north']['texture']='#optic'
  # Jaw bolts and a boot/shin plate finish the repaired mechanical half.
- box((9.54,8.8,2.15),(10.32,9.28,2.34),'metal_edge')
+ box((9.54,8.8,2.33),(10.32,9.28,2.52),'metal_edge')
  box((8.91,1.2,6.81),(10.48,2.34,7.19),'steel','leg_r')
  box((9.42,1.38,6.60),(9.97,2.11,6.80),'reactor','leg_r')
  if frame is not None:
