@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.2 — Upright bow grip alignment"
+run-name: "YetiBoss 0.8.3 — Match Frost Bow to vanilla hand transforms"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

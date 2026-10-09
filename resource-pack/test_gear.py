@@ -68,11 +68,14 @@ class GearPackTest(unittest.TestCase):
     v=tuple(p-8 for p in grip_point(name))
     for axis,degrees in reversed(list(zip('xyz',rotations))):v=rotate(v,axis,degrees)
     actual=[p*scale+t for p,scale,t in zip(v,pose['scale'],translation)]
-    target=(0,-2,1) if hand.startswith('thirdperson') else (-1.13 if left else 1.13,-1.3,-.5)
+    if name.startswith('frostbow'):
+     target=((1 if left else -1),-2,2.5) if hand.startswith('thirdperson') else (-1.13 if left else 1.13,3.2,1.13)
+    else:
+     target=(0,-2,1) if hand.startswith('thirdperson') else (-1.13 if left else 1.13,-1.3,-.5)
     for a,b in zip(actual,target):self.assertAlmostEqual(a,b,places=5)
- def test_bow_stays_upright_and_points_forward(self):
+ def test_bow_matches_vanilla_basis_in_each_hand_and_draw_stage(self):
   import math
-  def rotation(v,angles):
+  def rotate(v,angles):
    x,y,z=v
    for axis,degrees in reversed(list(zip('xyz',angles))):
     c=math.cos(math.radians(degrees));s=math.sin(math.radians(degrees))
@@ -80,20 +83,18 @@ class GearPackTest(unittest.TestCase):
     elif axis=='y':x,z=x*c+z*s,-x*s+z*c
     else:y,z=y*c-z*s,y*s+z*c
    return x,y,z
+  vanilla={'thirdperson_righthand':[-80,260,-40], 'thirdperson_lefthand':[-80,-280,40],
+           'firstperson_righthand':[0,-90,25], 'firstperson_lefthand':[0,90,-25]}
   for name in ('frostbow','frostbow_pull_0','frostbow_pull_1','frostbow_pull_2'):
-   for hand,pose in model(name)['display'].items():
-    if 'hand' not in hand:continue
-    angles=list(pose['rotation'])
-    if hand.endswith('lefthand'):angles[1]*=-1;angles[2]*=-1
-    up=rotation((0,1,0),angles);front=rotation((1,0,0),angles)
-    if hand.startswith('thirdperson'):
-     up=rotation(up,[-90,180,0]);front=rotation(front,[-90,180,0])
-    if hand.startswith('thirdperson'):
-     self.assertAlmostEqual(up[1],1)
-     self.assertAlmostEqual(front[2],1)
-    else:
-     self.assertAlmostEqual(up[1],1)
-     self.assertAlmostEqual(front[2],-1)
+   for hand,baseline in vanilla.items():
+    angles=list(model(name)['display'][hand]['rotation']);left=hand.endswith('lefthand')
+    baseline=list(baseline)
+    if left:
+     angles[1]*=-1;angles[2]*=-1;baseline[1]*=-1;baseline[2]*=-1
+    for direction in ((1,0,0),(0,1,0),(0,0,1)):
+     expected=rotate(rotate(direction,[0,0,135]),baseline)
+     actual=rotate(direction,angles)
+     for a,b in zip(actual,expected):self.assertAlmostEqual(a,b)
  def test_bedrock_gear_is_originated_at_actual_grip(self):
   from gear_model import grip_point
   for name in GEAR_MODELS:

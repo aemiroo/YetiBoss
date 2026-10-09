@@ -91,17 +91,19 @@ def model(name):
  display={'gui':{'rotation':[0,0,-45],'translation':[0,0,0],'scale':[.85,.85,.85]},
  'ground':{'rotation':[0,0,0],'translation':[0,3,0],'scale':[.45,.45,.45]},
  'fixed':{'rotation':[0,180,0],'translation':[0,0,0],'scale':[.8,.8,.8]}}
+ # Upright imported bow -> vanilla diagonal sprite basis: Z=135 degrees.
+ # Compose that basis into the vanilla bow display rotations (-40+135=95).
  # The palm anchors are measured in item-model units; left-hand mirroring is applied by Minecraft.
  bow=name.startswith('frostbow')
- right=[-90,90,0] if bow else [0,-90,10]
- left=[-90,-90,0] if bow else [0,90,-10]
- display['thirdperson_righthand']=hand_pose(name,right,1.5 if name=='frostfang' else 1.15,(0,-2,1))
- display['thirdperson_lefthand']=hand_pose(name,left,1.5 if name=='frostfang' else 1.15,(0,-2,1),True)
+ right=[-80,260,95] if bow else [0,-90,10]
+ left=[-80,-280,-95] if bow else [0,90,-10]
+ display['thirdperson_righthand']=hand_pose(name,right,1.5 if name=='frostfang' else 1.15,((-1,-2,2.5) if bow else (0,-2,1)))
+ display['thirdperson_lefthand']=hand_pose(name,left,1.5 if name=='frostfang' else 1.15,((-1,-2,2.5) if bow else (0,-2,1)),True)
  # Present the sword blade in the same plane as vanilla handheld swords.
- first_right=[0,-90,25] if name=='frostfang' else ([0,90,0] if bow else [0,-30,-15])
- first_left=[0,90,-25] if name=='frostfang' else ([0,-90,0] if bow else [0,30,15])
- display['firstperson_righthand']=hand_pose(name,first_right,1.3 if name=='frostfang' else .9,(1.13,-1.3,-.5))
- display['firstperson_lefthand']=hand_pose(name,first_left,1.3 if name=='frostfang' else .9,(1.13,-1.3,-.5),True)
+ first_right=[0,-90,25] if name=='frostfang' else ([0,-90,160] if bow else [0,-30,-15])
+ first_left=[0,90,-25] if name=='frostfang' else ([0,90,-160] if bow else [0,30,15])
+ display['firstperson_righthand']=hand_pose(name,first_right,1.3 if name=='frostfang' else .9,((1.13,3.2,1.13) if bow else (1.13,-1.3,-.5)))
+ display['firstperson_lefthand']=hand_pose(name,first_left,1.3 if name=='frostfang' else .9,((1.13,3.2,1.13) if bow else (1.13,-1.3,-.5)),True)
  return {'textures':original['textures'],'elements':es,'display':display}
 def item_definition(name):
  def reference(n):return {'type':'minecraft:model','model':'yetiboss:gear/'+n}
