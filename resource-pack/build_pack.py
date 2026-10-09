@@ -27,6 +27,7 @@ def files():
    m=make(frame=index) if kind=='walk' else make(attack=index,kind='slam' if kind=='attack' else kind)
   result['assets/yetiboss/models/boss/'+name+'.json']=json.dumps(m).encode()
   result['assets/yetiboss/items/'+name+'.json']=json.dumps({'model':{'type':'minecraft:model','model':'yetiboss:boss/'+name}}).encode()
+ result['GEAR-SOURCES.txt']=(ROOT/'resource-pack/imported/SOURCES.md').read_bytes()
  for name in GEAR_MODELS:
   result['assets/yetiboss/models/gear/'+name+'.json']=json.dumps(gear_model(name)).encode()
   if '_pull_' not in name:result['assets/yetiboss/items/'+name+'.json']=json.dumps(item_definition(name)).encode()
