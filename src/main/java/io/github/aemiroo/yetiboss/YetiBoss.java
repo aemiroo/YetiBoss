@@ -759,7 +759,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             d.setTeleportDuration(2);d.setInterpolationDuration(2);d.setViewRange(2);
             d.setDisplayWidth(3);d.setDisplayHeight(3);d.setItemStack(modelItem("ice_warden"));
         });
-        minion.last=at.clone();minion.yaw=at.getYaw();
+        minion.last=at.clone();minion.yaw=at.getYaw();minion.spawnStarted=tick;
         e.minions.put(mob.getUniqueId(),minion);
         at.getWorld().spawnParticle(Particle.SNOWFLAKE,at.clone().add(0,1,0),25,.5,1,.5,.03);
     }
@@ -775,7 +775,16 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         }
         double distance=at.toVector().subtract(minion.last.toVector()).setY(0).length();
         if(distance<1)minion.phase+=distance*9;
-        String name=distance>.002?"ice_warden_walk_"+((int)minion.phase%24):"ice_warden";
+        String nativePose=mob.getPose().name();
+        if(!nativePose.equals(minion.nativePose)){minion.nativePose=nativePose;minion.poseStarted=tick;}
+        String name;
+        if(tick-minion.strikeStarted<12)name="ice_warden_strike_"+(tick-minion.strikeStarted);
+        else if(tick-minion.hurtStarted<8)name="ice_warden_hurt_"+(tick-minion.hurtStarted);
+        else if(tick-minion.spawnStarted<24)name="ice_warden_emerge_"+Math.min(7,(tick-minion.spawnStarted)/3);
+        else if(nativePose.equals("EMERGING"))name="ice_warden_emerge_"+Math.min(7,(tick-minion.poseStarted)/10);
+        else if(nativePose.equals("ROARING"))name="ice_warden_roar_"+Math.min(7,(tick-minion.poseStarted)/5);
+        else if(nativePose.equals("SNIFFING"))name="ice_warden_sniff_"+((tick-minion.poseStarted)/5%8);
+        else name=distance>.002?"ice_warden_walk_"+((int)minion.phase%24):"ice_warden_idle_"+(tick/6%8);
         if(!name.equals(minion.pose)){minion.model.setItemStack(modelItem(name));minion.pose=name;}
         float turn=(float)Math.IEEEremainder(at.getYaw()-minion.yaw,360);
         minion.yaw+=Math.max(-12f,Math.min(12f,turn));
@@ -875,6 +884,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         Encounter e=encounter;
         IceMinion striking=e==null?null:e.minions.get(event.getDamager().getUniqueId());
         if(striking!=null&&striking.warden&&!scriptedDamage&&event.getEntity() instanceof Player player) {
+            striking.strikeStarted=tick;
+            if(striking.model!=null)updateWardenModel(striking);
             striking.nextAttack=tick+getConfig().getInt("minions.ice-warden.attack-cooldown-ticks");
             int duration=getConfig().getInt("minions.ice-warden.slow-ticks");
             Bukkit.getScheduler().runTask(this,()->{
@@ -882,6 +893,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                     player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS,duration,0));
             });
         }
+        IceMinion hurtMinion=e==null?null:e.minions.get(event.getEntity().getUniqueId());
+        if(hurtMinion!=null&&hurtMinion.warden){hurtMinion.hurtStarted=tick;if(hurtMinion.model!=null)updateWardenModel(hurtMinion);}
         Encounter hurt=e==null?null:event.getEntity().equals(e.body)?e:
             e.mother!=null&&event.getEntity().equals(e.mother.body)?e.mother:null;
         if(hurt!=null&&!hurt.defeated&&event.getFinalDamage()<hurt.body.getHealth()&&tick>=hurt.nextHurtSound) {
@@ -1113,7 +1126,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private record IceShot(Snowball entity,BlockDisplay visual,long created,Attack attack,LivingEntity caster,double damage,double knockback,int slow) {}
     private record Hit(UUID player,org.bukkit.util.Vector direction,double knockback,int slow) {}
     private static final class IceMinion {
-        ItemDisplay model;Location last;float yaw;double phase;String pose="ice_warden";
+        ItemDisplay model;Location last;float yaw;double phase;long strikeStarted=-100,hurtStarted=-100,spawnStarted=-100,poseStarted;String nativePose="",pose="ice_warden";
         final Mob mob;final boolean warden;long nextAttack,nextShot;int remaining;
         IceMinion(Mob mob,boolean warden,long nextAttack) {this.mob=mob;this.warden=warden;this.nextAttack=nextAttack;}
     }

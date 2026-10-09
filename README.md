@@ -214,3 +214,6 @@ Father and Mother now have faceted shoulders, heads, hands and limbs, tapered to
 
 ### Cyborg body repair (0.8.9)
 Closed the Father torso seam, joined the hips and shoulders with a continuous inner torso, removed loose Father fur tufts, and gave the mechanical half a solid steel shell. Model displays stay upright regardless of their underlying mob look pitch. Mother geometry is unchanged.
+
+### Ice Warden animations (0.8.10)
+Added idle breathing, an emerge entrance, two-arm melee follow-through, hit recoil, and native roar/sniff pose animations. Melee animation triggers on accepted damage; hit recoil triggers when the minion takes damage. These poses replace walking temporarily and settle back to the movement cycle. Native damage and attack cadence are retained.

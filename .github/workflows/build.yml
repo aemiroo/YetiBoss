@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.9 — Solid Cyborg torso and upright Ice Warden"
+run-name: "YetiBoss 0.8.10 — Ice Warden idle, combat and native pose animations"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

@@ -9,14 +9,27 @@ def texture_color(name,x,y):
  seam=(x+2*y)%13==0 or (2*x-y)%19==0
  delta=24 if seam else (-9 if (x//3+y//4)%3==0 else 0)
  return tuple(max(0,min(255,v+delta)) for v in c)
-def model(frame=None):
+def model(frame=None,kind="walk"):
  es=[];phase=2*math.pi*(frame or 0)/24
  def box(a,b,mat,limb=None):
   e={'from':list(a),'to':list(b),'faces':{side:{'texture':'#'+mat,'uv':[0,0,16,16]} for side in ('north','south','east','west','up','down')}}
   if mat=='warden_core':e['light_emission']=15
-  if limb and frame is not None:
+  if limb and frame is not None and kind=="walk":
    left=limb.endswith('l');angle=math.sin(phase+(0 if left else math.pi))*(12 if limb.startswith('leg') else -15)
    e['rotation']={'origin':[5 if left else 11,4.5 if limb.startswith('leg') else 10,8],'axis':'x','angle':angle,'rescale':False}
+  if limb and limb.startswith('arm') and kind in ('strike','roar','sniff'):
+   left=limb.endswith('l')
+   angles={'strike':(45,42,34,22,8,-8,-15,-12,-8,-4,-1,0),'roar':(0,12,25,38,38,25,12,0),'sniff':(0,8,16,22,22,16,8,0)}
+   e['rotation']={'origin':[5 if left else 11,10,8],'axis':'x','angle':angles[kind][frame or 0],'rescale':False}
+  if kind=='hurt':
+   shift=(0,-.12,-.22,-.17,-.10,-.04,0,0)[frame or 0]
+   e['from'][2]+=shift;e['to'][2]+=shift
+  elif kind=='emerge':
+   shift=-12*(1-(frame or 0)/7)**2
+   e['from'][1]+=shift;e['to'][1]+=shift
+  elif kind=='idle' and (not limb or not limb.startswith('leg')):
+   breath=.08*(1-math.cos(2*math.pi*(frame or 0)/8))
+   e['from'][1]+=breath;e['to'][1]+=breath
   es.append(e)
  box((4,4.5,5.5),(12,11.8,10.5),'warden_dark')
  box((4.3,5,5.1),(7.2,11.3,5.5),'warden_ice');box((8.8,5,5.1),(11.7,11.3,5.5),'warden_ice')
