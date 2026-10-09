@@ -3,13 +3,15 @@ import base64,hashlib,json,math,pathlib,struct,zlib,zipfile
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 from gear_model import GEAR_MODELS, MATERIALS, model as gear_model, texture as gear_texture, item_definition
 from boss_model import model,mother_model,COLORS,texture_color
+from warden_model import model as warden_model, MATERIALS as WARDEN_MATERIALS, texture_color as warden_texture_color
+WARDEN_MODELS=("ice_warden",)+tuple("ice_warden_walk_"+str(i) for i in range(24))
 def png(name):
  def chunk(kind,data): return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
  rows=[]
  for y in range(16):
   row=bytearray()
   for x in range(16):
-   row.extend(list(texture_color(name,x,15-y))+[255])
+   row.extend(list(warden_texture_color(name,x,15-y) if name in WARDEN_MATERIALS else texture_color(name,x,15-y))+[255])
   rows.append(b'\0'+bytes(row))
  raw=b''.join(rows)
  return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',16,16,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
@@ -26,6 +28,10 @@ def files():
   else:
    kind=name.split('_')[-2];index=int(name.rsplit('_',1)[1])
    m=make(frame=index,kind=kind) if kind in ('walk','gallop') else make(attack=index,kind='slam' if kind=='attack' else kind)
+  result['assets/yetiboss/models/boss/'+name+'.json']=json.dumps(m).encode()
+  result['assets/yetiboss/items/'+name+'.json']=json.dumps({'model':{'type':'minecraft:model','model':'yetiboss:boss/'+name}}).encode()
+ for name in WARDEN_MODELS:
+  m=warden_model(None if name=='ice_warden' else int(name.rsplit('_',1)[1]))
   result['assets/yetiboss/models/boss/'+name+'.json']=json.dumps(m).encode()
   result['assets/yetiboss/items/'+name+'.json']=json.dumps({'model':{'type':'minecraft:model','model':'yetiboss:boss/'+name}}).encode()
  result['GEAR-SOURCES.txt']=(ROOT/'resource-pack/imported/SOURCES.md').read_bytes()

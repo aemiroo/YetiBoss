@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.6 — Remove Cyborg Yeti jaw bolt"
+run-name: "YetiBoss 0.8.7 — Ice Warden frozen sentinel model"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

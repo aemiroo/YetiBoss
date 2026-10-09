@@ -190,7 +190,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void cleanupStale(Entity entity) {
         if(entity.getPersistentDataContainer().has(entityKey,PersistentDataType.BYTE)
-                &&(encounter==null||(!entity.equals(encounter.body)&&!entity.equals(encounter.model)&&!entity.equals(encounter.hitbox)&&!belongsTo(encounter.mother,entity)&&!encounter.minions.containsKey(entity.getUniqueId())))
+                &&(encounter==null||(!entity.equals(encounter.body)&&!entity.equals(encounter.model)&&!entity.equals(encounter.hitbox)&&!belongsTo(encounter.mother,entity)&&!encounter.minions.containsKey(entity.getUniqueId())&&encounter.minions.values().stream().noneMatch(m->entity.equals(m.model))))
                 &&!shots.containsKey(entity.getUniqueId())
                 &&shots.values().stream().noneMatch(shot->entity.equals(shot.visual))) entity.remove();
     }
@@ -751,16 +751,44 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         Objects.requireNonNull(mob.getAttribute(Attribute.MOVEMENT_SPEED)).setBaseValue(
                 warden?getConfig().getDouble("minions.ice-warden.movement-speed"):.22);
         if(mob instanceof Snowman snowman)snowman.setDerp(true);
-        e.minions.put(mob.getUniqueId(),new IceMinion(mob,warden,tick+30));
+        IceMinion minion=new IceMinion(mob,warden,tick+30);
+        if(warden)minion.model=at.getWorld().spawn(at,ItemDisplay.class,d->{
+            tagged(d);d.setVisibleByDefault(false);d.setGravity(false);d.setInvulnerable(true);
+            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
+            d.setTransformation(new Transformation(new Vector3f(),new Quaternionf(),new Vector3f(2.9f),new Quaternionf()));
+            d.setTeleportDuration(2);d.setInterpolationDuration(2);d.setViewRange(2);
+            d.setDisplayWidth(3);d.setDisplayHeight(3);d.setItemStack(modelItem("ice_warden"));
+        });
+        minion.last=at.clone();minion.yaw=at.getYaw();
+        e.minions.put(mob.getUniqueId(),minion);
         at.getWorld().spawnParticle(Particle.SNOWFLAKE,at.clone().add(0,1,0),25,.5,1,.5,.03);
+    }
+    private void updateWardenModel(IceMinion minion) {
+        Mob mob=minion.mob;Location at=mob.getLocation();
+        List<Player> viewers=mob.getWorld().getPlayers().stream()
+            .filter(p->p.getLocation().distanceSquared(at)<96*96).toList();
+        boolean custom=BossVisibility.custom(viewers.size(),(int)viewers.stream()
+            .filter(p->bossPackReady.contains(p.getUniqueId())).count(),minion.model.isValid());
+        mob.setInvisible(custom);
+        for(Player p:mob.getWorld().getPlayers()) {
+            if(custom&&viewers.contains(p))p.showEntity(this,minion.model);else p.hideEntity(this,minion.model);
+        }
+        double distance=at.toVector().subtract(minion.last.toVector()).setY(0).length();
+        if(distance<1)minion.phase+=distance*9;
+        String name=distance>.002?"ice_warden_walk_"+((int)minion.phase%24):"ice_warden";
+        if(!name.equals(minion.pose)){minion.model.setItemStack(modelItem(name));minion.pose=name;}
+        float turn=(float)Math.IEEEremainder(at.getYaw()-minion.yaw,360);
+        minion.yaw+=Math.max(-12f,Math.min(12f,turn));
+        Location visual=at.clone();visual.setYaw(minion.yaw);minion.model.teleport(visual);minion.last=at;
     }
     private void tickMinions(Encounter e,List<Player> players) {
         for(IceMinion minion:new ArrayList<>(e.minions.values())) {
             Mob mob=minion.mob;
-            if(!mob.isValid()||mob.isDead()) {e.minions.remove(mob.getUniqueId());continue;}
+            if(!mob.isValid()||mob.isDead()) {if(minion.model!=null)minion.model.remove();e.minions.remove(mob.getUniqueId());continue;}
             if(mob.getLocation().distanceSquared(e.origin)>Math.pow(getConfig().getDouble("boss.leash-radius"),2)) {
-                mob.remove();e.minions.remove(mob.getUniqueId());continue;
+                if(minion.model!=null)minion.model.remove();mob.remove();e.minions.remove(mob.getUniqueId());continue;
             }
+            if(minion.model!=null)updateWardenModel(minion);
             if(tick%10==0)mob.getWorld().spawnParticle(Particle.SNOWFLAKE,mob.getLocation().add(0,1,0),3,.4,.8,.4,0);
             Player target=players.stream().filter(mob::hasLineOfSight)
                 .min(Comparator.comparingDouble(p->p.getLocation().distanceSquared(mob.getLocation()))).orElse(null);
@@ -922,7 +950,9 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             bossEffect(event.getEntity().getLocation(),"death",Sound.ENTITY_ENDER_DRAGON_DEATH);
             removeYeti(encounter.mother);encounter.mother=null;return;
         }
-        if(encounter.minions.remove(event.getEntity().getUniqueId())!=null) {
+        IceMinion deadMinion=encounter.minions.remove(event.getEntity().getUniqueId());
+        if(deadMinion!=null) {
+            if(deadMinion.model!=null)deadMinion.model.remove();
             event.getDrops().clear();event.setDroppedExp(0);return;
         }
         if(!event.getEntity().equals(encounter.body))return;
@@ -1000,14 +1030,14 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         }
         if(encounter!=null)for(IceMinion minion:new ArrayList<>(encounter.minions.values()))
             if(minion.mob.getLocation().getChunk().equals(event.getChunk())) {
-                minion.mob.remove();encounter.minions.remove(minion.mob.getUniqueId());
+                if(minion.model!=null)minion.model.remove();minion.mob.remove();encounter.minions.remove(minion.mob.getUniqueId());
             }
     }
     private void stop(boolean announce) {
         Encounter e=encounter;encounter=null;
         if(e==null)return;
         removeYeti(e);removeYeti(e.mother);
-        for(IceMinion minion:e.minions.values())minion.mob.remove();
+        for(IceMinion minion:e.minions.values()){if(minion.model!=null)minion.model.remove();minion.mob.remove();}
         e.minions.clear();
         for(Player player:Bukkit.getOnlinePlayers()) player.hideEntity(this,e.model);
         for(IceShot shot:shots.values()) { shot.entity.remove();if(shot.visual!=null)shot.visual.remove(); }shots.clear();
@@ -1083,6 +1113,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private record IceShot(Snowball entity,BlockDisplay visual,long created,Attack attack,LivingEntity caster,double damage,double knockback,int slow) {}
     private record Hit(UUID player,org.bukkit.util.Vector direction,double knockback,int slow) {}
     private static final class IceMinion {
+        ItemDisplay model;Location last;float yaw;double phase;String pose="ice_warden";
         final Mob mob;final boolean warden;long nextAttack,nextShot;int remaining;
         IceMinion(Mob mob,boolean warden,long nextAttack) {this.mob=mob;this.warden=warden;this.nextAttack=nextAttack;}
     }

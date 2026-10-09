@@ -205,3 +205,6 @@ Cyborg Father Yeti now uses a distance-driven knuckle gait and a bounding gallop
 Both Yetis now lift and throw a grabbed player instead of slamming them downward. The randomized 5–15 block distance is estimated for level ground; walls, elevation, water and player movement affect actual travel. Existing grab cancellation and cleanup rules remain. Mother Yeti retains her exact model, textures and animation assets.
 
 The idle bow carry pose has been retuned from the in-game screenshot. Actions run titles include version 0.8.0 and the commit description. Schema 9 adds charge settings and updates only the previous default global cooldown. Validate bow carrying/shooting in both hands, terrain collision during charge, throw distances and fight balance on the actual server before using this draft for an event.
+
+### Ice Warden appearance (0.8.7)
+The summoned Ice Warden uses an original ice-armored sentinel model with crystal horns, a luminous chest core, and a 24-frame distance-driven walk. Its native Warden combat is retained. Mixed resource-pack readiness uses the vanilla Warden fallback. Father and Mother assets are unchanged.

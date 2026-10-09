@@ -1,5 +1,5 @@
 import json, unittest
-from build_pack import files,model,MODELS,COLORS
+from build_pack import files,model,MODELS,WARDEN_MODELS,COLORS
 from build_bedrock import files as bedrock_files,mappings,display_mappings
 class BossPackTest(unittest.TestCase):
  @classmethod
@@ -63,7 +63,7 @@ class BossPackTest(unittest.TestCase):
    self.assertIn('yetiboss.'+name,json.loads(self.bedrock['sounds/sound_definitions.json'])['sound_definitions'])
    self.assertEqual(data,self.bedrock['sounds/yetiboss/'+name+'.ogg'])
  def test_bedrock_contains_all_poses_and_preserves_pivots(self):
-  self.assertEqual(len(MODELS),len(mappings()['items']['minecraft:paper']))
+  self.assertEqual(len(MODELS)+len(WARDEN_MODELS),len(mappings()['items']['minecraft:paper']))
   for name in MODELS:
    self.assertIn('attachables/'+name+'.json',self.bedrock)
    self.assertIn('yetiboss:'+name,display_mappings())
