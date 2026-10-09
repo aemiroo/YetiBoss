@@ -95,13 +95,13 @@ def model(name):
  bow=name.startswith('frostbow')
  right=[90,0,-45] if bow else [0,-90,10]
  left=[90,0,-45] if bow else [0,90,-10]
- display['thirdperson_righthand']=hand_pose(name,right,1.1,(0,-2,1))
- display['thirdperson_lefthand']=hand_pose(name,left,1.1,(0,-2,1),True)
- # Turn the sword's decorated face toward the player without moving its grip.
- first_right=[0,150,-15] if name=='frostfang' else [0,-30,-15]
- first_left=[0,-150,15] if name=='frostfang' else [0,30,15]
- display['firstperson_righthand']=hand_pose(name,first_right,.87,(1.13,-1.3,-.5))
- display['firstperson_lefthand']=hand_pose(name,first_left,.87,(1.13,-1.3,-.5),True)
+ display['thirdperson_righthand']=hand_pose(name,right,1.15,(0,-2,1))
+ display['thirdperson_lefthand']=hand_pose(name,left,1.15,(0,-2,1),True)
+ # Present the sword blade in the same plane as vanilla handheld swords.
+ first_right=[0,-90,25] if name=='frostfang' else [0,-30,-15]
+ first_left=[0,90,-25] if name=='frostfang' else [0,30,15]
+ display['firstperson_righthand']=hand_pose(name,first_right,.9,(1.13,-1.3,-.5))
+ display['firstperson_lefthand']=hand_pose(name,first_left,.9,(1.13,-1.3,-.5),True)
  return {'textures':original['textures'],'elements':es,'display':display}
 def item_definition(name):
  def reference(n):return {'type':'minecraft:model','model':'yetiboss:gear/'+n}
