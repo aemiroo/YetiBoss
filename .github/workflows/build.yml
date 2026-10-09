@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.7 — Ice Warden frozen sentinel model"
+run-name: "YetiBoss 0.8.8 — Sculpted Father and Mother Yeti silhouettes"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

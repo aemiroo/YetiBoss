@@ -208,3 +208,6 @@ The idle bow carry pose has been retuned from the in-game screenshot. Actions ru
 
 ### Ice Warden appearance (0.8.7)
 The summoned Ice Warden uses an original ice-armored sentinel model with crystal horns, a luminous chest core, and a 24-frame distance-driven walk. Its native Warden combat is retained. Mixed resource-pack readiness uses the vanilla Warden fallback. Father and Mother assets are unchanged.
+
+### Sculpted Yeti silhouettes (0.8.8)
+Father and Mother now have faceted shoulders, heads, hands and limbs, tapered torsos, and layered fur edges. Existing palettes, connected horns, Father machinery and all animation rigs are retained. Ice Warden assets and combat are unchanged.

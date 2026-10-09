@@ -306,3 +306,62 @@ def model(frame=None,attack=None,kind='slam'):
     element['rotation']['origin'][0]+=sway;element['rotation']['origin'][1]+=bob
  return {'elements':es,'textures':{n:'yetiboss:boss/father_'+n for n in (*BASE_MATERIALS,*CYBORG_MATERIALS)},
          'display':{'fixed':{'rotation':[0,0,0],'translation':[0,8,0],'scale':[1,1,1]}}}
+
+
+def sculpt_silhouette(mesh):
+ """Facet large volumes and taper their lower ends without changing the rig.
+
+ Disjoint bands keep surfaces free of z-fighting. Every band inherits its
+ source pivot, so armor, fur, hands and legs still follow the same poses.
+ """
+ import copy
+ elements=[]
+ for source in mesh['elements']:
+  a,b=source['from'],source['to'];size=[b[i]-a[i] for i in range(3)]
+  mat=next(iter(source['faces'].values()))['texture']
+  eligible=mat in ('#fur','#fur_light','#fur_shadow','#steel','#mechanism','#metal_edge','#muzzle')
+  # Preserve thin armor, facial panels, horns, teeth and all small details.
+  if not eligible or min(size)<1.35 or len({f['texture'] for f in source['faces'].values()})>1:
+   elements.append(source);continue
+  torso=size[0]>3 and size[1]>3 and a[1]>4 and (a[0]<8<b[0] or source.get('rotation',{}).get('origin')==[8,6.5,8])
+  axis=1 if torso else 0
+  cut=size[axis]*.22
+  boundaries=[a[axis],a[axis]+cut,b[axis]-cut,b[axis]]
+  for j in range(3):
+   e=copy.deepcopy(source);e['from'][axis]=boundaries[j];e['to'][axis]=boundaries[j+1]
+   if axis==0 and j!=1:
+    # Chamfer shoulder, head and limb corners into a narrower outer facet.
+    for k in (1,2):
+     trim=min(.65,size[k]*.21)
+     if k==1 and a[k]<1.3: # Keep grounded feet and knuckles at the same height.
+      e['to'][k]-=trim*1.4
+     else:e['from'][k]+=trim;e['to'][k]-=trim
+   if axis==1:
+    # A narrower waist flows into a broad middle chest and sloping mantle.
+    trim=(.65 if j==0 else 0 if j==1 else .35)
+    for k in (0,2):e['from'][k]+=trim;e['to'][k]-=trim
+   low,high=('west','east') if axis==0 else ('down','up')
+   # Adjacent bands meet internally; only the exposed ledge remains.
+   # Their cross sections differ, so retain the larger band's ledge face.
+   if j>0 and axis==0 and j!=1:e['faces'].pop(low,None)
+   if j<2 and axis==0 and j!=1:e['faces'].pop(high,None)
+   if axis==1 and j==0:e['faces'].pop(high,None)
+   if axis==1 and j==2:e['faces'].pop(low,None)
+   elements.append(e)
+  # Fur breaks up the lower edge of shoulder and cheek volumes.
+  if mat in ('#fur','#fur_light') and size[0]>2.1 and size[1]>2.5 and a[1]>6:
+   for j in range(3):
+    tuft=copy.deepcopy(source);x=a[0]+size[0]*(.16+.25*j);w=min(.6,size[0]*.16)
+    tuft['from']=[x,a[1]-.35-(j%2)*.2,a[2]-.12]
+    tuft['to']=[x+w,a[1]+.32,a[2]+.22]
+    tuft['faces']={f:{'uv':[0,0,16,16],'texture':'#fur_shadow' if j%2 else '#fur_light'} for f in ('north','south','east','west','up','down')}
+    elements.append(tuft)
+ mesh['elements']=elements
+ return mesh
+
+_block_father_model=model
+_block_mother_model=mother_model
+def model(frame=None,attack=None,kind='slam'):
+ return sculpt_silhouette(_block_father_model(frame,attack,kind))
+def mother_model(frame=None,attack=None,kind='slam'):
+ return sculpt_silhouette(_block_mother_model(frame,attack,kind))
