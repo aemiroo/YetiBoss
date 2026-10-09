@@ -1,5 +1,5 @@
 name: YetiBoss
-version: 0.8.11
+version: 0.8.12
 main: io.github.aemiroo.yetiboss.YetiBoss
 api-version: '1.21'
 author: aemiroo
@@ -7,7 +7,7 @@ depend: [CosmeticPets]
 commands:
   yetiboss:
     description: Manage the Cyborg Father Yeti encounter
-    usage: /yetiboss <spawn|stop|status|reload|give frostfang|give frostbow|give frostpickaxe>
+    usage: /yetiboss <spawn|setspawn|stop|status|reload|give frostfang|give frostbow|give frostpickaxe>
     permission: yetiboss.admin
 permissions:
   yetiboss.admin:

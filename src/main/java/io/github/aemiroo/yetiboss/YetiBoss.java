@@ -41,6 +41,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private final Set<UUID> bossPackReady=new HashSet<>();
     private final Map<UUID,String> packStates=new HashMap<>();
     private byte[] bossPackHash;
+    private SpawnSchedule spawnSchedule;
+    private BossWebhook webhook;
 
     @Override public void onEnable() {
         saveDefaultConfig();
@@ -88,12 +90,20 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 if(!getConfig().contains("attacks.sonic-boom."+key,true))getConfig().set("attacks.sonic-boom."+key,getConfig().getDefaults().get("attacks.sonic-boom."+key));
             getConfig().set("schema-version",10);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<11) {
+            for(String key:getConfig().getDefaults().getKeys(true))
+                if(!getConfig().getDefaults().isConfigurationSection(key)&&(key.startsWith("schedule.")||key.startsWith("discord."))&&!getConfig().contains(key,true))
+                    getConfig().set(key,getConfig().getDefaults().get(key));
+            getConfig().set("schema-version",11);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
             validate(getConfig());
             pets=new PetBridge(Objects.requireNonNull(getServer().getPluginManager().getPlugin("CosmeticPets")));
             ledger=new RewardLedger(getDataFolder().toPath().resolve("rewards.yml"));
+            spawnSchedule=new SpawnSchedule(getDataFolder().toPath().resolve("spawn-schedule.properties"),System.currentTimeMillis(),spawnInterval());
+            webhook=new BossWebhook(getLogger());
         } catch(Exception ex) {
             getLogger().severe("Cannot enable YetiBoss: "+ex.getMessage()+". CosmeticPets 1.5.0 or newer is required.");
             getServer().getPluginManager().disablePlugin(this);return;
@@ -111,10 +121,18 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     @Override public void onDisable() {
         stop(false);
+        if(webhook!=null)webhook.close();
         for(IceShot shot:shots.values()) { shot.entity.remove();if(shot.visual!=null)shot.visual.remove(); }
         shots.clear();
     }
     private void validate(FileConfiguration c) {
+        double hours=c.getDouble("schedule.interval-hours",3);
+        if(!Double.isFinite(hours)||hours<1.0/60||hours>168)throw new IllegalArgumentException("schedule.interval-hours must be 1 minute to 168 hours");
+        for(int minutes:c.getIntegerList("schedule.warning-minutes"))
+            if(minutes<=0||minutes>=hours*60)throw new IllegalArgumentException("Schedule warnings must precede the interval");
+        for(String key:List.of("x","y","z","yaw"))
+            if(!Double.isFinite(c.getDouble("schedule."+key)))throw new IllegalArgumentException("Invalid scheduled spawn coordinate");
+        if(c.getBoolean("discord.enabled"))BossWebhook.endpoint(c.getString("discord.webhook-url",""));
         for(String key:List.of("boss.health","boss.golem-scale","boss.model-scale","boss.movement-speed",
                 "boss.arena-radius","boss.leash-radius")) {
             double value=c.getDouble(key);
@@ -199,12 +217,62 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 &&!shots.containsKey(entity.getUniqueId())
                 &&shots.values().stream().noneMatch(shot->entity.equals(shot.visual))) entity.remove();
     }
+    private long spawnInterval(){return (long)(getConfig().getDouble("schedule.interval-hours",3)*3600000);}
+    private Location scheduledArena() {
+        World world=Bukkit.getWorld(getConfig().getString("schedule.world",""));
+        return world==null?null:new Location(world,getConfig().getDouble("schedule.x"),getConfig().getDouble("schedule.y"),
+            getConfig().getDouble("schedule.z"),(float)getConfig().getDouble("schedule.yaw"),0);
+    }
+    private boolean spawnGroundReady(Location at) {
+        return at.getY()>at.getWorld().getMinHeight()&&at.getY()<at.getWorld().getMaxHeight()
+            &&at.getWorld().getWorldBorder().isInside(at)&&!at.clone().add(0,-1,0).getBlock().isPassable()
+            &&room(at,getConfig().getDouble("boss.golem-scale")*.7,
+                Math.max(getConfig().getDouble("boss.golem-scale")*2.7,getConfig().getDouble("boss.model-scale")));
+    }
+    private void tickSchedule() {
+        if(spawnSchedule==null||!getConfig().getBoolean("schedule.enabled"))return;
+        Location arena=scheduledArena();long now=System.currentTimeMillis();
+        try {
+            if(now<spawnSchedule.next()) {
+                if(encounter==null&&arena!=null)for(int minutes:spawnSchedule.warnings(now,getConfig().getIntegerList("schedule.warning-minutes")))
+                    announceEvent("warning",arena,(int)Math.ceil((spawnSchedule.next()-now)/60000.0),"");
+                return;
+            }
+            // Commit the next slot before creating entities or sending messages.
+            spawnSchedule.advance(now,spawnInterval());
+            if(encounter!=null){announceEvent("skipped",arena,0,"an encounter is already active");return;}
+            if(arena==null){announceEvent("skipped",null,0,"the configured arena world is unavailable");return;}
+            arena.getChunk().load();
+            if(!spawnGroundReady(arena)){announceEvent("skipped",arena,0,"the arena is obstructed or has no solid ground");return;}
+            spawn(arena);
+        } catch(IOException ex){getLogger().severe("Cannot persist automatic spawn schedule; no scheduled spawn performed.");}
+    }
+    private String eventText(String template,String event,Location at,int minutes,String reason) {
+        String location=at==null?"unconfigured arena":at.getWorld().getName()+" ("+at.getWorld().getEnvironment().name().toLowerCase(Locale.ROOT)+") "
+            +at.getBlockX()+", "+at.getBlockY()+", "+at.getBlockZ();
+        long next=spawnSchedule==null?0:spawnSchedule.next()/1000;
+        return template.replace("{event}",event).replace("{minutes}",Integer.toString(minutes)).replace("{location}",location)
+            .replace("{reason}",reason).replace("{next_spawn}",!getConfig().getBoolean("schedule.enabled")?"automatic spawning disabled":next==0?"not scheduled":"<t:"+next+":R>")
+            .replace("\\n","\n");
+    }
+    private void announceEvent(String event,Location at,int minutes,String reason) {
+        if(getConfig().getBoolean("schedule.broadcast",true)) {
+            String template=getConfig().getString("schedule.messages."+event,"");
+            if(!template.isBlank())Bukkit.broadcastMessage(prefix()+eventText(template,event,at,minutes,reason));
+        }
+        if(webhook==null||!getConfig().getBoolean("discord.enabled")||!getConfig().getBoolean("discord.events."+event,true))return;
+        String message=getConfig().getString("discord.messages."+event,"");
+        if(message.isBlank())return;
+        webhook.send(getConfig().getString("discord.webhook-url",""),
+            eventText(getConfig().getString("discord.title","YetiBoss — {event}"),event,at,minutes,reason),
+            eventText(message,event,at,minutes,reason),event.equals("defeat")?0x55cc88:0x55ccff);
+    }
     private void spawn(Location at) {
         encounter=createYeti(at,getConfig().getDouble("boss.health"),getConfig().getString("boss.name","Cyborg Father Yeti"),false);
         updateViewers(encounter);
         bossEffect(at,"spawn",Sound.ENTITY_ENDER_DRAGON_GROWL);
         encounter.voiceUntil=tick+103;
-        Bukkit.broadcastMessage(prefix()+ChatColor.RED+"The Cyborg Father Yeti has appeared!");
+        announceEvent("spawn",at,0,"");
     }
     private Encounter createYeti(Location at,double health,String name,boolean mother) {
         double size=mother?getConfig().getDouble("mother.size-multiplier",.75):1;
@@ -262,6 +330,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void tick() {
         tick++;
+        if(tick%20==0)tickSchedule();
         for(Iterator<IceShot> it=shots.values().iterator();it.hasNext();) {
             IceShot shot=it.next();
             if(!shot.entity.isValid()||tick-shot.created>100||encounter==null||!shot.caster.isValid()||shot.caster.isDead()) {
@@ -1001,6 +1070,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         }
         if(!event.getEntity().equals(encounter.body))return;
         event.getDrops().clear();event.setDroppedExp(0);encounter.defeated=true;
+        announceEvent("defeat",encounter.origin,0,"");
         bossEffect(event.getEntity().getLocation(),"death",Sound.ENTITY_ENDER_DRAGON_DEATH);
         encounter.recipients=encounter.participation.finish();
         encounter.model.remove();encounter.hitbox.remove();encounter.bar.removeAll();
@@ -1085,7 +1155,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         e.minions.clear();
         for(Player player:Bukkit.getOnlinePlayers()) player.hideEntity(this,e.model);
         for(IceShot shot:shots.values()) { shot.entity.remove();if(shot.visual!=null)shot.visual.remove(); }shots.clear();
-        if(announce)Bukkit.broadcastMessage(prefix()+"The Cyborg Father Yeti encounter ended without rewards.");
+        if(!e.defeated)announceEvent("despawn",e.origin,0,"");
     }
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args) {
         if(!sender.hasPermission("yetiboss.admin"))return true;
@@ -1099,6 +1169,15 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         }
         if(args.length!=1)return false;
         switch(args[0].toLowerCase(Locale.ROOT)) {
+            case "setspawn" -> {
+                if(!(sender instanceof Player player)){sender.sendMessage("Set the arena in-game.");return true;}
+                Location at=player.getLocation().clone();at.setPitch(0);
+                if(!spawnGroundReady(at)){sender.sendMessage(prefix()+"Stand on solid ground in an open arena.");return true;}
+                getConfig().set("schedule.world",at.getWorld().getName());
+                getConfig().set("schedule.x",at.getX());getConfig().set("schedule.y",at.getY());getConfig().set("schedule.z",at.getZ());
+                getConfig().set("schedule.yaw",at.getYaw());getConfig().set("schedule.enabled",true);saveConfig();
+                sender.sendMessage(prefix()+"Automatic spawn arena saved; scheduling enabled. Next spawn: "+java.time.Instant.ofEpochMilli(spawnSchedule.next()));
+            }
             case "spawn" -> {
                 if(encounter!=null) { sender.sendMessage(prefix()+"An encounter is already active.");return true; }
                 if(!(sender instanceof Player p)) { sender.sendMessage("Spawn in-game.");return true; }
@@ -1127,6 +1206,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 stop(true);sender.sendMessage(prefix()+"Encounter stopped.");
             }
             case "status" -> {
+                sender.sendMessage(prefix()+"Automatic spawns: "+getConfig().getBoolean("schedule.enabled")+" | Next slot: "+java.time.Instant.ofEpochMilli(spawnSchedule.next()));
                 sender.sendMessage(prefix()+(encounter==null?"No active Yeti.":"Health: "+Math.ceil(encounter.body.getHealth())+
                     " | Mother: "+(encounter.mother==null?"absent":Math.ceil(encounter.mother.body.getHealth())+" HP")+" | Summons: "+encounter.minions.size()+" | Participants: "+encounter.participation.size()+" | Phase: "+(encounter.enraged?"enraged":"normal")+
                     " | Model: "+(encounter.customVisible?"Cyborg Father Yeti":"visible golem fallback")));
@@ -1152,7 +1232,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(args.length==2&&args[0].equalsIgnoreCase("give"))
             return List.of("frostfang","frostbow","frostpickaxe").stream().filter(s->s.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
         if(args.length!=1)return List.of();
-        return List.of("spawn","stop","status","reload","give").stream().filter(s->s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        return List.of("spawn","setspawn","stop","status","reload","give").stream().filter(s->s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
     }
     private record IceShot(Snowball entity,BlockDisplay visual,long created,Attack attack,LivingEntity caster,double damage,double knockback,int slow) {}
     private record Hit(UUID player,org.bukkit.util.Vector direction,double knockback,int slow) {}

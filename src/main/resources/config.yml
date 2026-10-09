@@ -1,4 +1,4 @@
-schema-version: 10
+schema-version: 11
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Cyborg Father Yeti'
@@ -120,3 +120,37 @@ resource-pack:
 bedrock:
   # Enable only after installing the boss Bedrock pack and both boss mappings.
   enabled: false
+
+# Set the arena in-game with /yetiboss setspawn; this also enables scheduling.
+schedule:
+  enabled: false
+  interval-hours: 3.0
+  warning-minutes: [15, 5]
+  world: ''
+  x: 0.0
+  y: 64.0
+  z: 0.0
+  yaw: 0.0
+  broadcast: true
+  messages:
+    warning: 'Cyborg Father Yeti spawns in {minutes} minutes at {location}.'
+    spawn: 'Cyborg Father Yeti has spawned at {location}!'
+    defeat: 'Cyborg Father Yeti was defeated at {location}!'
+    despawn: 'The Yeti encounter ended at {location}.'
+    skipped: 'The scheduled Yeti spawn was skipped: {reason}.'
+discord:
+  enabled: false
+  webhook-url: ''
+  title: 'YetiBoss — {event}'
+  events:
+    warning: true
+    spawn: true
+    defeat: true
+    despawn: true
+    skipped: true
+  messages:
+    warning: 'Spawn in **{minutes} minutes** at {location}.\nNext spawn: {next_spawn}'
+    spawn: '**Cyborg Father Yeti has appeared!**\nArena: {location}\nNext spawn: {next_spawn}'
+    defeat: '**Cyborg Father Yeti was defeated!**\nArena: {location}\nNext spawn: {next_spawn}'
+    despawn: 'Encounter ended at {location}.\nNext spawn: {next_spawn}'
+    skipped: 'Scheduled spawn skipped: {reason}\nNext spawn: {next_spawn}'

@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.11 — Cyborg face repair and reactor sonic boom"
+run-name: "YetiBoss 0.8.12 — Three-hour spawn schedule and Discord webhooks"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

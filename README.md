@@ -220,3 +220,13 @@ Added idle breathing, an emerge entrance, two-arm melee follow-through, hit reco
 
 ### Reactor sonic boom and face repair (0.8.11)
 Father has solid skull backing and aligned organic/cyborg eyes. Added a Father-only sonic boom at 6–16 blocks: a 45-tick warned charge, locked firing line, wall-blocked beam, 12 damage and knockback, with a 280-tick cooldown. Weight, timing, damage and knockback are configurable; schema 10 adds missing defaults while preserving custom settings.
+
+### Automatic events and Discord (0.8.12)
+1. Install the new JAR, restart, and stand in an open boss arena.
+2. Run `/yetiboss setspawn` to save the location and enable the default three-hour schedule.
+3. Set `discord.enabled: true` and `discord.webhook-url` to your Discord channel webhook URL in `plugins/YetiBoss/config.yml`.
+4. Run `/yetiboss reload` while no encounter is active. `/yetiboss status` shows the next scheduled slot in UTC.
+
+Warnings default to 15 and 5 minutes before spawning, in Minecraft and Discord. Webhook embeds also announce manual/scheduled spawns, defeat, despawn and skipped slots. Templates support `{event}`, `{minutes}`, `{location}`, `{reason}`, `{next_spawn}` and `\n`; Discord displays next-spawn timestamps in each viewer's timezone. Events can be toggled under `discord.events`. Delivery is asynchronous with a bounded queue and up to three attempts; failures never block combat.
+
+The schedule is saved in `spawn-schedule.properties`; do not delete it to preserve the timer. Restarting does not reset it. A due slot is skipped if an encounter is active, the world is unavailable, or the arena becomes obstructed. A server returning after downtime processes one due slot and advances to the next future slot, without catch-up bursts. The saved arena chunk is loaded at spawn time. Scheduling is opt-in through `setspawn` or `schedule.enabled`; webhook delivery remains disabled until configured. Changing the interval preserves the already pending slot and applies the new interval afterward.
