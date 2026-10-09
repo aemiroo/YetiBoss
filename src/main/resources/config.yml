@@ -1,4 +1,4 @@
-schema-version: 12
+schema-version: 13
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Cyborg Father Yeti'
@@ -134,7 +134,7 @@ schedule:
   yaw: 0.0
   broadcast: true
   messages:
-    warning: 'Cyborg Father Yeti spawns in {minutes} minutes at {location}.'
+    warning: 'Cyborg Father Yeti spawns in {minutes} {minute_unit} at {location}.'
     spawn: 'Cyborg Father Yeti has spawned at {location}!'
     defeat: 'Cyborg Father Yeti was defeated at {location}!'
     despawn: 'The Yeti encounter ended at {location}.'
@@ -150,7 +150,7 @@ discord:
     despawn: true
     skipped: true
   messages:
-    warning: 'Spawn in **{minutes} minutes** at {location}.\nNext spawn: {next_spawn}'
+    warning: 'Spawn in **{minutes} {minute_unit}** at {location}.\nNext spawn: {next_spawn}'
     spawn: '**Cyborg Father Yeti has appeared!**\nArena: {location}\nNext spawn: {next_spawn}'
     defeat: '**Cyborg Father Yeti was defeated!**\nArena: {location}\nNext spawn: {next_spawn}'
     despawn: 'Encounter ended at {location}.\nNext spawn: {next_spawn}'

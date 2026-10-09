@@ -105,6 +105,13 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             getConfig().set("schedule.search-radius",4096);
             getConfig().set("schema-version",12);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<13) {
+            for(String key:List.of("schedule.messages.warning","discord.messages.warning")) {
+                String template=getConfig().getString(key,"");
+                getConfig().set(key,template.replace("{minutes} minutes","{minutes} {minute_unit}"));
+            }
+            getConfig().set("schema-version",13);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
@@ -113,7 +120,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             ledger=new RewardLedger(getDataFolder().toPath().resolve("rewards.yml"));
             spawnSchedule=new SpawnSchedule(getDataFolder().toPath().resolve("spawn-schedule.properties"),System.currentTimeMillis(),spawnInterval());
             if(resetTestTimer)spawnSchedule.reset(System.currentTimeMillis(),spawnInterval());
-            webhook=new BossWebhook(getLogger());
+            webhook=new BossWebhook(getLogger(),getDataFolder().toPath().resolve("webhook-messages"));
         } catch(Exception ex) {
             getLogger().severe("Cannot enable YetiBoss: "+ex.getMessage()+". CosmeticPets 1.5.0 or newer is required.");
             getServer().getPluginManager().disablePlugin(this);return;
@@ -294,7 +301,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         String location=at==null?"an ice biome (coordinates announced on spawn)":at.getWorld().getName()+" ("+at.getWorld().getEnvironment().name().toLowerCase(Locale.ROOT)+") "
             +at.getBlockX()+", "+at.getBlockY()+", "+at.getBlockZ();
         long next=spawnSchedule==null?0:spawnSchedule.next()/1000;
-        return template.replace("{event}",event).replace("{minutes}",Integer.toString(minutes)).replace("{location}",location)
+        return template.replace("{event}",event).replace("{minutes} minutes","{minutes} {minute_unit}").replace("{minutes}",Integer.toString(minutes)).replace("{minute_unit}",minutes==1?"minute":"minutes").replace("{location}",location)
             .replace("{reason}",reason).replace("{next_spawn}",!getConfig().getBoolean("schedule.enabled")?"automatic spawning disabled":next==0?"not scheduled":"<t:"+next+":R>")
             .replace("\\n","\n");
     }

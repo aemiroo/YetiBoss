@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.13 — Natural ice biome spawns and five-minute testing timer"
+run-name: "YetiBoss 0.8.14 — Webhook message replacement and singular minute warnings"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
