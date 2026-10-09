@@ -17,6 +17,7 @@ final class SpawnSchedule {
         } catch(NumberFormatException ex){throw new IOException("Invalid spawn schedule state",ex);}
         save();
     }
+    void reset(long now,long interval) throws IOException {next=now+interval;warned.clear();save();}
     long next(){return next;}
     List<Integer> warnings(long now,List<Integer> minutes) throws IOException {
         if(now>=next)return List.of();

@@ -1,4 +1,4 @@
-schema-version: 11
+schema-version: 12
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Cyborg Father Yeti'
@@ -121,11 +121,12 @@ bedrock:
   # Enable only after installing the boss Bedrock pack and both boss mappings.
   enabled: false
 
-# Set the arena in-game with /yetiboss setspawn; this also enables scheduling.
+# Natural ice-biome spawns. Five-minute interval for testing; set to 3.0 for production.
 schedule:
-  enabled: false
-  interval-hours: 3.0
-  warning-minutes: [15, 5]
+  enabled: true
+  interval-hours: 0.08333333333333333
+  warning-minutes: [2, 1]
+  search-radius: 4096
   world: ''
   x: 0.0
   y: 64.0

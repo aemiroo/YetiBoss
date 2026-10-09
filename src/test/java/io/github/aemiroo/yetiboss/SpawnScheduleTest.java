@@ -21,4 +21,9 @@ class SpawnScheduleTest {
   assertTrue(s.warnings(next,List.of(15,5)).isEmpty());
   s.advance(next+10800000*4+100,10800000);assertEquals(next+10800000*5,s.next());
  }
+ @Test void testTimerResetPersistsFiveMinutes() throws Exception {
+  Path file=dir.resolve("test");var s=new SpawnSchedule(file,1000,10800000);
+  s.reset(2000,300000);assertEquals(302000,new SpawnSchedule(file,2000,300000).next());
+  assertEquals(List.of(2),s.warnings(182000,List.of(2,1)));
+ }
 }

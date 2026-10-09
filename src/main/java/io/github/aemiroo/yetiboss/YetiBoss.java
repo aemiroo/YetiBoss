@@ -43,9 +43,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private byte[] bossPackHash;
     private SpawnSchedule spawnSchedule;
     private BossWebhook webhook;
+    private boolean naturalSpawnSearch;
 
     @Override public void onEnable() {
         saveDefaultConfig();
+        boolean resetTestTimer=getConfig().getInt("schema-version")<12;
         if(!getConfig().contains("schema-version",true)) {
             if(Math.abs(getConfig().getDouble("boss.model-scale")-4.3)<.001)getConfig().set("boss.model-scale",6.4);
             if(Math.abs(getConfig().getDouble("boss.golem-scale")-1.4)<.001)getConfig().set("boss.golem-scale",2.35);
@@ -96,6 +98,13 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                     getConfig().set(key,getConfig().getDefaults().get(key));
             getConfig().set("schema-version",11);saveConfig();
         }
+        if(resetTestTimer) {
+            getConfig().set("schedule.interval-hours",5.0/60);
+            getConfig().set("schedule.warning-minutes",List.of(2,1));
+            getConfig().set("schedule.enabled",true);
+            getConfig().set("schedule.search-radius",4096);
+            getConfig().set("schema-version",12);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
@@ -103,6 +112,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             pets=new PetBridge(Objects.requireNonNull(getServer().getPluginManager().getPlugin("CosmeticPets")));
             ledger=new RewardLedger(getDataFolder().toPath().resolve("rewards.yml"));
             spawnSchedule=new SpawnSchedule(getDataFolder().toPath().resolve("spawn-schedule.properties"),System.currentTimeMillis(),spawnInterval());
+            if(resetTestTimer)spawnSchedule.reset(System.currentTimeMillis(),spawnInterval());
             webhook=new BossWebhook(getLogger());
         } catch(Exception ex) {
             getLogger().severe("Cannot enable YetiBoss: "+ex.getMessage()+". CosmeticPets 1.5.0 or newer is required.");
@@ -126,7 +136,9 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         shots.clear();
     }
     private void validate(FileConfiguration c) {
-        double hours=c.getDouble("schedule.interval-hours",3);
+        double hours=c.getDouble("schedule.interval-hours",5.0/60);
+        int searchRadius=c.getInt("schedule.search-radius",4096);
+        if(searchRadius<128||searchRadius>8192)throw new IllegalArgumentException("schedule.search-radius must be 128–8192");
         if(!Double.isFinite(hours)||hours<1.0/60||hours>168)throw new IllegalArgumentException("schedule.interval-hours must be 1 minute to 168 hours");
         for(int minutes:c.getIntegerList("schedule.warning-minutes"))
             if(minutes<=0||minutes>=hours*60)throw new IllegalArgumentException("Schedule warnings must precede the interval");
@@ -217,11 +229,44 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 &&!shots.containsKey(entity.getUniqueId())
                 &&shots.values().stream().noneMatch(shot->entity.equals(shot.visual))) entity.remove();
     }
-    private long spawnInterval(){return (long)(getConfig().getDouble("schedule.interval-hours",3)*3600000);}
-    private Location scheduledArena() {
-        World world=Bukkit.getWorld(getConfig().getString("schedule.world",""));
-        return world==null?null:new Location(world,getConfig().getDouble("schedule.x"),getConfig().getDouble("schedule.y"),
-            getConfig().getDouble("schedule.z"),(float)getConfig().getDouble("schedule.yaw"),0);
+    private long spawnInterval(){return Math.round(getConfig().getDouble("schedule.interval-hours",5.0/60)*3600000);}
+    private World scheduledWorld() {
+        String name=getConfig().getString("schedule.world","");
+        World world=name.isBlank()?Bukkit.getWorlds().stream().filter(w->w.getEnvironment()==World.Environment.NORMAL).findFirst().orElse(null):Bukkit.getWorld(name);
+        return world!=null&&world.getEnvironment()==World.Environment.NORMAL?world:null;
+    }
+    private static boolean iceBiome(org.bukkit.block.Biome biome) {
+        return biome==org.bukkit.block.Biome.ICE_SPIKES||biome==org.bukkit.block.Biome.FROZEN_PEAKS
+            ||biome==org.bukkit.block.Biome.SNOWY_PLAINS||biome==org.bukkit.block.Biome.SNOWY_SLOPES;
+    }
+    private void findNaturalSpawn() {
+        World world=scheduledWorld();
+        if(world==null){announceEvent("skipped",null,0,"no configured overworld is available");return;}
+        Location center=world.getPlayers().isEmpty()?world.getSpawnLocation():world.getPlayers().get(random.nextInt(world.getPlayers().size())).getLocation();
+        var result=world.locateNearestBiome(center,getConfig().getInt("schedule.search-radius",4096),128,64,
+            org.bukkit.block.Biome.ICE_SPIKES,org.bukkit.block.Biome.FROZEN_PEAKS,
+            org.bukkit.block.Biome.SNOWY_PLAINS,org.bukkit.block.Biome.SNOWY_SLOPES);
+        if(result==null){announceEvent("skipped",null,0,"no ice biome found within the search radius");return;}
+        Location found=result.getLocation();
+        naturalSpawnSearch=true;
+        world.getChunkAtAsync(found.getBlockX()>>4,found.getBlockZ()>>4,true).whenComplete((chunk,error)->{
+            if(!isEnabled())return;
+            Bukkit.getScheduler().runTask(this,()->{
+                naturalSpawnSearch=false;
+                if(error!=null||chunk==null){announceEvent("skipped",null,0,"the ice biome chunk could not be loaded");return;}
+                if(encounter!=null){announceEvent("skipped",null,0,"an encounter became active during the search");return;}
+                for(int i=0;i<32;i++) {
+                    int x=i==0?found.getBlockX():(chunk.getX()<<4)+random.nextInt(16);
+                    int z=i==0?found.getBlockZ():(chunk.getZ()<<4)+random.nextInt(16);
+                    int y=world.getHighestBlockYAt(x,z,org.bukkit.HeightMap.MOTION_BLOCKING_NO_LEAVES)+1;
+                    Location at=new Location(world,x+.5,y,z+.5,random.nextInt(360),0);
+                    if(!iceBiome(world.getBiome(x,y-1,z))||!spawnGroundReady(at))continue;
+                    if(world.getNearbyEntities(at,4,8,4).stream().anyMatch(entity->entity instanceof LivingEntity))continue;
+                    spawn(at);return;
+                }
+                announceEvent("skipped",null,0,"the ice biome has no safe open surface");
+            });
+        });
     }
     private boolean spawnGroundReady(Location at) {
         return at.getY()>at.getWorld().getMinHeight()&&at.getY()<at.getWorld().getMaxHeight()
@@ -231,24 +276,22 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void tickSchedule() {
         if(spawnSchedule==null||!getConfig().getBoolean("schedule.enabled"))return;
-        Location arena=scheduledArena();long now=System.currentTimeMillis();
+        Location arena=null;long now=System.currentTimeMillis();
         try {
             if(now<spawnSchedule.next()) {
-                if(encounter==null&&arena!=null)for(int minutes:spawnSchedule.warnings(now,getConfig().getIntegerList("schedule.warning-minutes")))
+                if(encounter==null&&scheduledWorld()!=null)for(int minutes:spawnSchedule.warnings(now,getConfig().getIntegerList("schedule.warning-minutes")))
                     announceEvent("warning",arena,(int)Math.ceil((spawnSchedule.next()-now)/60000.0),"");
                 return;
             }
             // Commit the next slot before creating entities or sending messages.
             spawnSchedule.advance(now,spawnInterval());
             if(encounter!=null){announceEvent("skipped",arena,0,"an encounter is already active");return;}
-            if(arena==null){announceEvent("skipped",null,0,"the configured arena world is unavailable");return;}
-            arena.getChunk().load();
-            if(!spawnGroundReady(arena)){announceEvent("skipped",arena,0,"the arena is obstructed or has no solid ground");return;}
-            spawn(arena);
+            if(naturalSpawnSearch){announceEvent("skipped",null,0,"an ice biome search is still in progress");return;}
+            findNaturalSpawn();
         } catch(IOException ex){getLogger().severe("Cannot persist automatic spawn schedule; no scheduled spawn performed.");}
     }
     private String eventText(String template,String event,Location at,int minutes,String reason) {
-        String location=at==null?"unconfigured arena":at.getWorld().getName()+" ("+at.getWorld().getEnvironment().name().toLowerCase(Locale.ROOT)+") "
+        String location=at==null?"an ice biome (coordinates announced on spawn)":at.getWorld().getName()+" ("+at.getWorld().getEnvironment().name().toLowerCase(Locale.ROOT)+") "
             +at.getBlockX()+", "+at.getBlockY()+", "+at.getBlockZ();
         long next=spawnSchedule==null?0:spawnSchedule.next()/1000;
         return template.replace("{event}",event).replace("{minutes}",Integer.toString(minutes)).replace("{location}",location)
@@ -1176,7 +1219,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 getConfig().set("schedule.world",at.getWorld().getName());
                 getConfig().set("schedule.x",at.getX());getConfig().set("schedule.y",at.getY());getConfig().set("schedule.z",at.getZ());
                 getConfig().set("schedule.yaw",at.getYaw());getConfig().set("schedule.enabled",true);saveConfig();
-                sender.sendMessage(prefix()+"Automatic spawn arena saved; scheduling enabled. Next spawn: "+java.time.Instant.ofEpochMilli(spawnSchedule.next()));
+                sender.sendMessage(prefix()+"Automatic spawn search world saved; ice biome scheduling enabled. Next spawn: "+java.time.Instant.ofEpochMilli(spawnSchedule.next()));
             }
             case "spawn" -> {
                 if(encounter!=null) { sender.sendMessage(prefix()+"An encounter is already active.");return true; }
