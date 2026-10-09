@@ -2,6 +2,7 @@ package io.github.aemiroo.yetiboss;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import java.util.*;
+import io.github.aemiroo.yetiboss.AttackSelector.Attack;
 class AttackSelectorTest {
     final Map<AttackSelector.Attack,Integer> weights=Map.of(
         AttackSelector.Attack.ICE_BALL,5,AttackSelector.Attack.SWIPE,4,
@@ -60,5 +61,12 @@ class AttackSelectorTest {
         var random=new Random(432);
         for(int i=0;i<1000;i++) observed.add(new AttackSelector().choose(0,true,2,5,7,weights,random).orElseThrow());
         assertEquals(weights.keySet(),observed);
+    }
+    @org.junit.jupiter.api.Test void sonicBoomStaysWithinItsRange() {
+        for(double distance:new double[]{2,5,17,25})
+            org.junit.jupiter.api.Assertions.assertTrue(new AttackSelector().choose(0,false,distance,5,7,
+                java.util.Map.of(Attack.SONIC_BOOM,1),new java.util.Random(1)).isEmpty());
+        org.junit.jupiter.api.Assertions.assertEquals(Attack.SONIC_BOOM,new AttackSelector().choose(0,false,10,5,7,
+            java.util.Map.of(Attack.SONIC_BOOM,1),new java.util.Random(1)).orElseThrow());
     }
 }

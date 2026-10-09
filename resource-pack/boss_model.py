@@ -159,7 +159,7 @@ def texture_color(mat,x,y):
   delta=(-10,-5,0,0,0,3,5,7,9)[patch]
   return tuple(max(0,min(255,c+delta)) for c in base)
  if name=='ice_face':
-  return (37,53,56) if 3<=x<=12 and 5<=y<=10 else (84,105,108)
+  return (255,156,76) if 3<=x<=12 and 5<=y<=10 else (37,53,56)
  if name=='face_plain':return (84,105,108)
  if name=='scream':return (28,41,44) if 3<=x<=12 and 3<=y<=12 else (198,215,216)
  return _previous_texture_color(name,x,y)
@@ -208,7 +208,7 @@ def model(frame=None,attack=None,kind='slam'):
  head_start=len(es)
  box((5.25,10.3,4.8),(10.75,13.4,8.0),'fur_light')
  face=box((5.85,11.15,4.49),(10.15,12.95,4.78),'face_plain')
- face['faces']['north']['texture']='#ice_face'
+ face['faces']['north']['texture']='#face_plain'
  # Wide projecting muzzle conceals the lower face, rather than a small nose.
  box((5.35,9.25,2.8),(10.65,11.17,4.47),'muzzle')
  if kind=='roar' and attack is not None:
@@ -248,6 +248,8 @@ def model(frame=None,attack=None,kind='slam'):
   if 'rotation' in e:
    e['rotation']['origin'][1]-=1.1
    e['rotation']['origin'][2]-=.45
+ # Solid skull backing closes the faceted seam and the brow-to-muzzle gap.
+ box((5.8,9.1,3.90),(10.23,12.15,7.60),'fur')
  # Continuous inner torso joins hips to shoulders under the shaped outer shell.
  box((6.28,4.0,7.18),(9.72,11.25,10.62),'fur')
  # Replace the right half with metal, leaving the opposite half organic.
@@ -291,6 +293,9 @@ def model(frame=None,attack=None,kind='slam'):
  chest((9.35,7.38,5.49),(10.52,8.23,5.67),'reactor')
  for y in (6.91,7.42,7.93):chest((10.91,y,5.70),(11.65,y+.18,5.95),'metal_edge')
  chest((8.25,7.04,5.71),(8.57,8.51,5.95),'cable')
+ # Organic eye shares the mechanical lens height, size and front plane.
+ organic_eye=box((6.48,10.68,3.48),(7.30,11.18,3.58),'face_plain')
+ organic_eye['faces']['north']['texture']='#ice_face'
  # Mechanical eye covers only one side of the recessed face.
  box((8.15,10.05,3.78),(10.2,11.89,4.025),'steel')
  box((8.53,10.55,3.59),(9.7,11.35,3.77),'mechanism')
@@ -324,7 +329,8 @@ def sculpt_silhouette(mesh,continuous_half=False):
   eligible=mat in ('#fur','#fur_light','#fur_shadow','#steel','#mechanism','#metal_edge','#muzzle')
   # Preserve thin armor, facial panels, horns, teeth and all small details.
   inner_torso=continuous_half and abs(size[1]-7.25)<1e-5 and abs(size[2]-3.44)<1e-5
-  if inner_torso or not eligible or min(size)<1.35 or len({f['texture'] for f in source['faces'].values()})>1:
+  inner_skull=continuous_half and abs(size[1]-3.05)<1e-5 and abs(size[2]-3.7)<1e-5
+  if inner_skull or inner_torso or not eligible or min(size)<1.35 or len({f['texture'] for f in source['faces'].values()})>1:
    elements.append(source);continue
   torso=size[0]>3 and size[1]>3 and a[1]>4 and (a[0]<8<b[0] or (size[1]>4.9 and size[2]>5.3))
   axis=1 if torso else 0

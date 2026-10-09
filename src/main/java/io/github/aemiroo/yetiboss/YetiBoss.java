@@ -83,6 +83,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             getConfig().set("schema-version",9);saveConfig();
         }
 
+        if(getConfig().getInt("schema-version")<10) {
+            for(String key:List.of("weight","cooldown-ticks","windup-ticks","damage","knockback"))
+                if(!getConfig().contains("attacks.sonic-boom."+key,true))getConfig().set("attacks.sonic-boom."+key,getConfig().getDefaults().get("attacks.sonic-boom."+key));
+            getConfig().set("schema-version",10);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
@@ -356,7 +361,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 Math.min(7,4+(int)((tick-e.recoveryStarted)*4/Math.max(1,e.recoveryUntil-e.recoveryStarted)));
         if(e.comboRemaining==1&&e.pending==null)poseFrame=Math.max(0,Math.min(3,(int)(4-(e.comboNext-tick)*4/18)));
         String pose=animated==Attack.SWIPE?"swipe":animated==Attack.ICE_BALL||animated==Attack.BARRAGE?"throw":
-                animated==Attack.ROAR||animated==Attack.SNOW_GOLEMS?"roar":"attack";
+                animated==Attack.SONIC_BOOM||animated==Attack.ROAR||animated==Attack.SNOW_GOLEMS?"roar":"attack";
         String model=e.chargeUntil>tick?e.modelPrefix+"_gallop_"+Math.max(0,frame):e.grabbed!=null?e.modelPrefix+"_attack_3":animated!=null?e.modelPrefix+"_"+pose+"_"+poseFrame:
                 frame<0?e.modelPrefix:e.modelPrefix+"_walk_"+frame;
         if(!model.equals(e.modelName)) { e.model.setItemStack(modelItem(model));e.modelName=model; }
@@ -395,7 +400,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(!father||!getConfig().getBoolean("minions.snow-golems.enabled",true)
                 ||snowGolemCount(e)>=getConfig().getInt("minions.snow-golems.maximum"))
             weights.put(Attack.SNOW_GOLEMS,0);
-        if(!father)weights.put(Attack.CHARGE,0);
+        if(!father){weights.put(Attack.CHARGE,0);weights.put(Attack.SONIC_BOOM,0);}
         Encounter other=father?e.mother:encounter;
         if(other!=null&&other.grabbed!=null)weights.put(Attack.GRAB_SLAM,0);
         if(distance>getConfig().getDouble("attacks.grab-slam.range"))weights.put(Attack.GRAB_SLAM,0);
@@ -500,6 +505,15 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private void telegraph(Encounter e) {
         Location at=e.body.getLocation();World world=at.getWorld();
         world.spawnParticle(Particle.SNOWFLAKE,at.clone().add(0,2,0),12,1,1,1,.02);
+        if(e.pending==Attack.SONIC_BOOM) {
+            Location origin=at.clone().add(0,3,0);
+            org.bukkit.util.Vector beam=e.aim.toVector().subtract(origin.toVector());
+            if(beam.lengthSquared()>.001) {
+                beam.normalize();
+                for(int i=1;i<=16;i++)world.spawnParticle(Particle.ELECTRIC_SPARK,origin.clone().add(beam.clone().multiply(i)),2,.12,.12,.12,0);
+            }
+            world.playSound(origin,Sound.ENTITY_WARDEN_SONIC_CHARGE,2f,1f);
+        }
         if(e.pending==Attack.CHARGE) {
             for(int i=1;i<=14;i++)world.spawnParticle(Particle.SNOWFLAKE,at.clone().add(e.direction.clone().multiply(i)).add(0,.2,0),2,.2,0,.2,0);
         }
@@ -515,6 +529,23 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private void execute(Encounter e,Attack attack,List<Player> players) {
         Location at=e.body.getLocation();
         switch(attack) {
+            case SONIC_BOOM -> {
+                Location origin=at.clone().add(0,3,0);
+                org.bukkit.util.Vector beam=e.aim.toVector().subtract(origin.toVector());
+                if(beam.lengthSquared()<.001)break;
+                beam.normalize();double length=16;
+                org.bukkit.util.RayTraceResult wall=at.getWorld().rayTraceBlocks(origin,beam,length,FluidCollisionMode.NEVER,true);
+                if(wall!=null)length=wall.getHitPosition().distance(origin.toVector());
+                for(double d=0;d<=length;d+=1.5)at.getWorld().spawnParticle(Particle.SONIC_BOOM,origin.clone().add(beam.clone().multiply(d)),1,0,0,0,0);
+                at.getWorld().playSound(origin,Sound.ENTITY_WARDEN_SONIC_BOOM,3f,1f);
+                for(Player player:players) {
+                    org.bukkit.util.Vector delta=player.getEyeLocation().toVector().subtract(origin.toVector());
+                    double along=delta.dot(beam);
+                    if(along>=0&&along<=length&&delta.clone().subtract(beam.clone().multiply(along)).lengthSquared()<=1.44)
+                        hitWithEffects(player,getConfig().getDouble("attacks.sonic-boom.damage"),beam,
+                            getConfig().getDouble("attacks.sonic-boom.knockback"),0,e.body);
+                }
+            }
             case CHARGE -> {
                 e.chargeUntil=tick+(e.enraged?22:18);e.chargeHits.clear();
             }

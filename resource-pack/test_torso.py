@@ -19,3 +19,10 @@ class SolidTorsoTest(unittest.TestCase):
   count=len(model()['elements'])
   for kind in ('walk','gallop'):
    for i in range(24):self.assertEqual(count,len(model(frame=i,kind=kind)['elements']))
+
+ def test_eyes_share_height_and_front_plane(self):
+  m=model();eyes={}
+  for e in m['elements']:
+   if e['faces'].get('north',{}).get('texture') in ('#ice_face','#optic'):eyes[e['faces']['north']['texture']]=e
+  self.assertEqual(eyes['#ice_face']['from'][1:],eyes['#optic']['from'][1:])
+  self.assertEqual(eyes['#ice_face']['to'][1:],eyes['#optic']['to'][1:])

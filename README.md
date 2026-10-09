@@ -217,3 +217,6 @@ Closed the Father torso seam, joined the hips and shoulders with a continuous in
 
 ### Ice Warden animations (0.8.10)
 Added idle breathing, an emerge entrance, two-arm melee follow-through, hit recoil, and native roar/sniff pose animations. Melee animation triggers on accepted damage; hit recoil triggers when the minion takes damage. These poses replace walking temporarily and settle back to the movement cycle. Native damage and attack cadence are retained.
+
+### Reactor sonic boom and face repair (0.8.11)
+Father has solid skull backing and aligned organic/cyborg eyes. Added a Father-only sonic boom at 6–16 blocks: a 45-tick warned charge, locked firing line, wall-blocked beam, 12 damage and knockback, with a 280-tick cooldown. Weight, timing, damage and knockback are configurable; schema 10 adds missing defaults while preserving custom settings.
