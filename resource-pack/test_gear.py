@@ -70,6 +70,26 @@ class GearPackTest(unittest.TestCase):
     actual=[p*scale+t for p,scale,t in zip(v,pose['scale'],translation)]
     target=(0,-2,1) if hand.startswith('thirdperson') else (-1.13 if left else 1.13,-1.3,-.5)
     for a,b in zip(actual,target):self.assertAlmostEqual(a,b,places=5)
+ def test_bow_stays_upright_and_points_forward(self):
+  import math
+  def rotation(v,angles):
+   x,y,z=v
+   for axis,degrees in reversed(list(zip('xyz',angles))):
+    c=math.cos(math.radians(degrees));s=math.sin(math.radians(degrees))
+    if axis=='z':x,y=x*c-y*s,x*s+y*c
+    elif axis=='y':x,z=x*c+z*s,-x*s+z*c
+    else:y,z=y*c-z*s,y*s+z*c
+   return x,y,z
+  for name in ('frostbow','frostbow_pull_0','frostbow_pull_1','frostbow_pull_2'):
+   for hand,pose in model(name)['display'].items():
+    if 'hand' not in hand:continue
+    angles=list(pose['rotation'])
+    if hand.endswith('lefthand'):angles[1]*=-1;angles[2]*=-1
+    up=rotation((0,1,0),angles);front=rotation((1,0,0),angles)
+    if hand.startswith('thirdperson'):
+     up=rotation(up,[-90,180,0]);front=rotation(front,[-90,180,0])
+    self.assertAlmostEqual(up[1],1)
+    self.assertAlmostEqual(front[2],-1)
  def test_bedrock_gear_is_originated_at_actual_grip(self):
   from gear_model import grip_point
   for name in GEAR_MODELS:
