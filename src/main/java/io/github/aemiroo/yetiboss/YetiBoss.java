@@ -362,7 +362,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(!model.equals(e.modelName)) { e.model.setItemStack(modelItem(model));e.modelName=model; }
         float turn=(float)Math.IEEEremainder(at.getYaw()-e.visualYaw,360);
         e.visualYaw+=Math.max(-12f,Math.min(12f,turn));
-        Location visual=at.clone();visual.setYaw(e.visualYaw);
+        Location visual=at.clone();visual.setYaw(e.visualYaw);visual.setPitch(0);
         e.model.teleport(visual);e.hitbox.teleport(at);e.last=at;
         if(e.barrageRemaining>0&&tick>=e.nextShot) {
             Player target=chooseTarget(players,e.body);
@@ -779,7 +779,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(!name.equals(minion.pose)){minion.model.setItemStack(modelItem(name));minion.pose=name;}
         float turn=(float)Math.IEEEremainder(at.getYaw()-minion.yaw,360);
         minion.yaw+=Math.max(-12f,Math.min(12f,turn));
-        Location visual=at.clone();visual.setYaw(minion.yaw);minion.model.teleport(visual);minion.last=at;
+        Location visual=at.clone();visual.setYaw(minion.yaw);visual.setPitch(0);minion.model.teleport(visual);minion.last=at;
     }
     private void tickMinions(Encounter e,List<Player> players) {
         for(IceMinion minion:new ArrayList<>(e.minions.values())) {

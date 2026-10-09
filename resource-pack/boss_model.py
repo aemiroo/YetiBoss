@@ -248,6 +248,8 @@ def model(frame=None,attack=None,kind='slam'):
   if 'rotation' in e:
    e['rotation']['origin'][1]-=1.1
    e['rotation']['origin'][2]-=.45
+ # Continuous inner torso joins hips to shoulders under the shaped outer shell.
+ box((6.28,4.0,7.18),(9.72,11.25,10.62),'fur')
  # Replace the right half with metal, leaving the opposite half organic.
  import copy
  rebuilt=[]
@@ -264,7 +266,7 @@ def model(frame=None,attack=None,kind='slam'):
    # The seam is internal; do not draw opposing coplanar faces.
    organic['faces'].pop('east');mechanical['faces'].pop('west')
    rebuilt.append(organic)
-  replacement={'fur':'mechanism','fur_light':'steel','fur_shadow':'metal_edge','muzzle':'steel'}[mat]
+  replacement={'fur':'steel','fur_light':'steel','fur_shadow':'metal_edge','muzzle':'steel'}[mat]
   for f in mechanical['faces'].values():f['texture']='#'+replacement
   rebuilt.append(mechanical)
  es=rebuilt
@@ -308,7 +310,7 @@ def model(frame=None,attack=None,kind='slam'):
          'display':{'fixed':{'rotation':[0,0,0],'translation':[0,8,0],'scale':[1,1,1]}}}
 
 
-def sculpt_silhouette(mesh):
+def sculpt_silhouette(mesh,continuous_half=False):
  """Facet large volumes and taper their lower ends without changing the rig.
 
  Disjoint bands keep surfaces free of z-fighting. Every band inherits its
@@ -321,9 +323,10 @@ def sculpt_silhouette(mesh):
   mat=next(iter(source['faces'].values()))['texture']
   eligible=mat in ('#fur','#fur_light','#fur_shadow','#steel','#mechanism','#metal_edge','#muzzle')
   # Preserve thin armor, facial panels, horns, teeth and all small details.
-  if not eligible or min(size)<1.35 or len({f['texture'] for f in source['faces'].values()})>1:
+  inner_torso=continuous_half and abs(size[1]-7.25)<1e-5 and abs(size[2]-3.44)<1e-5
+  if inner_torso or not eligible or min(size)<1.35 or len({f['texture'] for f in source['faces'].values()})>1:
    elements.append(source);continue
-  torso=size[0]>3 and size[1]>3 and a[1]>4 and (a[0]<8<b[0] or source.get('rotation',{}).get('origin')==[8,6.5,8])
+  torso=size[0]>3 and size[1]>3 and a[1]>4 and (a[0]<8<b[0] or (size[1]>4.9 and size[2]>5.3))
   axis=1 if torso else 0
   cut=size[axis]*.22
   boundaries=[a[axis],a[axis]+cut,b[axis]-cut,b[axis]]
@@ -339,7 +342,9 @@ def sculpt_silhouette(mesh):
    if axis==1:
     # A narrower waist flows into a broad middle chest and sloping mantle.
     trim=(.65 if j==0 else 0 if j==1 else .35)
-    for k in (0,2):e['from'][k]+=trim;e['to'][k]-=trim
+    for k in (0,2):
+     if not (continuous_half and k==0 and 'west' not in source['faces']):e['from'][k]+=trim
+     if not (continuous_half and k==0 and 'east' not in source['faces']):e['to'][k]-=trim
    low,high=('west','east') if axis==0 else ('down','up')
    # Adjacent bands meet internally; only the exposed ledge remains.
    # Their cross sections differ, so retain the larger band's ledge face.
@@ -349,7 +354,7 @@ def sculpt_silhouette(mesh):
    if axis==1 and j==2:e['faces'].pop(low,None)
    elements.append(e)
   # Fur breaks up the lower edge of shoulder and cheek volumes.
-  if mat in ('#fur','#fur_light') and size[0]>2.1 and size[1]>2.5 and a[1]>6:
+  if not continuous_half and mat in ('#fur','#fur_light') and size[0]>2.1 and size[1]>2.5 and a[1]>6:
    for j in range(3):
     tuft=copy.deepcopy(source);x=a[0]+size[0]*(.16+.25*j);w=min(.6,size[0]*.16)
     tuft['from']=[x,a[1]-.35-(j%2)*.2,a[2]-.12]
@@ -362,6 +367,6 @@ def sculpt_silhouette(mesh):
 _block_father_model=model
 _block_mother_model=mother_model
 def model(frame=None,attack=None,kind='slam'):
- return sculpt_silhouette(_block_father_model(frame,attack,kind))
+ return sculpt_silhouette(_block_father_model(frame,attack,kind),continuous_half=True)
 def mother_model(frame=None,attack=None,kind='slam'):
  return sculpt_silhouette(_block_mother_model(frame,attack,kind))

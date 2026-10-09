@@ -211,3 +211,6 @@ The summoned Ice Warden uses an original ice-armored sentinel model with crystal
 
 ### Sculpted Yeti silhouettes (0.8.8)
 Father and Mother now have faceted shoulders, heads, hands and limbs, tapered torsos, and layered fur edges. Existing palettes, connected horns, Father machinery and all animation rigs are retained. Ice Warden assets and combat are unchanged.
+
+### Cyborg body repair (0.8.9)
+Closed the Father torso seam, joined the hips and shoulders with a continuous inner torso, removed loose Father fur tufts, and gave the mechanical half a solid steel shell. Model displays stay upright regardless of their underlying mob look pitch. Mother geometry is unchanged.
