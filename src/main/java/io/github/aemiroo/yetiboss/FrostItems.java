@@ -95,10 +95,15 @@ final class FrostItems implements Listener {
         if(!(event.getEntity() instanceof Player p)||!kind(event.getBow()).equals("frostbow")||!valid(event.getBow())||event.getForce()<.95||!(event.getProjectile() instanceof AbstractArrow arrow))return;
         if(ready(p,"bow",integer("bow.cooldown-ticks",60)))shots.put(arrow.getUniqueId(),new Shot(p.getUniqueId(),level(event.getBow()),false,tick+1200));
     }
-    @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true)
+    @EventHandler(priority=EventPriority.HIGHEST)
     public void throwBomb(PlayerInteractEvent event) {
         if(event.getHand()==null||!event.getAction().isRightClick()||!kind(event.getItem()).equals("frostbomb"))return;
-        event.setCancelled(true);Player p=event.getPlayer();if(!ready(p,"bomb",integer("bomb.cooldown-ticks",60)))return;
+        // Block-use DENY is normal for right-click air. Respect item-use denial
+        // separately so protection plugins can still prevent throwing.
+        if(event.useItemInHand()==Event.Result.DENY)return;
+        event.setUseItemInHand(Event.Result.DENY);
+        event.setUseInteractedBlock(Event.Result.DENY);
+        Player p=event.getPlayer();if(!ready(p,"bomb",integer("bomb.cooldown-ticks",60)))return;
         Snowball ball=p.launchProjectile(Snowball.class,p.getEyeLocation().getDirection().multiply(1.4));ball.setItem(create("frostbomb"));
         shots.put(ball.getUniqueId(),new Shot(p.getUniqueId(),0,true,tick+200));
         if(p.getGameMode()!=GameMode.CREATIVE)event.getItem().setAmount(event.getItem().getAmount()-1);

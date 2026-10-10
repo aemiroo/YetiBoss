@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.9.1 — Diagnose blocked encounter damage"
+run-name: "YetiBoss 0.9.2 — Register Frost Bomb throws on right-click air"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
