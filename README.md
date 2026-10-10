@@ -266,3 +266,6 @@ Use `/yetiboss give frostfang|frostbow|frostpickaxe|frostbomb|frostbite_book` fo
 
 ### Frost Bomb interaction repair (0.9.2)
 Frost Bomb throws now inspect the item-use result independently of the block-use result. Right-click air can deny block interaction without denying item use; ignoring those events let vanilla snowballs launch without registering an explosion. Item-use denial from protection plugins remains respected. Test `/yetiboss give frostbomb` by throwing at ground and a hostile mob on Normal difficulty.
+
+### Announcement teleport return (0.9.3)
+Clicking the spawn announcement saves the player's first original world, precise coordinates and facing before teleporting. Repeated clicks cannot replace that origin. After defeat, visitors return after 30 seconds so they can collect ground loot. Offline or dead visitors return when next online/alive; saved origins survive restarts, and interrupted encounters recover on startup. Failed or cancelled return teleports retain the destination for retry. Despawn/admin stop also schedules a return. Players who travel to the boss themselves are unaffected.

@@ -50,6 +50,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private final Set<UUID> bossPackReady=new HashSet<>();
     private final Map<UUID,String> packStates=new HashMap<>();
     private byte[] bossPackHash;
+    private ReturnTrips returnTrips;
+    private final Set<UUID> travelPending=new HashSet<>();
     private FrostItems frostItems;
     private SpawnSchedule spawnSchedule;
     private BossWebhook webhook;
@@ -133,6 +135,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         try {
             validate(getConfig());
             frostItems=new FrostItems(this);
+            returnTrips=new ReturnTrips(getDataFolder().toPath().resolve("return-trips.properties"),System.currentTimeMillis());
             pets=new PetBridge(Objects.requireNonNull(getServer().getPluginManager().getPlugin("CosmeticPets")));
             ledger=new RewardLedger(getDataFolder().toPath().resolve("rewards.yml"));
             spawnSchedule=new SpawnSchedule(getDataFolder().toPath().resolve("spawn-schedule.properties"),System.currentTimeMillis(),spawnInterval());
@@ -434,7 +437,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void tick() {
         tick++;
-        if(tick%20==0)tickSchedule();
+        if(tick%20==0){tickSchedule();returnVisitors();}
         for(Iterator<IceShot> it=shots.values().iterator();it.hasNext();) {
             IceShot shot=it.next();
             if(!shot.entity.isValid()||tick-shot.created>100||encounter==null||!shot.caster.isValid()||shot.caster.isDead()) {
@@ -1202,7 +1205,31 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             if(getConfig().getBoolean("snowfall.enabled"))snowUntil=tick+getConfig().getInt("snowfall.duration-seconds")*20L;
             Bukkit.broadcastMessage(prefix()+ChatColor.AQUA+"The Cyborg Father Yeti was defeated! Participants earned a Baby Yeti and XP. Loot is on the ground!");
         }
+        finishVisits(e,30);
         stop(false);
+    }
+    private void finishVisits(Encounter e,int seconds) {
+        if(returnTrips==null)return;
+        try {returnTrips.finish(e.id,System.currentTimeMillis()+seconds*1000L);}
+        catch(IOException ex){getLogger().severe("Could not schedule return teleports: "+ex.getMessage());}
+    }
+    private void returnVisitors() {
+        if(returnTrips==null)return;
+        for(var entry:returnTrips.ready(System.currentTimeMillis()).entrySet()) {
+            UUID id=entry.getKey();ReturnTrips.Trip trip=entry.getValue();Player player=Bukkit.getPlayer(id);World world=Bukkit.getWorld(trip.world());
+            if(player==null||player.isDead()||world==null||!travelPending.add(id))continue;
+            Location at=new Location(world,trip.x(),trip.y(),trip.z(),trip.yaw(),trip.pitch());
+            player.teleportAsync(at).whenComplete((success,error)->{
+                if(!isEnabled())return;
+                Bukkit.getScheduler().runTask(this,()->{
+                    travelPending.remove(id);
+                    if(error==null&&Boolean.TRUE.equals(success)) {
+                        try{returnTrips.remove(id,trip);}catch(IOException ex){getLogger().warning("Could not clear return location: "+ex.getMessage());}
+                        if(player.isOnline())player.sendMessage(prefix()+"Returned to your original location.");
+                    }
+                });
+            });
+        }
     }
     boolean modelHitbox(Entity entity) {return encounter!=null&&(entity.equals(encounter.hitbox)||(encounter.mother!=null&&entity.equals(encounter.mother.hitbox)));}
     private ItemStack frostGear(String kind) {return frostItems.create(kind);}
@@ -1244,6 +1271,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private void stop(boolean announce,String reason) {
         Encounter e=encounter;encounter=null;
         if(e==null){releaseEncounterChunks();return;}
+        if(!e.defeated)finishVisits(e,0);
         removeYeti(e);removeYeti(e.mother);
         for(IceMinion minion:e.minions.values()){if(minion.model!=null)minion.model.remove();minion.mob.remove();}
         e.minions.clear();
@@ -1259,9 +1287,26 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 player.sendMessage(prefix()+"That Yeti encounter is no longer active.");return true;
             }
             if(player.isDead()){player.sendMessage(prefix()+"Respawn before joining the encounter.");return true;}
-            player.teleportAsync(encounter.origin.clone()).thenAccept(success->{
-                if(!success)Bukkit.getScheduler().runTask(this,()->{
-                    if(player.isOnline())player.sendMessage(prefix()+"Teleport could not be completed.");
+            if(!travelPending.add(player.getUniqueId()))return true;
+            ReturnTrips.Trip previous=returnTrips.get(player.getUniqueId());
+            if(previous!=null&&(!previous.encounter().equals(encounter.id)||previous.due()>0)) {
+                travelPending.remove(player.getUniqueId());player.sendMessage(prefix()+"Your return to the previous location is still pending.");return true;
+            }
+            Location from=player.getLocation();Encounter visit=encounter;
+            try {returnTrips.remember(player.getUniqueId(),new ReturnTrips.Trip(visit.id,from.getWorld().getUID(),from.getX(),from.getY(),from.getZ(),from.getYaw(),from.getPitch(),0));}
+            catch(IOException ex){travelPending.remove(player.getUniqueId());player.sendMessage(prefix()+"Could not save your return location; teleport cancelled.");getLogger().warning(ex.getMessage());return true;}
+            ReturnTrips.Trip saved=returnTrips.get(player.getUniqueId());
+            player.teleportAsync(visit.origin.clone()).whenComplete((success,error)->{
+                if(!isEnabled())return;
+                Bukkit.getScheduler().runTask(this,()->{
+                    travelPending.remove(player.getUniqueId());
+                    if(error!=null||!Boolean.TRUE.equals(success)) {
+                        if(previous==null)try{returnTrips.remove(player.getUniqueId(),saved);}catch(IOException ex){getLogger().warning(ex.getMessage());}
+                        if(player.isOnline())player.sendMessage(prefix()+"Teleport could not be completed.");
+                    } else {
+                        if(player.isOnline())player.sendMessage(prefix()+"Your original location is saved. You will return 30 seconds after the boss is defeated.");
+                        if(encounter!=visit)try{returnTrips.finish(visit.id,System.currentTimeMillis()+30000);}catch(IOException ex){getLogger().warning(ex.getMessage());}
+                    }
                 });
             });
             return true;

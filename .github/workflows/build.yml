@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.9.2 — Register Frost Bomb throws on right-click air"
+run-name: "YetiBoss 0.9.3 — Return announcement visitors after boss defeat"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
