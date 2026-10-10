@@ -1,6 +1,12 @@
 package io.github.aemiroo.yetiboss;
 
 import java.io.IOException;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import java.util.*;
 import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
@@ -309,7 +315,17 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private void announceEvent(String event,Location at,int minutes,String reason) {
         if(getConfig().getBoolean("schedule.broadcast",true)) {
             String template=getConfig().getString("schedule.messages."+event,"");
-            if(!template.isBlank())Bukkit.broadcastMessage(prefix()+eventText(template,event,at,minutes,reason));
+            if(!template.isBlank()) {
+                Component message=LegacyComponentSerializer.legacySection().deserialize(prefix()+eventText(template,event,at,minutes,reason));
+                if(event.equals("spawn")&&at!=null&&encounter!=null) {
+                    message=message.append(Component.text(" [Teleport]",NamedTextColor.AQUA)
+                        .decorate(TextDecoration.UNDERLINED)
+                        .clickEvent(ClickEvent.runCommand("/yetiboss join "+encounter.id))
+                        .hoverEvent(HoverEvent.showText(Component.text("Teleport to the Yeti's exact spawn coordinates"))));
+                }
+                for(Player player:Bukkit.getOnlinePlayers())player.sendMessage(message);
+                Bukkit.getConsoleSender().sendMessage(message);
+            }
         }
         if(webhook==null||!getConfig().getBoolean("discord.enabled")||!getConfig().getBoolean("discord.events."+event,true))return;
         String message=getConfig().getString("discord.messages."+event,"");
@@ -1227,6 +1243,19 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         releaseEncounterChunks();
     }
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args) {
+        if(args.length>0&&args[0].equalsIgnoreCase("join")) {
+            if(!(sender instanceof Player player)){sender.sendMessage("Use this command in-game.");return true;}
+            if(args.length!=2||encounter==null||encounter.defeated||!encounter.id.toString().equals(args[1])) {
+                player.sendMessage(prefix()+"That Yeti encounter is no longer active.");return true;
+            }
+            if(player.isDead()){player.sendMessage(prefix()+"Respawn before joining the encounter.");return true;}
+            player.teleportAsync(encounter.origin.clone()).thenAccept(success->{
+                if(!success)Bukkit.getScheduler().runTask(this,()->{
+                    if(player.isOnline())player.sendMessage(prefix()+"Teleport could not be completed.");
+                });
+            });
+            return true;
+        }
         if(!sender.hasPermission("yetiboss.admin"))return true;
         if(args.length==2&&args[0].equalsIgnoreCase("give")) {
             String kind=args[1].toLowerCase(Locale.ROOT);

@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.17 — Keep natural boss spawns loaded and log despawn reasons"
+run-name: "YetiBoss 0.8.18 — Clickable spawn announcement teleport"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
