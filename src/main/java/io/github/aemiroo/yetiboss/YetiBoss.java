@@ -43,6 +43,9 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private long tick,snowUntil;
     private final Random random=new Random();
     private boolean scriptedDamage;
+    private boolean damageDebug;
+    private int damageDebugLines;
+    private long damageDebugWindow;
     private static final UUID BOSS_PACK_ID=UUID.fromString("01fd25be-18dd-4bb4-8974-c7873cd2f902");
     private final Set<UUID> bossPackReady=new HashSet<>();
     private final Map<UUID,String> packStates=new HashMap<>();
@@ -908,7 +911,24 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private void hit(Player player,double damage,LivingEntity source) {
         if(encounter==null)return;
         scriptedDamage=true;
+        double before=player.getHealth()+player.getAbsorptionAmount();
         try { player.damage(damage,source); } finally { scriptedDamage=false; }
+        if(damageDebug)damageLog("Scripted hit: source="+source.getType()+" target="+player.getName()+" requested="+damage
+            +" healthChange="+(before-player.getHealth()-player.getAbsorptionAmount())+" difficulty="+player.getWorld().getDifficulty()
+            +" invulnerable="+player.isInvulnerable()+" noDamageTicks="+player.getNoDamageTicks()+" lastDamage="+player.getLastDamage());
+    }
+    private void damageLog(String message) {
+        if(tick-damageDebugWindow>=20){damageDebugWindow=tick;damageDebugLines=0;}
+        if(damageDebugLines++<12)getLogger().info("[DamageDebug] "+message);
+    }
+    @EventHandler(priority=EventPriority.MONITOR)
+    public void debugDamage(EntityDamageEvent event) {
+        if(!damageDebug||encounter==null)return;
+        if(!(event instanceof EntityDamageByEntityEvent by)||!(allied(by.getDamager())
+                ||by.getDamager() instanceof Projectile projectile&&projectile.getShooter() instanceof Entity shooter&&allied(shooter)
+                ||allied(event.getEntity())))return;
+        damageLog("Event: source="+by.getDamager().getType()+" target="+event.getEntity().getType()+" cause="+event.getCause()
+            +" raw="+event.getDamage()+" final="+event.getFinalDamage()+" cancelled="+event.isCancelled()+" scripted="+scriptedDamage);
     }
     private boolean allied(Entity entity) {
         return encounter!=null&&(entity.equals(encounter.body)||entity.equals(encounter.hitbox)||belongsTo(encounter.mother,entity)||encounter.minions.containsKey(entity.getUniqueId()));
@@ -1257,6 +1277,16 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         }
         if(args.length!=1)return false;
         switch(args[0].toLowerCase(Locale.ROOT)) {
+            case "damagecheck" -> {
+                damageDebug=!damageDebug;damageDebugLines=0;
+                sender.sendMessage(prefix()+"Damage diagnostics "+(damageDebug?"enabled; let Mother or a Snow Golem hit you, then check the server console.":"disabled."));
+                if(sender instanceof Player player) {
+                    sender.sendMessage(prefix()+"World difficulty: "+player.getWorld().getDifficulty()+" | Mode: "+player.getGameMode()+" | Invulnerable: "+player.isInvulnerable()
+                        +" | No-damage ticks: "+player.getNoDamageTicks()+" | Effects: "+player.getActivePotionEffects());
+                    if(encounter!=null)sender.sendMessage(prefix()+"Eligible in arena: "+eligible(player,encounter.origin,getConfig().getDouble("boss.arena-radius")));
+                }
+                getLogger().info("Damage diagnostics "+damageDebug+"; enabled plugins: "+Arrays.stream(getServer().getPluginManager().getPlugins()).filter(p->p.isEnabled()).map(p->p.getName()+" "+p.getDescription().getVersion()).toList());
+            }
             case "setspawn" -> {
                 if(!(sender instanceof Player player)){sender.sendMessage("Set the arena in-game.");return true;}
                 Location at=player.getLocation().clone();at.setPitch(0);
@@ -1320,7 +1350,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(args.length==2&&args[0].equalsIgnoreCase("give"))
             return List.of("frostfang","frostbow","frostpickaxe","frostbomb","frostbite_book").stream().filter(s->s.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
         if(args.length!=1)return List.of();
-        return List.of("spawn","setspawn","stop","status","reload","give").stream().filter(s->s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        return List.of("spawn","setspawn","stop","status","reload","give","damagecheck").stream().filter(s->s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
     }
     private record IceShot(Snowball entity,BlockDisplay visual,long created,Attack attack,LivingEntity caster,double damage,double knockback,int slow) {}
     private record Hit(UUID player,org.bukkit.util.Vector direction,double knockback,int slow) {}

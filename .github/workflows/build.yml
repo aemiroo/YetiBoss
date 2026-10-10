@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.9.0 — Frost gear abilities, loot overhaul and enchant restrictions"
+run-name: "YetiBoss 0.9.1 — Diagnose blocked encounter damage"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
