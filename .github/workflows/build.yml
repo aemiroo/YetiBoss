@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.15 — Close Cyborg Father nose seam"
+run-name: "YetiBoss 0.8.16 — Close Cyborg Father rear head and crown seams"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

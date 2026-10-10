@@ -39,3 +39,17 @@ class SolidTorsoTest(unittest.TestCase):
    self.assertEqual(1,len(metal))
    self.assertEqual(organic['from'][1:],metal[0]['from'][1:])
    self.assertEqual(organic['to'][1:],metal[0]['to'][1:])
+
+ def test_head_rear_and_crown_are_closed_at_the_half_seam(self):
+  poses=[model()]+[model(attack=i,kind=k) for k in ('slam','swipe','throw','roar') for i in range(8)]
+  poses+=[model(frame=i,kind=k) for k in ('walk','gallop') for i in range(24)]
+  for mesh in poses:
+   skull=next(e for e in mesh['elements'] if abs(e['to'][1]-e['from'][1]-3.05)<1e-5
+       and abs(e['to'][2]-e['from'][2]-3.7)<1e-5 and e['faces'].get('south',{}).get('texture')=='#fur')
+   seam=skull['to'][0];y=skull['to'][1]+.05
+   for x in (seam-.05,seam+.05):
+    rear=[e for e in mesh['elements'] if 'south' in e['faces'] and abs(e['to'][2]-(skull['to'][2]-.05))<1e-5
+       and e['from'][0]<=x<=e['to'][0] and e['from'][1]<=y<=e['to'][1]]
+    self.assertTrue(rear,(x,y))
+    self.assertTrue(any('up' in e['faces'] and abs(e['to'][1]-(skull['to'][1]+.15))<1e-5
+       and e['from'][0]<=x<=e['to'][0] and e['from'][2]<=6.5<=e['to'][2] for e in mesh['elements']))

@@ -241,3 +241,6 @@ Warnings use `{minute_unit}` to render `1 minute` and `2 minutes`; the old `{min
 
 ### Nose seam repair (0.8.15)
 Father’s organic and steel muzzle halves now meet flush across the full front surface. The seam remains closed across all 81 animation poses. Mother, Ice Warden, combat and schedule settings are unchanged.
+
+### Rear head closure (0.8.16)
+Father’s seam-facing facets retain their full cross section, closing the rear skull and crown between the organic and mechanical halves. Outer silhouette facets remain shaped. All 81 poses are checked for rear and top surface coverage.

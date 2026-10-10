@@ -341,7 +341,8 @@ def sculpt_silhouette(mesh,continuous_half=False):
   boundaries=[a[axis],a[axis]+cut,b[axis]-cut,b[axis]]
   for j in range(3):
    e=copy.deepcopy(source);e['from'][axis]=boundaries[j];e['to'][axis]=boundaries[j+1]
-   if axis==0 and j!=1:
+   seam_band=continuous_half and ((j==0 and 'west' not in source['faces']) or (j==2 and 'east' not in source['faces']))
+   if axis==0 and j!=1 and not seam_band:
     # Chamfer shoulder, head and limb corners into a narrower outer facet.
     for k in (1,2):
      trim=min(.65,size[k]*.21)
