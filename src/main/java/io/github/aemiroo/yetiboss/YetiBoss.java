@@ -1184,6 +1184,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         }
         stop(false);
     }
+    boolean modelHitbox(Entity entity) {return encounter!=null&&(entity.equals(encounter.hitbox)||(encounter.mother!=null&&entity.equals(encounter.mother.hitbox)));}
     private ItemStack frostGear(String kind) {return frostItems.create(kind);}
     private void claim(Player player) {
         UUID id=player.getUniqueId();if(!ledger.hasYeti(id))return;

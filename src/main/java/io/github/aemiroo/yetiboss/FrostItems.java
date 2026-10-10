@@ -79,7 +79,8 @@ final class FrostItems implements Listener {
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true)
     public void swordHit(EntityDamageByEntityEvent event) {
         if(extraDamage||!(event.getDamager() instanceof Player p)||!(event.getEntity() instanceof LivingEntity victim)||event.getFinalDamage()<=0)return;
-        ItemStack sword=p.getInventory().getItemInMainHand();if(!kind(sword).equals("frostfang")||!valid(sword)||p.getAttackCooldown()<.9)return;
+        ItemStack sword=p.getInventory().getItemInMainHand();if(!kind(sword).equals("frostfang")||!valid(sword))return;
+        if(!ready(p,"stack-hit",10))return;
         String key=p.getUniqueId()+":"+victim.getUniqueId();Stack old=stacks.get(key);int count=old==null||old.expires<=tick?1:old.count+1;
         if(count<integer("sword.stacks",5)){stacks.put(key,new Stack(count,tick+integer("sword.stack-expiry-ticks",100)));return;}
         stacks.remove(key);if(!ready(p,"sword",integer("sword.cooldown-ticks",80)))return;
@@ -118,7 +119,7 @@ final class FrostItems implements Listener {
         at.getWorld().playSound(at,Sound.BLOCK_GLASS_BREAK,1,.7f);
         Collection<LivingEntity> targets=direct==null?at.getWorld().getNearbyLivingEntities(at,radius):List.of(direct);
         for(LivingEntity target:targets) {
-            if(target.equals(owner)||target instanceof ArmorStand||target.isDead()||!owner.hasLineOfSight(target))continue;
+            if(target.equals(owner)||target instanceof ArmorStand||plugin.modelHitbox(target)||target.isDead()||!owner.hasLineOfSight(target))continue;
             if(target instanceof Player p&&(!at.getWorld().getPVP()||p.getGameMode()==GameMode.CREATIVE||p.getGameMode()==GameMode.SPECTATOR))continue;
             double before=target.getHealth()+target.getAbsorptionAmount();
             int invulnerability=target.getNoDamageTicks();
