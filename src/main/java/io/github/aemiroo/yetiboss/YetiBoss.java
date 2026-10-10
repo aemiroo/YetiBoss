@@ -141,6 +141,17 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 if(!getConfig().contains(key,true))getConfig().set(key,getConfig().getDefaults().get(key));
             getConfig().set("schema-version",15);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<16) {
+            try {getConfig().save(new java.io.File(getDataFolder(),"config-before-0.9.6.yml"));}
+            catch(IOException ex){getLogger().severe("Cannot back up combat configuration: "+ex.getMessage());getServer().getPluginManager().disablePlugin(this);return;}
+            for(BossBalance.Tune tune:BossBalance.DAMAGE_TUNES) {
+                double old=getConfig().getDouble(tune.path(),tune.previous());
+                double updated=BossBalance.upgrade(old,tune);if(updated!=old)getConfig().set(tune.path(),updated);
+            }
+            for(String key:getConfig().getDefaults().getKeys(true))
+                if((key.startsWith("attacks.flight-phase.")||key.equals("attacks.throw-distance"))&&!getConfig().getDefaults().isConfigurationSection(key)&&!getConfig().contains(key,true))getConfig().set(key,getConfig().getDefaults().get(key));
+            getConfig().set("schema-version",16);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
@@ -175,6 +186,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void validate(FileConfiguration c) {
         FrostItems.validate(c);
+        for(String key:List.of("attacks.throw-distance","attacks.flight-phase.height","attacks.flight-phase.landing-damage","attacks.flight-phase.landing-radius")) {
+            double n=c.getDouble(key);if(!Double.isFinite(n)||n<1||n>32)throw new IllegalArgumentException("Invalid "+key);
+        }
+        double heal=c.getDouble("attacks.flight-phase.heal-fraction");
+        if(!Double.isFinite(heal)||heal<0||heal>.3)throw new IllegalArgumentException("Flight healing must be 0–30% of max health");
         double damageMultiplier=c.getDouble("attacks.enrage-damage-multiplier",1.2),cooldownMultiplier=c.getDouble("attacks.enrage-cooldown-multiplier",.8);
         if(!Double.isFinite(damageMultiplier)||damageMultiplier<1||damageMultiplier>2||!Double.isFinite(cooldownMultiplier)||cooldownMultiplier<.5||cooldownMultiplier>1)
             throw new IllegalArgumentException("Invalid enrage multipliers");
@@ -491,10 +507,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         tickYeti(e,players,true);
     }
     private void tickYeti(Encounter e,List<Player> players,boolean father) {
+        if(e.flightStarted>=0) {tickMinions(e,players);tickFlight(e,players);return;}
         tickGrab(e);
         tickCombat(e,players);
         e.bar.setProgress(Math.max(0,Math.min(1,e.body.getHealth()/e.maximumHealth)));
-        e.enraged=e.bar.getProgress()<=.5;
+        e.enraged=e.flightUsed||e.bar.getProgress()<=.5;
         if(father) {
             tickMinions(e,players);
             if(getConfig().getBoolean("mother.enabled",true)&&e.motherTrigger.ready(e.bar.getProgress())&&tick>=e.nextMotherAttempt) {
@@ -519,6 +536,9 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 spawnMinion(e,summon,true);e.wardenTrigger.spawned();
                 for(Player player:players)player.sendMessage(prefix()+ChatColor.AQUA+"The Yeti has summoned an Ice Warden!");
             }
+        }
+        if(father&&!e.flightUsed&&getConfig().getBoolean("attacks.flight-phase.enabled",true)&&e.body.getHealth()<=e.maximumHealth*.5) {
+            startFlight(e,players);tickFlight(e,players);return;
         }
         if(father&&e.enraged&&tick%10==0)e.body.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,e.body.getLocation().add(0,3,0),12,1,1,1,.05);
         e.bar.setColor(e.enraged?BarColor.RED:BarColor.BLUE);
@@ -611,6 +631,52 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 bossSound(e,"angry",Sound.ENTITY_POLAR_BEAR_WARNING,3f);
                 telegraph(e);
             });
+    }
+    private void startFlight(Encounter e,List<Player> players) {
+        e.flightUsed=true;e.flightStarted=tick;e.flightGround=e.body.getLocation().clone();e.flightHealed=0;
+        double desired=getConfig().getDouble("attacks.flight-phase.height",16),height=0;
+        for(double h=.5;h<=desired;h+=.5) {
+            if(!room(e.flightGround.clone().add(0,h,0),.8,getConfig().getDouble("boss.model-scale")))break;
+            height=h;
+        }
+        e.flightHeight=height;e.grabbed=null;e.pending=null;e.recovery=null;e.comboRemaining=0;e.barrageRemaining=0;e.chargeUntil=0;e.waveStarted=0;
+        e.body.getPathfinder().stopPathfinding();e.body.setGravity(false);e.body.setVelocity(new org.bukkit.util.Vector());
+        for(Player player:players)player.sendMessage(prefix()+ChatColor.RED+"Cyborg Father Yeti — Phase 2! Reactor retreat: he is regenerating, then returning with a frost impact!");
+        bossSound(e,"angry",Sound.ENTITY_POLAR_BEAR_WARNING,3f);
+    }
+    private void tickFlight(Encounter e,List<Player> players) {
+        long age=tick-e.flightStarted;
+        double heal=FlightPhase.healProgress(age),delta=heal-e.flightHealed;e.flightHealed=heal;
+        if(delta>0)e.body.setHealth(Math.min(e.maximumHealth,e.body.getHealth()+delta*e.maximumHealth*getConfig().getDouble("attacks.flight-phase.heal-fraction",.15)));
+        Location at=e.flightGround.clone().add(0,FlightPhase.height(age,e.flightHeight),0);
+        // Abort downward movement if players placed an obstruction; stay at the
+        // current position until safe landing ground can be located.
+        if(age>=FlightPhase.ASCEND+FlightPhase.HEAL&&!room(at,.8,2.7)) {
+            Location safe=spawnPoint(e,.8,getConfig().getDouble("boss.model-scale"));
+            if(safe!=null){e.flightGround=safe;at=safe.clone().add(0,FlightPhase.height(age,e.flightHeight),0);}
+            else at=e.body.getLocation();
+        }
+        if(!e.body.teleport(at))at=e.body.getLocation();e.body.setVelocity(new org.bukkit.util.Vector());at.setPitch(0);
+        e.model.teleport(at);e.hitbox.teleport(at);e.last=at.clone();
+        e.model.setItemStack(modelItem(e.modelPrefix+"_roar_3"));e.modelName=e.modelPrefix+"_roar_3";
+        e.bar.setProgress(Math.max(0,Math.min(1,e.body.getHealth()/e.maximumHealth)));e.bar.setColor(BarColor.PURPLE);
+        e.bar.setTitle(e.name+" — Phase 2: "+(age<40?"Ascending":age<140?"Reactor regeneration":"Incoming frost impact"));
+        if(tick%10==0){e.bar.removeAll();for(Player p:players)e.bar.addPlayer(p);updateViewers(e);}
+        at.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,at.clone().add(0,.5,0),16,.7,.3,.7,.04);
+        at.getWorld().spawnParticle(Particle.FLAME,at,5,.3,.1,.3,.01);
+        if(age>=100&&tick%5==0) {
+            double radius=getConfig().getDouble("attacks.flight-phase.landing-radius",8);
+            for(int i=0;i<24;i++){double angle=i*Math.PI/12;e.flightGround.getWorld().spawnParticle(Particle.SNOWFLAKE,e.flightGround.clone().add(Math.cos(angle)*radius,.2,Math.sin(angle)*radius),1,0,0,0,0);}
+        }
+        if(age==100)for(Player p:players)p.sendActionBar(Component.text("Father is coming down — clear the marked frost ring!",NamedTextColor.RED));
+        if(age<FlightPhase.DURATION)return;
+        e.flightStarted=-1;e.body.setGravity(true);e.enraged=true;e.nextAttack=tick+40;
+        e.body.getWorld().spawnParticle(Particle.SNOWFLAKE,at,100,3,.3,3,.08);
+        e.body.getWorld().playSound(at,Sound.ENTITY_GENERIC_EXPLODE,1,.7f);
+        double radius=getConfig().getDouble("attacks.flight-phase.landing-radius",8);
+        for(Player p:players)if(p.getLocation().distanceSquared(at)<=radius*radius&&e.body.hasLineOfSight(p))
+            hitWithEffects(p,getConfig().getDouble("attacks.flight-phase.landing-damage",20),p.getLocation().toVector().subtract(at.toVector()),1.2,40,e.body);
+        for(Player p:players)p.sendMessage(prefix()+ChatColor.RED+"Cyborg Father Yeti has landed — Phase 2 remains enraged!");
     }
     private Player chooseTarget(List<Player> players,IronGolem body) {
         // Usually chase the nearest player; sometimes pressure another participant.
@@ -759,7 +825,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                         ||!e.body.hasLineOfSight(victim))return;
                 Location landing=victim.getLocation().clone();
                 // Only grab over solid ground with clear space for a player-sized lift.
-                if(landing.clone().add(0,-.1,0).getBlock().isPassable()||!room(landing,.35,4.5))return;
+                if(!room(landing,.35,4.2))return;
                 e.grabbed=victim.getUniqueId();e.grabLanding=landing;e.grabStarted=tick;
                 e.body.getPathfinder().stopPathfinding();
                 victim.sendActionBar(net.kyori.adventure.text.Component.text("The Yeti grabbed you — brace for the throw!"));
@@ -877,10 +943,16 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             hitWithEffects(p,getConfig().getDouble("attacks.grab-slam.damage"),
                     p.getLocation().toVector().subtract(e.body.getLocation().toVector()),
                     getConfig().getDouble("attacks.grab-slam.knockback"),40,e.body);
-            org.bukkit.util.Vector away=e.direction.clone();
-            if(away.lengthSquared()<.01)away=e.body.getLocation().getDirection().setY(0).normalize();
-            double distance=5+random.nextDouble()*10;
-            p.setVelocity(away.multiply(ThrowArc.horizontalSpeed(distance,2.2)).setY(.55));
+            org.bukkit.util.Vector away=p.getLocation().toVector().subtract(e.body.getLocation().toVector()).setY(0);
+            if(away.lengthSquared()<.01)away=e.direction.clone().setY(0);
+            if(away.lengthSquared()<.01)away=new org.bukkit.util.Vector(0,0,1);
+            double distance=getConfig().getDouble("attacks.throw-distance",18);
+            org.bukkit.util.Vector velocity=away.normalize().multiply(ThrowArc.horizontalSpeed(distance,2.2)).setY(.55);
+            // Apply AFTER accepted-hit knockback. The old next-tick knockback
+            // overwrote the throw impulse, causing inconsistent short throws.
+            Bukkit.getScheduler().runTask(this,()->{
+                if(p.isOnline()&&!p.isDead()&&p.getWorld().equals(held.getWorld()))p.setVelocity(velocity);
+            });
             held.getWorld().spawnParticle(Particle.SNOWFLAKE,held,55,1.2,.25,1.2,.08);
             bossEffect(held,"grab_slam",Sound.ENTITY_IRON_GOLEM_ATTACK);
         }
@@ -1431,6 +1503,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         final BossBar bar=Bukkit.createBossBar("Cyborg Father Yeti",BarColor.BLUE,BarStyle.SEGMENTED_10);
         Attack pending,recovery;long recoveryStarted,recoveryUntil,nextGrowl,voiceUntil,nextHurtSound;UUID target,chaseTarget;boolean enraged,defeated,customVisible;int barrageRemaining;
         long chargeUntil,comboNext,waveStarted;int comboRemaining;boolean comboExecuting;
+        boolean flightUsed;long flightStarted=-1;Location flightGround;double flightHeight,flightHealed;
         Location waveOrigin;final Set<UUID> chargeHits=new HashSet<>(),waveHits=new HashSet<>();
         double walk;String modelName="giant_yeti";Set<UUID> recipients=Set.of();
         final Set<UUID> warned=new HashSet<>();

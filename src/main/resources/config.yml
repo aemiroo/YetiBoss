@@ -1,4 +1,4 @@
-schema-version: 15
+schema-version: 16
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Cyborg Father Yeti'
@@ -22,19 +22,19 @@ attacks:
     weight: 3
     cooldown-ticks: 220
     windup-ticks: 45
-    damage: 20
+    damage: 26
     knockback: 1.1
   charge:
     weight: 4
     cooldown-ticks: 160
     windup-ticks: 30
-    damage: 14
+    damage: 19
     knockback: 1.2
   roar:
     weight: 2
     cooldown-ticks: 220
     windup-ticks: 45
-    damage: 6
+    damage: 9
     radius: 7.0
     knockback: 0.9
     slow-ticks: 60
@@ -42,18 +42,25 @@ attacks:
     weight: 2
     cooldown-ticks: 200
     windup-ticks: 35
-    range: 5.0
-    damage: 18
+    range: 7.5
+    damage: 24
     knockback: 0.5
   # Enrage buffs damage and attack reuse; readable wind-ups remain unchanged.
   enrage-damage-multiplier: 1.2
   enrage-cooldown-multiplier: 0.8
+  throw-distance: 18.0
+  flight-phase:
+    enabled: true
+    height: 16.0
+    heal-fraction: 0.15
+    landing-damage: 20.0
+    landing-radius: 8.0
   global-cooldown-ticks: 20
   ice-ball:
     weight: 5
     cooldown-ticks: 70
     windup-ticks: 25
-    damage: 8
+    damage: 11
     speed: 1.5
     knockback: 0.6
     slow-ticks: 40
@@ -61,21 +68,21 @@ attacks:
     weight: 4
     cooldown-ticks: 50
     windup-ticks: 20
-    damage: 12
+    damage: 16
     range: 5.0
     knockback: 0.8
   slam:
     weight: 2
     cooldown-ticks: 120
     windup-ticks: 40
-    damage: 16
+    damage: 22
     radius: 7.0
     knockback: 1.1
   barrage:
     weight: 3
     cooldown-ticks: 180
     windup-ticks: 35
-    damage: 7
+    damage: 10
     speed: 1.4
     knockback: 0.5
     slow-ticks: 30

@@ -2,6 +2,12 @@ package io.github.aemiroo.yetiboss;
 import java.util.*;
 final class BossBalance {
  record Tune(String path,double previous,double current){}
+ static final List<Tune> DAMAGE_TUNES=List.of(
+  new Tune("attacks.sonic-boom.damage",20,26),new Tune("attacks.charge.damage",14,19),
+  new Tune("attacks.roar.damage",6,9),new Tune("attacks.grab-slam.damage",18,24),
+  new Tune("attacks.ice-ball.damage",8,11),new Tune("attacks.swipe.damage",12,16),
+  new Tune("attacks.slam.damage",16,22),new Tune("attacks.barrage.damage",7,10),
+  new Tune("attacks.grab-slam.range",5,7.5));
  static final List<Tune> TUNES=List.of(
   new Tune("boss.health",700,1000),
   new Tune("boss.movement-speed",0.24,0.28),
