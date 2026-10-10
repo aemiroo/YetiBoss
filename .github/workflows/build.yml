@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.9.3 — Return announcement visitors after boss defeat"
+run-name: "YetiBoss 0.9.4 — Buff Father, Mother, summons and enraged combat pressure"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

@@ -130,6 +130,17 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 if(!getConfig().getDefaults().isConfigurationSection(key)&&(key.startsWith("loot.")||key.startsWith("items."))&&!getConfig().contains(key,true))getConfig().set(key,getConfig().getDefaults().get(key));
             getConfig().set("schema-version",14);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<15) {
+            try {getConfig().save(new java.io.File(getDataFolder(),"config-before-0.9.4.yml"));}
+            catch(IOException ex){getLogger().severe("Cannot back up combat configuration: "+ex.getMessage());getServer().getPluginManager().disablePlugin(this);return;}
+            for(BossBalance.Tune tune:BossBalance.TUNES) {
+                double updated=BossBalance.upgrade(getConfig().getDouble(tune.path(),tune.previous()),tune);
+                if(updated!=getConfig().getDouble(tune.path()))getConfig().set(tune.path(),updated==Math.rint(updated)?(Object)(int)updated:updated);
+            }
+            for(String key:List.of("attacks.enrage-damage-multiplier","attacks.enrage-cooldown-multiplier"))
+                if(!getConfig().contains(key,true))getConfig().set(key,getConfig().getDefaults().get(key));
+            getConfig().set("schema-version",15);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
@@ -164,6 +175,9 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void validate(FileConfiguration c) {
         FrostItems.validate(c);
+        double damageMultiplier=c.getDouble("attacks.enrage-damage-multiplier",1.2),cooldownMultiplier=c.getDouble("attacks.enrage-cooldown-multiplier",.8);
+        if(!Double.isFinite(damageMultiplier)||damageMultiplier<1||damageMultiplier>2||!Double.isFinite(cooldownMultiplier)||cooldownMultiplier<.5||cooldownMultiplier>1)
+            throw new IllegalArgumentException("Invalid enrage multipliers");
         double hours=c.getDouble("schedule.interval-hours",5.0/60);
         double minimum=c.getDouble("schedule.minimum-player-distance",64),maximum=c.getDouble("schedule.maximum-player-distance",256),previous=c.getDouble("schedule.previous-spawn-distance",64);
         if(!Double.isFinite(minimum)||!Double.isFinite(maximum)||!Double.isFinite(previous)||minimum<16||maximum<=minimum||maximum>1024||previous<16||previous>1024)
@@ -561,7 +575,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 Attack attack=e.pending;e.pending=null;
                 execute(e,attack,players);
                 e.recovery=attack;e.recoveryStarted=tick;e.recoveryUntil=tick+(attack==Attack.SWIPE&&e.comboRemaining>0?46:attack==Attack.CHARGE?28:12);
-                e.nextAttack=tick+(e.enraged?18:getConfig().getInt("attacks.global-cooldown-ticks"));
+                e.nextAttack=tick+(BossBalance.cooldown(getConfig().getInt("attacks.global-cooldown-ticks"),e.enraged,getConfig().getDouble("attacks.enrage-cooldown-multiplier",.8)));
             }
             return;
         }
@@ -591,7 +605,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 e.direction=attackTarget.getLocation().toVector().subtract(e.body.getLocation().toVector()).setY(0);
                 if(e.direction.lengthSquared()>0) e.direction.normalize();
                 e.releaseTick=tick+getConfig().getInt("attacks."+attack.key+".windup-ticks");
-                e.selector.used(attack,tick,getConfig().getInt("attacks."+attack.key+".cooldown-ticks"));
+                e.selector.used(attack,tick,BossBalance.cooldown(getConfig().getInt("attacks."+attack.key+".cooldown-ticks"),e.enraged,getConfig().getDouble("attacks.enrage-cooldown-multiplier",.8)));
                 e.body.getPathfinder().stopPathfinding();
                 e.body.setVelocity(new org.bukkit.util.Vector(0,e.body.getVelocity().getY(),0));
                 for(Player p:players)p.sendActionBar(net.kyori.adventure.text.Component.text(
@@ -828,7 +842,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 org.bukkit.util.Vector delta=p.getLocation().toVector().subtract(e.waveOrigin.toVector());
                 double height=delta.getY();double distance=delta.clone().setY(0).length();
                 if(Math.abs(height)<.8&&Math.abs(distance-radius)<.6&&e.body.hasLineOfSight(p)&&e.waveHits.add(p.getUniqueId()))
-                    hitWithEffects(p,e.enraged?7:5,delta,.7,40,e.body);
+                    hitWithEffects(p,e.enraged?10:7,delta,.7,40,e.body);
             }
         }
     }
@@ -913,6 +927,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void hit(Player player,double damage,LivingEntity source) {
         if(encounter==null)return;
+        Encounter attacker=source.equals(encounter.body)?encounter:encounter.mother;
+        if(attacker!=null&&source.equals(attacker.body)&&attacker.enraged)damage*=getConfig().getDouble("attacks.enrage-damage-multiplier",1.2);
         scriptedDamage=true;
         double before=player.getHealth()+player.getAbsorptionAmount();
         try { player.damage(damage,source); } finally { scriptedDamage=false; }

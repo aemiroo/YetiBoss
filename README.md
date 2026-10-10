@@ -269,3 +269,8 @@ Frost Bomb throws now inspect the item-use result independently of the block-use
 
 ### Announcement teleport return (0.9.3)
 Clicking the spawn announcement saves the player's first original world, precise coordinates and facing before teleporting. Repeated clicks cannot replace that origin. After defeat, visitors return after 30 seconds so they can collect ground loot. Offline or dead visitors return when next online/alive; saved origins survive restarts, and interrupted encounters recover on startup. Failed or cancelled return teleports retain the destination for retry. Despawn/admin stop also schedules a return. Players who travel to the boss themselves are unaffected.
+
+### Combat buff (0.9.4)
+Father rises from 700 to 1,000 HP and moves faster; Mother rises from 175 to 350 HP at default settings. Their primary attacks hit about 30–67% harder, with shorter reuse cooldowns. Enrage adds 20% scripted damage and reduces attack reuse cooldowns by 20%. Wind-up durations, collision, armor, protection-plugin checks, throw distance, rewards and the test spawn schedule remain unchanged. Frost shockwaves hit harder. Evil Snow Golems rise from 25 to 40 HP, deal 4.5 rather than 3 damage, fire more often, and summon three at a time up to six. Ice Warden rises to 280 HP, 16 damage, faster movement and a 45-tick melee cooldown.
+
+Installing upgrades old default combat values automatically and retains customized values. `config-before-0.9.4.yml` preserves the previous settings. New enrage multipliers remain configurable. Test with the group on Normal difficulty and report fight duration, armor/loadout, and any unavoidable attack combinations before treating this as release balance.

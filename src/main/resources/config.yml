@@ -1,11 +1,11 @@
-schema-version: 14
+schema-version: 15
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Cyborg Father Yeti'
-  health: 700.0
+  health: 1000
   golem-scale: 1.0
   model-scale: 6.4
-  movement-speed: 0.24
+  movement-speed: 0.28
   arena-radius: 64.0
   leash-radius: 80.0
   idle-despawn-seconds: 180
@@ -14,91 +14,94 @@ mother:
   enabled: true
   name: 'Mother Yeti'
   # Summoned once at Father's 50% HP; her max HP is this fraction of Father's.
-  health-fraction: 0.25
+  health-fraction: 0.35
   # Relative to Father; accepted range is 0.5 to below 1.0.
   size-multiplier: 0.75
 attacks:
   sonic-boom:
     weight: 3
-    cooldown-ticks: 280
+    cooldown-ticks: 220
     windup-ticks: 45
-    damage: 12.0
+    damage: 20
     knockback: 1.1
   charge:
     weight: 4
-    cooldown-ticks: 200
+    cooldown-ticks: 160
     windup-ticks: 30
-    damage: 10.0
+    damage: 14
     knockback: 1.2
   roar:
     weight: 2
-    cooldown-ticks: 260
+    cooldown-ticks: 220
     windup-ticks: 45
-    damage: 4.0
+    damage: 6
     radius: 7.0
     knockback: 0.9
     slow-ticks: 60
   grab-slam:
     weight: 2
-    cooldown-ticks: 240
+    cooldown-ticks: 200
     windup-ticks: 35
     range: 5.0
-    damage: 14.0
+    damage: 18
     knockback: 0.5
-  global-cooldown-ticks: 25
+  # Enrage buffs damage and attack reuse; readable wind-ups remain unchanged.
+  enrage-damage-multiplier: 1.2
+  enrage-cooldown-multiplier: 0.8
+  global-cooldown-ticks: 20
   ice-ball:
     weight: 5
-    cooldown-ticks: 90
+    cooldown-ticks: 70
     windup-ticks: 25
-    damage: 6.0
-    speed: 1.3
+    damage: 8
+    speed: 1.5
     knockback: 0.6
     slow-ticks: 40
   swipe:
     weight: 4
-    cooldown-ticks: 60
+    cooldown-ticks: 50
     windup-ticks: 20
-    damage: 9.0
+    damage: 12
     range: 5.0
     knockback: 0.8
   slam:
     weight: 2
-    cooldown-ticks: 150
+    cooldown-ticks: 120
     windup-ticks: 40
-    damage: 12.0
+    damage: 16
     radius: 7.0
     knockback: 1.1
   barrage:
     weight: 3
-    cooldown-ticks: 220
+    cooldown-ticks: 180
     windup-ticks: 35
-    damage: 5.0
+    damage: 7
     speed: 1.4
     knockback: 0.5
     slow-ticks: 30
-    count: 4
+    count: 5
     interval-ticks: 10
   snow-golems:
     weight: 2
-    cooldown-ticks: 320
+    cooldown-ticks: 240
     windup-ticks: 40
 minions:
   snow-golems:
     enabled: true
-    maximum: 4
-    per-wave: 2
-    health: 25.0
-    barrage-count: 4
-    barrage-cooldown-ticks: 120
+    maximum: 6
+    per-wave: 3
+    health: 40
+    barrage-count: 5
+    barrage-cooldown-ticks: 90
     barrage-interval-ticks: 10
-    damage: 3.0
+    damage: 4.5
     slow-ticks: 60
   ice-warden:
     enabled: true
-    health: 200.0
-    damage: 12.0
-    movement-speed: 0.18
-    attack-cooldown-ticks: 60
+    health: 280
+    damage: 16
+    movement-speed: 0.22
+    attack-cooldown-ticks: 45
     slow-ticks: 60
 rewards:
   # XP points, not levels. Anyone who deals accepted positive damage participates.
