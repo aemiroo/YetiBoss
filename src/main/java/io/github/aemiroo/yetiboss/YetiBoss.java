@@ -494,7 +494,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(players.isEmpty()) {
             if(tick-e.lastPlayers>getConfig().getInt("boss.idle-despawn-seconds")*20L) { stop(true,"no eligible players in the arena for the idle timeout");return; }
         } else e.lastPlayers=tick;
-        if(e.body.getLocation().distanceSquared(e.origin)>Math.pow(getConfig().getDouble("boss.leash-radius"),2)) {
+        Location leashAt=e.body.getLocation();if(e.flightStarted>=0)leashAt.setY(e.origin.getY());
+        if(leashAt.distanceSquared(e.origin)>Math.pow(getConfig().getDouble("boss.leash-radius"),2)) {
             stop(true,"boss left its leash radius");return;
         }
         Encounter mother=e.mother;
