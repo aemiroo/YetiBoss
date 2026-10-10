@@ -247,3 +247,8 @@ Father’s seam-facing facets retain their full cross section, closing the rear 
 
 ### Encounter chunk lifetime (0.8.17)
 Plugin chunk tickets keep the boss, Mother and minions loaded even when automatic ice-biome spawning selects an area outside player view distance. Tickets cover neighboring chunks and follow moving entities; all are released when the encounter ends or the plugin shuts down. Existing idle, duration and leash limits still apply. The server log now records the reason for an unexpected removal, idle timeout, duration limit, leash exit, chunk unload or admin stop.
+
+### Nearby spawns and stronger proportions (0.8.19)
+Automatic spawns now try up to 64 safe surface locations in an ice biome, 64–256 blocks horizontally from an online survival/adventure player. They stay at least 64 blocks from every nearby player and the previous spawn in that world. The previous location is saved across reloads and restarts, including manual spawns. If no suitable new spot is found, the scheduled slot is skipped. Configure `schedule.minimum-player-distance`, `schedule.maximum-player-distance`, and `schedule.previous-spawn-distance`; the old search radius no longer controls spawn distance. The five-minute test interval is unchanged.
+
+Father now has a deeper chest, wider abdomen and hips, and thicker shoulders and forearms. Mother has a fuller torso, waist and arms, preserving her palette and horns. Existing animation pivots and repaired face/body seams are retained.

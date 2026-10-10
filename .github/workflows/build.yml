@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.18 — Clickable spawn announcement teleport"
+run-name: "YetiBoss 0.8.19 — Nearby varied spawns and stronger Yeti proportions"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

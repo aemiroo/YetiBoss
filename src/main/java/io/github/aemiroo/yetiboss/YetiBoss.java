@@ -151,6 +151,9 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void validate(FileConfiguration c) {
         double hours=c.getDouble("schedule.interval-hours",5.0/60);
+        double minimum=c.getDouble("schedule.minimum-player-distance",64),maximum=c.getDouble("schedule.maximum-player-distance",256),previous=c.getDouble("schedule.previous-spawn-distance",64);
+        if(!Double.isFinite(minimum)||!Double.isFinite(maximum)||!Double.isFinite(previous)||minimum<16||maximum<=minimum||maximum>1024||previous<16||previous>1024)
+            throw new IllegalArgumentException("Invalid nearby spawn distances (minimum >=16, maximum <=1024, previous 16–1024)");
         int searchRadius=c.getInt("schedule.search-radius",4096);
         if(searchRadius<128||searchRadius>8192)throw new IllegalArgumentException("schedule.search-radius must be 128–8192");
         if(!Double.isFinite(hours)||hours<1.0/60||hours>168)throw new IllegalArgumentException("schedule.interval-hours must be 1 minute to 168 hours");
@@ -256,29 +259,38 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private void findNaturalSpawn() {
         World world=scheduledWorld();
         if(world==null){announceEvent("skipped",null,0,"no configured overworld is available");return;}
-        Location center=world.getPlayers().isEmpty()?world.getSpawnLocation():world.getPlayers().get(random.nextInt(world.getPlayers().size())).getLocation();
-        var result=world.locateNearestBiome(center,getConfig().getInt("schedule.search-radius",4096),128,64,
-            org.bukkit.block.Biome.ICE_SPIKES,org.bukkit.block.Biome.FROZEN_PEAKS,
-            org.bukkit.block.Biome.SNOWY_PLAINS,org.bukkit.block.Biome.SNOWY_SLOPES);
-        if(result==null){announceEvent("skipped",null,0,"no ice biome found within the search radius");return;}
-        Location found=result.getLocation();
+        List<Player> players=world.getPlayers().stream().filter(p->!p.isDead()&&(p.getGameMode()==GameMode.SURVIVAL||p.getGameMode()==GameMode.ADVENTURE)).toList();
+        if(players.isEmpty()){announceEvent("skipped",null,0,"no survival or adventure players in the spawn world");return;}
         naturalSpawnSearch=true;
-        world.getChunkAtAsync(found.getBlockX()>>4,found.getBlockZ()>>4,true).whenComplete((chunk,error)->{
+        searchNearbySpawn(world,players,0);
+    }
+    private void searchNearbySpawn(World world,List<Player> players,int attempt) {
+        if(!isEnabled())return;
+        if(encounter!=null||attempt>=64){naturalSpawnSearch=false;announceEvent("skipped",null,0,encounter!=null?"an encounter became active during the search":"no safe new ice-biome spot near a player");return;}
+        Player player=players.get(attempt%players.size());
+        double minimum=getConfig().getDouble("schedule.minimum-player-distance",64),maximum=getConfig().getDouble("schedule.maximum-player-distance",256);
+        double angle=random.nextDouble()*Math.PI*2;
+        double distance=Math.sqrt(minimum*minimum+random.nextDouble()*(maximum*maximum-minimum*minimum));
+        Location center=player.getLocation();int x=(int)Math.floor(center.getX()+Math.cos(angle)*distance),z=(int)Math.floor(center.getZ()+Math.sin(angle)*distance);
+        world.getChunkAtAsync(x>>4,z>>4,true).whenComplete((chunk,error)->{
             if(!isEnabled())return;
             Bukkit.getScheduler().runTask(this,()->{
-                naturalSpawnSearch=false;
-                if(error!=null||chunk==null){announceEvent("skipped",null,0,"the ice biome chunk could not be loaded");return;}
-                if(encounter!=null){announceEvent("skipped",null,0,"an encounter became active during the search");return;}
-                for(int i=0;i<32;i++) {
-                    int x=i==0?found.getBlockX():(chunk.getX()<<4)+random.nextInt(16);
-                    int z=i==0?found.getBlockZ():(chunk.getZ()<<4)+random.nextInt(16);
+                if(error==null&&chunk!=null&&encounter==null) {
                     int y=world.getHighestBlockYAt(x,z,org.bukkit.HeightMap.MOTION_BLOCKING_NO_LEAVES)+1;
                     Location at=new Location(world,x+.5,y,z+.5,random.nextInt(360),0);
-                    if(!iceBiome(world.getBiome(x,y-1,z))||!spawnGroundReady(at))continue;
-                    if(world.getNearbyEntities(at,4,8,4).stream().anyMatch(entity->entity instanceof LivingEntity))continue;
-                    spawn(at);return;
+                    boolean nearby=false,tooClose=false;
+                    for(Player p:world.getPlayers())if(p.isOnline()&&!p.isDead()) {
+                        double dx=p.getLocation().getX()-at.getX(),dz=p.getLocation().getZ()-at.getZ(),d2=dx*dx+dz*dz;
+                        if(d2<minimum*minimum)tooClose=true;
+                        if((p.getGameMode()==GameMode.SURVIVAL||p.getGameMode()==GameMode.ADVENTURE)&&d2<=maximum*maximum)nearby=true;
+                    }
+                    if(nearby&&!tooClose&&spawnSchedule.awayFromPrevious(world.getUID().toString(),at.getX(),at.getZ(),getConfig().getDouble("schedule.previous-spawn-distance",64))
+                            &&iceBiome(world.getBiome(x,y-1,z))&&spawnGroundReady(at)
+                            &&world.getNearbyEntities(at,4,8,4).stream().noneMatch(entity->entity instanceof LivingEntity)) {
+                        naturalSpawnSearch=false;spawn(at);return;
+                    }
                 }
-                announceEvent("skipped",null,0,"the ice biome has no safe open surface");
+                searchNearbySpawn(world,players,attempt+1);
             });
         });
     }
@@ -346,6 +358,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         encounterChunks.clear();
     }
     private void spawn(Location at) {
+        try {spawnSchedule.recordSpawn(at.getWorld().getUID().toString(),at.getX(),at.getZ());}
+        catch(IOException ex){getLogger().warning("Spawn cancelled: could not save previous location: "+ex.getMessage());return;}
         encounter=createYeti(at,getConfig().getDouble("boss.health"),getConfig().getString("boss.name","Cyborg Father Yeti"),false);
         updateViewers(encounter);
         bossEffect(at,"spawn",Sound.ENTITY_ENDER_DRAGON_GROWL);

@@ -126,6 +126,10 @@ schedule:
   enabled: true
   interval-hours: 0.08333333333333333
   warning-minutes: [2, 1]
+  # Horizontal distances from players; previous location persists across restarts.
+  minimum-player-distance: 64
+  maximum-player-distance: 256
+  previous-spawn-distance: 64
   search-radius: 4096
   world: ''
   x: 0.0

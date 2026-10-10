@@ -74,9 +74,9 @@ def legacy_model(frame=None,attack=None,kind='slam'):
   if angle:e['rotation']={'origin':pivot,'angle':angle,'axis':axis,'rescale':False}
   es.append(e)
  # Broad hunched torso and forward head.
- box((4.3,4.6,6.3),(11.7,10.7,11.8),'fur')
+ box((4.1,4.6,6.0),(11.9,10.7,12.2),'fur')
  box((4.2,9,8.3),(11.8,12,12.5),'fur_light',angle=22.5,pivot=[8,10,9],axis='x')
- box((4.82,4.1,6),(11.18,6,10.8),'fur_shadow')
+ box((4.5,4.1,5.8),(11.5,6,11.1),'fur_shadow')
  for x,part in ((4.8,'leg_l'),(8.8,'leg_r')):
   box((x,1,6.6),(x+2.4,4.7,10.2),'fur',part)
   box((x-.02,0,5.7),(x+2.42,1.2,10.3),'fur_shadow',part)
@@ -86,7 +86,7 @@ def legacy_model(frame=None,attack=None,kind='slam'):
    if right:a,b=(16-b[0],a[1],a[2]),(16-a[0],b[1],b[2])
    box(a,b,mat,part)
   arm((.9,7.8,6),(4.3,11.1,10.8),'fur_light')
-  arm((1.55,4.3,6.4),(3.8,7.8,10.2),'fur')
+  arm((1.4,4.3,6.1),(3.95,7.8,10.6),'fur')
   arm((1.3,1.8,5.8),(4,4.7,10.4),'fur_light')
   arm((1.3,1.2,5.8),(4,1.8,10.4),'fur_shadow')
  box((5,9,4.2),(11,12.2,8.7),'fur_light')
@@ -187,10 +187,10 @@ def model(frame=None,attack=None,kind='slam'):
   if angle:e['rotation']={'origin':pivot,'angle':angle,'axis':axis,'rescale':False}
   es.append(e);return e
  # Deep shoulder mantle, low hips and a head recessed into the chest.
- box((3.6,6.5,6.4),(12.4,11.5,11.8),'fur',angle=22.5,pivot=[8,6.5,8])
+ box((3.6,6.5,6.1),(12.4,11.5,12.3),'fur',angle=22.5,pivot=[8,6.5,8])
  box((4.2,10.35,6.2),(11.8,12.6,10.9),'fur_light')
- box((5.5,4.2,7.0),(10.5,6.48,10.8),'fur_shadow')
- box((6.3,3.65,6.7),(9.7,4.18,10.5),'fur')
+ box((4.9,4.2,6.7),(11.1,6.65,11.1),'fur_shadow')
+ box((5.8,3.65,6.5),(10.2,4.4,10.7),'fur')
  for side in (-1,1):
   part='leg_l' if side==-1 else 'leg_r';x=5.2 if side==-1 else 8.6
   box((x,2.45,8.05),(x+2.2,4.25,11.0),'fur',part)
@@ -200,8 +200,8 @@ def model(frame=None,attack=None,kind='slam'):
   def arm(a,b,mat):
    if side==1:a,b=(16-b[0],a[1],a[2]),(16-a[0],b[1],b[2])
    return box(a,b,mat,part)
-  arm((.8,6.6,5.7),(3.58,10.9,10.4),'fur_light')
-  arm((1.35,2.6,4.8),(3.55,6.58,8.8),'fur')
+  arm((.8,6.6,5.4),(3.58,10.9,10.8),'fur_light')
+  arm((1.15,2.6,4.6),(3.75,6.58,9.2),'fur')
   arm((.85,0.1,3.6),(3.85,2.63,8.9),'fur_shadow')
   # Light cuff and subtly striped oversized fist.
   arm((.79,2.5,3.54),(3.91,3.1,8.96),'fur_light')

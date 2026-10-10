@@ -21,6 +21,16 @@ class SpawnScheduleTest {
   assertTrue(s.warnings(next,List.of(15,5)).isEmpty());
   s.advance(next+10800000*4+100,10800000);assertEquals(next+10800000*5,s.next());
  }
+ @Test void previousSpawnSurvivesRestartAndScheduleUpdates() throws Exception {
+  Path file=dir.resolve("previous");var s=new SpawnSchedule(file,1000,300000);
+  s.recordSpawn("world-id",100.5,-40.5);s.advance(s.next(),300000);
+  s=new SpawnSchedule(file,2000,300000);
+  assertFalse(s.awayFromPrevious("world-id",100.5,-40.5,64));
+  assertFalse(s.awayFromPrevious("world-id",150.5,-40.5,64));
+  assertTrue(s.awayFromPrevious("world-id",164.5,-40.5,64));
+  assertTrue(s.awayFromPrevious("other-world",100.5,-40.5,64));
+  s.reset(2000,300000);assertFalse(new SpawnSchedule(file,2000,300000).awayFromPrevious("world-id",100.5,-40.5,64));
+ }
  @Test void testTimerResetPersistsFiveMinutes() throws Exception {
   Path file=dir.resolve("test");var s=new SpawnSchedule(file,1000,10800000);
   s.reset(2000,300000);assertEquals(302000,new SpawnSchedule(file,2000,300000).next());
