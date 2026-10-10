@@ -5,7 +5,7 @@ import java.util.random.RandomGenerator;
 
 final class AttackSelector {
     enum Attack {
-        ICE_BALL("ice-ball"), SWIPE("swipe"), SLAM("slam"), BARRAGE("barrage"), SNOW_GOLEMS("snow-golems"), GRAB_SLAM("grab-slam"), ROAR("roar"), CHARGE("charge"), SONIC_BOOM("sonic-boom");
+        ICE_BALL("ice-ball"), SWIPE("swipe"), SLAM("slam"), BARRAGE("barrage"), SNOW_GOLEMS("snow-golems"), GRAB_SLAM("grab-slam"), ROAR("roar"), CHARGE("charge"), SONIC_BOOM("sonic-boom"), ICEFALL("icefall"), WHIRLWIND("whirlwind");
         final String key;
         Attack(String key) { this.key=key; }
     }
@@ -36,8 +36,8 @@ final class AttackSelector {
         if(planned&&!options.isEmpty()) {
             Attack[] pattern=support
                 ?new Attack[]{Attack.BARRAGE,Attack.ROAR,Attack.GRAB_SLAM,Attack.ICE_BALL,Attack.SWIPE,Attack.SLAM}
-                :enraged?new Attack[]{Attack.CHARGE,Attack.SWIPE,Attack.BARRAGE,Attack.GRAB_SLAM,Attack.SONIC_BOOM,Attack.SLAM,Attack.SNOW_GOLEMS}
-                :new Attack[]{Attack.ICE_BALL,Attack.CHARGE,Attack.SWIPE,Attack.ROAR,Attack.GRAB_SLAM,Attack.BARRAGE,Attack.SLAM,Attack.SNOW_GOLEMS,Attack.SONIC_BOOM};
+                :enraged?new Attack[]{Attack.ICEFALL,Attack.CHARGE,Attack.SWIPE,Attack.WHIRLWIND,Attack.BARRAGE,Attack.GRAB_SLAM,Attack.SONIC_BOOM,Attack.SLAM,Attack.SNOW_GOLEMS}
+                :new Attack[]{Attack.ICE_BALL,Attack.CHARGE,Attack.ICEFALL,Attack.SWIPE,Attack.WHIRLWIND,Attack.ROAR,Attack.GRAB_SLAM,Attack.BARRAGE,Attack.SLAM,Attack.SNOW_GOLEMS,Attack.SONIC_BOOM};
             for(int i=0;i<pattern.length;i++) {
                 int index=Math.floorMod(sequence+i,pattern.length);
                 if(options.contains(pattern[index])) {sequence=index+1;return Optional.of(pattern[index]);}

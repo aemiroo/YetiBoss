@@ -1,4 +1,4 @@
-schema-version: 17
+schema-version: 18
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Cyborg Father Yeti'
@@ -18,6 +18,24 @@ mother:
   # Relative to Father; accepted range is 0.5 to below 1.0.
   size-multiplier: 0.75
 attacks:
+  icefall:
+    weight: 3
+    cooldown-ticks: 700
+    windup-ticks: 40
+    # Special damage is literal raw damage, without pressure/enrage multipliers.
+    damage: 55
+    splash-damage: 18
+    direct-radius: 1.5
+    splash-radius: 3.0
+    knockback: 0.8
+  whirlwind:
+    weight: 2
+    cooldown-ticks: 1000
+    windup-ticks: 40
+    damage: 18
+    radius: 6.5
+    knockback: 1.5
+    heal-fraction: 0.10
   # Armor, Protection, shields and damage cancellation still apply.
   pressure-damage-multiplier: 1.6
   recovery-vulnerability: 1.25

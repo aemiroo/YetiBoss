@@ -1,5 +1,5 @@
 name: YetiBoss
-version: 0.9.7
+version: 0.9.8
 main: io.github.aemiroo.yetiboss.YetiBoss
 api-version: '1.21'
 author: aemiroo

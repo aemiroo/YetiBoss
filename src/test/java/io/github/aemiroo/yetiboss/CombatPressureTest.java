@@ -15,6 +15,7 @@ class CombatPressureTest {
   var weights=new EnumMap<AttackSelector.Attack,Integer>(AttackSelector.Attack.class);
   for(var attack:AttackSelector.Attack.values())weights.put(attack,1);
   weights.put(AttackSelector.Attack.SNOW_GOLEMS,0);
+  weights.put(AttackSelector.Attack.ICEFALL,0);weights.put(AttackSelector.Attack.WHIRLWIND,0);
   var ready=new EnumMap<AttackSelector.Attack,Long>(AttackSelector.Attack.class);
   AttackSelector.Attack last=null;boolean barrage=false;
   for(long tick=0;tick<5000;tick+=5) {

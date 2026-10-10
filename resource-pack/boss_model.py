@@ -183,13 +183,14 @@ def model(frame=None,attack=None,kind='slam'):
     if kind=='swipe' and side==1:angle=0
     if kind=='throw' and side==-1:angle=0
     if kind=='roar':angle=22.5
+    if kind=='whirl':angle=side*45*attack/7;axis='z'
   e={'from':list(a),'to':list(b),'faces':{f:{'uv':[0,0,16,16],'texture':'#'+mat} for f in ('north','south','east','west','up','down')}}
   if angle:e['rotation']={'origin':pivot,'angle':angle,'axis':axis,'rescale':False}
   es.append(e);return e
  # Deep shoulder mantle, low hips and a head recessed into the chest.
- box((3.6,6.5,6.1),(12.4,11.5,12.3),'fur',angle=22.5,pivot=[8,6.5,8])
+ box((3.1,6.5,6.1),(12.9,11.5,12.65),'fur',angle=22.5,pivot=[8,6.5,8])
  box((4.2,10.35,6.2),(11.8,12.6,10.9),'fur_light')
- box((4.9,4.2,6.7),(11.1,6.65,11.1),'fur_shadow')
+ box((4.6,4.2,6.7),(11.4,6.65,11.45),'fur_shadow')
  box((5.8,3.65,6.5),(10.2,4.4,10.7),'fur')
  for side in (-1,1):
   part='leg_l' if side==-1 else 'leg_r';x=5.2 if side==-1 else 8.6
@@ -304,6 +305,27 @@ def model(frame=None,attack=None,kind='slam'):
  # Boot/shin plates finish the repaired mechanical half.
  box((8.91,1.2,6.81),(10.48,2.34,7.19),'steel','leg_r')
  box((9.42,1.38,6.60),(9.97,2.11,6.80),'reactor','leg_r')
+ # Layered, rounded-looking mantle on the organic half; each tuft is rigged.
+ for k in range(5):
+  x=.6+k*.54
+  box((x,8.7-(k%2)*.28,5.05),(x+.48,10.65+(k%2)*.24,5.55),'fur_light','arm_l')
+  box((x+.04,7.9-(k%2)*.28,5.15),(x+.43,8.85,5.62),'fur_shadow','arm_l')
+ # Bevelled mechanical pauldron, elbow guards and cooling vents.
+ box((12.0,10.85,5.6),(15.4,11.32,10.12),'metal_edge','arm_r')
+ box((12.3,11.31,6.0),(15.1,11.65,9.78),'steel','arm_r')
+ for k in range(4):
+  x=12.4+k*.61
+  box((x,10.88,5.25),(x+.35,11.2,5.58),'mechanism','arm_r')
+  box((x+.04,10.91,5.15),(x+.24,11.13,5.26),'reactor','arm_r')
+ box((12.04,5.94,4.4),(15.1,6.35,4.62),'steel','arm_r')
+ # Thicker hip armour and a three-piece abdominal plate preserve a strong waist.
+ for k in range(3):
+  chest((8.25,5.3+k*.44,6.38),(11.46-k*.15,5.65+k*.44,6.62),'steel')
+ box((8.7,2.6,7.74),(11.04,4.12,8.04),'metal_edge','leg_r')
+ # Reactor bands stay on the mechanical half and read clearly while spinning.
+ for k in range(3):chest((9.05,8.72+k*.35,5.78),(11.79,8.84+k*.35,6.01),'reactor')
+ for element in es:
+  if any(face['texture']=='#reactor' for face in element['faces'].values()):element['light_emission']=12
  if frame is not None:
   sway=.18*math.sin(phase);bob=(.35 if kind=='gallop' else .12)*(1-math.cos(2*phase))
   for element in es:

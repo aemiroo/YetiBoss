@@ -7,6 +7,8 @@ final class AttackDialogue {
             case SWIPE -> father?"Heavy combo — two swipes, then a frost slam!":"Claw swipe — dodge the reach!";
             case SLAM -> father?"Frost shockwave — jump or retreat!":"Ground slam — get clear!";
             case GRAB_SLAM -> "Grab and throw — dodge the reaching hand!";
+            case ICEFALL -> "Icefall — leave the marked circles before the ice lands!";
+            case WHIRLWIND -> "Healing whirlwind — retreat from the ring; attack from range!";
             case SONIC_BOOM -> "Reactor sonic boom — move out of the beam!";
             case CHARGE -> "Mechanical charge — move out of the marked lane!";
             case ICE_BALL -> "Ice ball — move away from the aimed spot!";

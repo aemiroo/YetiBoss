@@ -71,9 +71,9 @@ class BossPackTest(unittest.TestCase):
    self.assertIn('yetiboss:'+name,display_mappings())
    m=json.loads(self.java['assets/yetiboss/models/boss/'+name+'.json'])
    geo=json.loads(self.bedrock['models/entity/'+name+'.geo.json'])
-   cubes=geo['minecraft:geometry'][0]['bones'][0]['cubes']
+   cubes=[cube for bone in geo['minecraft:geometry'][0]['bones'] for cube in bone['cubes']]
    self.assertEqual(len(m['elements']),len(cubes))
-   for e,c in zip(m['elements'],cubes):
+   for e,c in zip(sorted(m['elements'],key=lambda e:bool(e.get('light_emission',0))),cubes):
     if 'rotation' in e:
      x,y,z=e['rotation']['origin']
      self.assertEqual([8-x,y+8,z-8],c['pivot'])
@@ -116,7 +116,7 @@ class BossPackTest(unittest.TestCase):
   for name in MODELS:
    if name.startswith('giant_yeti'):
     counterpart=name.replace('giant_yeti','mother_yeti')
-    if '_gallop_' in name or ('_walk_' in name and int(name.rsplit('_',1)[1])>=12):continue
+    if '_whirl_' in name or '_gallop_' in name or ('_walk_' in name and int(name.rsplit('_',1)[1])>=12):continue
     self.assertIn('assets/yetiboss/items/'+counterpart+'.json',self.java)
     self.assertIn('attachables/'+counterpart+'.json',self.bedrock)
  def test_mother_walk_keeps_shared_rig_attached_to_slimmer_body(self):
