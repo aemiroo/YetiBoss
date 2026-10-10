@@ -157,7 +157,7 @@ final class FrostItems implements Listener {
             &&block.isPreferredTool(tool)&&block.getWorld().getWorldBorder().isInside(block.getLocation());
     }
     private void wear(Player p,int amount) {
-        if(amount<=0)return;ItemStack tool=p.getInventory().getItemInMainHand();if(!(tool.getItemMeta() instanceof Damageable meta))return;
+        if(amount<=0)return;ItemStack tool=p.getInventory().getItemInMainHand();if(!(tool.getItemMeta() instanceof org.bukkit.inventory.meta.Damageable meta))return;
         PlayerItemDamageEvent event=new PlayerItemDamageEvent(p,tool,amount);Bukkit.getPluginManager().callEvent(event);if(event.isCancelled())return;
         int damage=meta.getDamage()+event.getDamage();
         if(damage>=tool.getType().getMaxDurability()){p.getInventory().setItemInMainHand(new ItemStack(Material.AIR));p.playSound(p.getLocation(),Sound.ENTITY_ITEM_BREAK,1,1);}
