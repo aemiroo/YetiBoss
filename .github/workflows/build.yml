@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.9.4 — Buff Father, Mother, summons and enraged combat pressure"
+run-name: "YetiBoss 0.9.5 — Restore wider natural ice-biome spawning"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
