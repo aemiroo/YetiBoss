@@ -566,7 +566,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 for(Player player:players)player.sendMessage(prefix()+ChatColor.AQUA+"The Yeti has summoned an Ice Warden!");
             }
         }
-        if(father&&!e.flightUsed&&getConfig().getBoolean("attacks.flight-phase.enabled",true)&&e.body.getHealth()<=e.maximumHealth*.5) {
+        if(father&&!e.flightUsed&&tick>=e.recoveryUntil&&getConfig().getBoolean("attacks.flight-phase.enabled",true)&&e.body.getHealth()<=e.maximumHealth*.5) {
             startFlight(e,players);tickFlight(e,players);return;
         }
         if(father&&e.enraged&&tick%10==0)e.body.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,e.body.getLocation().add(0,3,0),12,1,1,1,.05);
