@@ -44,6 +44,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private SpawnSchedule spawnSchedule;
     private BossWebhook webhook;
     private boolean naturalSpawnSearch;
+    private final Set<Chunk> encounterChunks=new HashSet<>();
 
     @Override public void onEnable() {
         saveDefaultConfig();
@@ -317,6 +318,17 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             eventText(getConfig().getString("discord.title","YetiBoss — {event}"),event,at,minutes,reason),
             eventText(message,event,at,minutes,reason),event.equals("defeat")?0x55cc88:0x55ccff);
     }
+    private void keepEncounterChunks(Location at) {
+        int x=at.getBlockX()>>4,z=at.getBlockZ()>>4;
+        for(int dx=-1;dx<=1;dx++)for(int dz=-1;dz<=1;dz++) {
+            Chunk chunk=at.getWorld().getChunkAt(x+dx,z+dz);
+            if(encounterChunks.add(chunk))chunk.addPluginChunkTicket(this);
+        }
+    }
+    private void releaseEncounterChunks() {
+        for(Chunk chunk:encounterChunks)chunk.removePluginChunkTicket(this);
+        encounterChunks.clear();
+    }
     private void spawn(Location at) {
         encounter=createYeti(at,getConfig().getDouble("boss.health"),getConfig().getString("boss.name","Cyborg Father Yeti"),false);
         updateViewers(encounter);
@@ -325,6 +337,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         announceEvent("spawn",at,0,"");
     }
     private Encounter createYeti(Location at,double health,String name,boolean mother) {
+        keepEncounterChunks(at);
         double size=mother?getConfig().getDouble("mother.size-multiplier",.75):1;
         double modelScale=getConfig().getDouble("boss.model-scale")*size;
         double bodyScale=getConfig().getDouble("boss.golem-scale")*size;
@@ -400,14 +413,17 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         Encounter e=encounter;
         if(e==null) return;
         if(e.defeated) { victory(e);return; }
-        if(!e.body.isValid()||e.body.isDead()) { stop(false);return; }
-        if(tick-e.started>getConfig().getInt("boss.maximum-duration-seconds")*20L) { stop(true);return; }
+        keepEncounterChunks(e.body.getLocation());
+        if(e.mother!=null)keepEncounterChunks(e.mother.body.getLocation());
+        for(IceMinion minion:e.minions.values())if(minion.mob.isValid())keepEncounterChunks(minion.mob.getLocation());
+        if(!e.body.isValid()||e.body.isDead()) { stop(false,"boss entity removed or died unexpectedly");return; }
+        if(tick-e.started>getConfig().getInt("boss.maximum-duration-seconds")*20L) { stop(true,"maximum encounter duration reached");return; }
         List<Player> players=arenaPlayers();
         if(players.isEmpty()) {
-            if(tick-e.lastPlayers>getConfig().getInt("boss.idle-despawn-seconds")*20L) { stop(true);return; }
+            if(tick-e.lastPlayers>getConfig().getInt("boss.idle-despawn-seconds")*20L) { stop(true,"no eligible players in the arena for the idle timeout");return; }
         } else e.lastPlayers=tick;
         if(e.body.getLocation().distanceSquared(e.origin)>Math.pow(getConfig().getDouble("boss.leash-radius"),2)) {
-            stop(true);return;
+            stop(true,"boss left its leash radius");return;
         }
         Encounter mother=e.mother;
         if(mother!=null) {
@@ -891,6 +907,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         return null;
     }
     private void spawnMinion(Encounter e,Location at,boolean warden) {
+        keepEncounterChunks(at);
         Mob mob=warden?at.getWorld().spawn(at,Warden.class):at.getWorld().spawn(at,Snowman.class);
         tagged(mob);mob.setAI(true);getServer().getMobGoals().removeAllGoals(mob);mob.setRemoveWhenFarAway(false);mob.setSilent(true);
         mob.setCustomNameVisible(true);
@@ -1188,7 +1205,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         for(Entity entity:event.getChunk().getEntities())cleanupStale(entity);
     }
     @EventHandler public void chunkUnload(ChunkUnloadEvent event) {
-        if(encounter!=null&&encounter.body.getLocation().getChunk().equals(event.getChunk())) {stop(true);return;}
+        if(encounter!=null&&encounter.body.getLocation().getChunk().equals(event.getChunk())) {stop(true,"boss chunk unloaded despite its ticket");return;}
         if(encounter!=null&&encounter.mother!=null&&encounter.mother.body.getLocation().getChunk().equals(event.getChunk())) {
             removeYeti(encounter.mother);encounter.mother=null;
         }
@@ -1197,15 +1214,17 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 if(minion.model!=null)minion.model.remove();minion.mob.remove();encounter.minions.remove(minion.mob.getUniqueId());
             }
     }
-    private void stop(boolean announce) {
+    private void stop(boolean announce) {stop(announce,announce?"encounter stopped":"server shutdown or cleanup");}
+    private void stop(boolean announce,String reason) {
         Encounter e=encounter;encounter=null;
-        if(e==null)return;
+        if(e==null){releaseEncounterChunks();return;}
         removeYeti(e);removeYeti(e.mother);
         for(IceMinion minion:e.minions.values()){if(minion.model!=null)minion.model.remove();minion.mob.remove();}
         e.minions.clear();
         for(Player player:Bukkit.getOnlinePlayers()) player.hideEntity(this,e.model);
         for(IceShot shot:shots.values()) { shot.entity.remove();if(shot.visual!=null)shot.visual.remove(); }shots.clear();
-        if(!e.defeated)announceEvent("despawn",e.origin,0,"");
+        if(!e.defeated){getLogger().info("Encounter ended: "+reason);announceEvent("despawn",e.origin,0,reason);}
+        releaseEncounterChunks();
     }
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args) {
         if(!sender.hasPermission("yetiboss.admin"))return true;

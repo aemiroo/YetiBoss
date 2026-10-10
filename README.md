@@ -244,3 +244,6 @@ Father’s organic and steel muzzle halves now meet flush across the full front 
 
 ### Rear head closure (0.8.16)
 Father’s seam-facing facets retain their full cross section, closing the rear skull and crown between the organic and mechanical halves. Outer silhouette facets remain shaped. All 81 poses are checked for rear and top surface coverage.
+
+### Encounter chunk lifetime (0.8.17)
+Plugin chunk tickets keep the boss, Mother and minions loaded even when automatic ice-biome spawning selects an area outside player view distance. Tickets cover neighboring chunks and follow moving entities; all are released when the encounter ends or the plugin shuts down. Existing idle, duration and leash limits still apply. The server log now records the reason for an unexpected removal, idle timeout, duration limit, leash exit, chunk unload or admin stop.
