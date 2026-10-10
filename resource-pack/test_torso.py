@@ -26,3 +26,16 @@ class SolidTorsoTest(unittest.TestCase):
    if e['faces'].get('north',{}).get('texture') in ('#ice_face','#optic'):eyes[e['faces']['north']['texture']]=e
   self.assertEqual(eyes['#ice_face']['from'][1:],eyes['#optic']['from'][1:])
   self.assertEqual(eyes['#ice_face']['to'][1:],eyes['#optic']['to'][1:])
+
+ def test_nose_front_is_closed_across_center_in_every_father_pose(self):
+  poses=[model()]+[model(attack=i,kind=k) for k in ('slam','swipe','throw','roar') for i in range(8)]
+  poses+=[model(frame=i,kind=k) for k in ('walk','gallop') for i in range(24)]
+  for mesh in poses:
+   front=[e for e in mesh['elements'] if e['faces'].get('north',{}).get('texture')=='#muzzle']
+   self.assertEqual(1,len(front))
+   organic=front[0];seam=organic['to'][0]
+   metal=[e for e in mesh['elements'] if e['faces'].get('north',{}).get('texture')=='#steel'
+          and abs(e['from'][0]-seam)<1e-5 and abs(e['from'][2]-organic['from'][2])<1e-5]
+   self.assertEqual(1,len(metal))
+   self.assertEqual(organic['from'][1:],metal[0]['from'][1:])
+   self.assertEqual(organic['to'][1:],metal[0]['to'][1:])

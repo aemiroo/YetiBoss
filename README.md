@@ -238,3 +238,6 @@ This upgrade enables automatic spawning, sets the temporary interval to **5 minu
 
 ### Webhook message replacement (0.8.14)
 Warnings use `{minute_unit}` to render `1 minute` and `2 minutes`; the old `{minutes} minutes` template is migrated automatically. After a new announcement succeeds, YetiBoss deletes its preceding tracked webhook announcement. IDs are saved across restarts in `webhook-messages`; webhook URLs/tokens are not stored there. Failed sends retain the previous message, and failed deletions are retried on subsequent announcements. Messages from older versions lack stored IDs and cannot be deleted automatically.
+
+### Nose seam repair (0.8.15)
+Father’s organic and steel muzzle halves now meet flush across the full front surface. The seam remains closed across all 81 animation poses. Mother, Ice Warden, combat and schedule settings are unchanged.

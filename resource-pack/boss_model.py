@@ -330,7 +330,10 @@ def sculpt_silhouette(mesh,continuous_half=False):
   # Preserve thin armor, facial panels, horns, teeth and all small details.
   inner_torso=continuous_half and abs(size[1]-7.25)<1e-5 and abs(size[2]-3.44)<1e-5
   inner_skull=continuous_half and abs(size[1]-3.05)<1e-5 and abs(size[2]-3.7)<1e-5
-  if inner_skull or inner_torso or not eligible or min(size)<1.35 or len({f['texture'] for f in source['faces'].values()})>1:
+  # Keep the two muzzle halves solid right up to their shared center seam.
+  # Chamfering their seam-facing bands recessed the front and exposed the void.
+  solid_muzzle=continuous_half and abs(size[1]-1.92)<1e-5 and abs(size[2]-1.67)<1e-5
+  if solid_muzzle or inner_skull or inner_torso or not eligible or min(size)<1.35 or len({f['texture'] for f in source['faces'].values()})>1:
    elements.append(source);continue
   torso=size[0]>3 and size[1]>3 and a[1]>4 and (a[0]<8<b[0] or (size[1]>4.9 and size[2]>5.3))
   axis=1 if torso else 0
