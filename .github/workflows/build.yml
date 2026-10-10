@@ -1,4 +1,5 @@
 name: Build YetiBoss
+run-name: "YetiBoss 0.9.8 — Icefall, healing whirlwind and sculpted Father"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
@@ -19,6 +20,17 @@ jobs:
       - run: python3 resource-pack/build_pack.py
       - run: python3 resource-pack/build_bedrock.py
       - run: mvn --batch-mode --no-transfer-progress verify
+      - name: Publish pack matching this build
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pack_digest=$(tr -d '\r\n' < target/yeti-pack.sha1)
+          cp target/YetiBoss-Pack.zip "target/YetiBoss-Pack-${pack_digest}.zip"
+          if ! gh release view yeti-pack-assets >/dev/null 2>&1; then
+            gh release create yeti-pack-assets --target "$GITHUB_SHA" --title "Versioned YetiBoss packs" --notes "Pack downloads keyed by the SHA-1 embedded in each plugin build." --latest=false
+          fi
+          gh release upload yeti-pack-assets "target/YetiBoss-Pack-${pack_digest}.zip" --clobber
       - uses: actions/upload-artifact@v4
         with:
           name: YetiBoss

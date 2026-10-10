@@ -1,6 +1,12 @@
 package io.github.aemiroo.yetiboss;
 
 import java.io.IOException;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import java.util.*;
 import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
@@ -36,14 +42,25 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private final Map<UUID,Long> swordCooldown=new HashMap<>();
     private long tick,snowUntil;
     private final Random random=new Random();
-    private boolean scriptedDamage;
+    private boolean scriptedDamage,skillDamage;
+    private boolean damageDebug;
+    private int damageDebugLines;
+    private long damageDebugWindow;
     private static final UUID BOSS_PACK_ID=UUID.fromString("01fd25be-18dd-4bb4-8974-c7873cd2f902");
     private final Set<UUID> bossPackReady=new HashSet<>();
     private final Map<UUID,String> packStates=new HashMap<>();
     private byte[] bossPackHash;
+    private ReturnTrips returnTrips;
+    private final Set<UUID> travelPending=new HashSet<>();
+    private FrostItems frostItems;
+    private SpawnSchedule spawnSchedule;
+    private BossWebhook webhook;
+    private boolean naturalSpawnSearch;
+    private final Set<Chunk> encounterChunks=new HashSet<>();
 
     @Override public void onEnable() {
         saveDefaultConfig();
+        boolean resetTestTimer=getConfig().getInt("schema-version")<12;
         if(!getConfig().contains("schema-version",true)) {
             if(Math.abs(getConfig().getDouble("boss.model-scale")-4.3)<.001)getConfig().set("boss.model-scale",6.4);
             if(Math.abs(getConfig().getDouble("boss.golem-scale")-1.4)<.001)getConfig().set("boss.golem-scale",2.35);
@@ -70,12 +87,96 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             if(!getConfig().contains("mother.size-multiplier",true))getConfig().set("mother.size-multiplier",.75);
             getConfig().set("schema-version",7);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<8) {
+            String previous=getConfig().getString("boss.name");
+            if("Father Yeti".equals(previous)||"Giant Yeti".equals(previous))
+                getConfig().set("boss.name","Cyborg Father Yeti");
+            getConfig().set("schema-version",8);saveConfig();
+        }
+        if(getConfig().getInt("schema-version")<9) {
+            for(String key:List.of("weight","cooldown-ticks","windup-ticks","damage","knockback"))
+                if(!getConfig().contains("attacks.charge."+key,true))getConfig().set("attacks.charge."+key,getConfig().getDefaults().get("attacks.charge."+key));
+            if(getConfig().getInt("attacks.global-cooldown-ticks")==35)getConfig().set("attacks.global-cooldown-ticks",25);
+            getConfig().set("schema-version",9);saveConfig();
+        }
+
+        if(getConfig().getInt("schema-version")<10) {
+            for(String key:List.of("weight","cooldown-ticks","windup-ticks","damage","knockback"))
+                if(!getConfig().contains("attacks.sonic-boom."+key,true))getConfig().set("attacks.sonic-boom."+key,getConfig().getDefaults().get("attacks.sonic-boom."+key));
+            getConfig().set("schema-version",10);saveConfig();
+        }
+        if(getConfig().getInt("schema-version")<11) {
+            for(String key:getConfig().getDefaults().getKeys(true))
+                if(!getConfig().getDefaults().isConfigurationSection(key)&&(key.startsWith("schedule.")||key.startsWith("discord."))&&!getConfig().contains(key,true))
+                    getConfig().set(key,getConfig().getDefaults().get(key));
+            getConfig().set("schema-version",11);saveConfig();
+        }
+        if(resetTestTimer) {
+            getConfig().set("schedule.interval-hours",5.0/60);
+            getConfig().set("schedule.warning-minutes",List.of(2,1));
+            getConfig().set("schedule.enabled",true);
+            getConfig().set("schedule.search-radius",4096);
+            getConfig().set("schema-version",12);saveConfig();
+        }
+        if(getConfig().getInt("schema-version")<13) {
+            for(String key:List.of("schedule.messages.warning","discord.messages.warning")) {
+                String template=getConfig().getString(key,"");
+                getConfig().set(key,template.replace("{minutes} minutes","{minutes} {minute_unit}"));
+            }
+            getConfig().set("schema-version",13);saveConfig();
+        }
+        if(getConfig().getInt("schema-version")<14) {
+            for(String key:getConfig().getDefaults().getKeys(true))
+                if(!getConfig().getDefaults().isConfigurationSection(key)&&(key.startsWith("loot.")||key.startsWith("items."))&&!getConfig().contains(key,true))getConfig().set(key,getConfig().getDefaults().get(key));
+            getConfig().set("schema-version",14);saveConfig();
+        }
+        if(getConfig().getInt("schema-version")<15) {
+            try {getConfig().save(new java.io.File(getDataFolder(),"config-before-0.9.4.yml"));}
+            catch(IOException ex){getLogger().severe("Cannot back up combat configuration: "+ex.getMessage());getServer().getPluginManager().disablePlugin(this);return;}
+            for(BossBalance.Tune tune:BossBalance.TUNES) {
+                double updated=BossBalance.upgrade(getConfig().getDouble(tune.path(),tune.previous()),tune);
+                if(updated!=getConfig().getDouble(tune.path()))getConfig().set(tune.path(),updated==Math.rint(updated)?(Object)(int)updated:updated);
+            }
+            for(String key:List.of("attacks.enrage-damage-multiplier","attacks.enrage-cooldown-multiplier"))
+                if(!getConfig().contains(key,true))getConfig().set(key,getConfig().getDefaults().get(key));
+            getConfig().set("schema-version",15);saveConfig();
+        }
+        if(getConfig().getInt("schema-version")<16) {
+            try {getConfig().save(new java.io.File(getDataFolder(),"config-before-0.9.6.yml"));}
+            catch(IOException ex){getLogger().severe("Cannot back up combat configuration: "+ex.getMessage());getServer().getPluginManager().disablePlugin(this);return;}
+            for(BossBalance.Tune tune:BossBalance.DAMAGE_TUNES) {
+                double old=getConfig().getDouble(tune.path(),tune.previous());
+                double updated=BossBalance.upgrade(old,tune);if(updated!=old)getConfig().set(tune.path(),updated);
+            }
+            for(String key:getConfig().getDefaults().getKeys(true))
+                if((key.startsWith("attacks.flight-phase.")||key.equals("attacks.throw-distance"))&&!getConfig().getDefaults().isConfigurationSection(key)&&!getConfig().contains(key,true))getConfig().set(key,getConfig().getDefaults().get(key));
+            getConfig().set("schema-version",16);saveConfig();
+        }
+        if(getConfig().getInt("schema-version")<17) {
+            try {getConfig().save(new java.io.File(getDataFolder(),"config-before-0.9.7.yml"));}
+            catch(IOException ex){getLogger().severe("Cannot back up combat configuration: "+ex.getMessage());getServer().getPluginManager().disablePlugin(this);return;}
+            for(String key:List.of("attacks.pressure-damage-multiplier","attacks.recovery-vulnerability"))
+                if(!getConfig().contains(key,true))getConfig().set(key,getConfig().getDefaults().get(key));
+            getConfig().set("schema-version",17);saveConfig();
+        }
+        if(getConfig().getInt("schema-version")<18) {
+            try {getConfig().save(new java.io.File(getDataFolder(),"config-before-0.9.8.yml"));}
+            catch(IOException ex){getLogger().severe("Cannot back up skill configuration: "+ex.getMessage());getServer().getPluginManager().disablePlugin(this);return;}
+            for(String key:getConfig().getDefaults().getKeys(true))
+                if((key.startsWith("attacks.icefall.")||key.startsWith("attacks.whirlwind."))&&!getConfig().getDefaults().isConfigurationSection(key)&&!getConfig().contains(key,true))getConfig().set(key,getConfig().getDefaults().get(key));
+            getConfig().set("schema-version",18);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
             validate(getConfig());
+            frostItems=new FrostItems(this);
+            returnTrips=new ReturnTrips(getDataFolder().toPath().resolve("return-trips.properties"),System.currentTimeMillis());
             pets=new PetBridge(Objects.requireNonNull(getServer().getPluginManager().getPlugin("CosmeticPets")));
             ledger=new RewardLedger(getDataFolder().toPath().resolve("rewards.yml"));
+            spawnSchedule=new SpawnSchedule(getDataFolder().toPath().resolve("spawn-schedule.properties"),System.currentTimeMillis(),spawnInterval());
+            if(resetTestTimer)spawnSchedule.reset(System.currentTimeMillis(),spawnInterval());
+            webhook=new BossWebhook(getLogger(),getDataFolder().toPath().resolve("webhook-messages"));
         } catch(Exception ex) {
             getLogger().severe("Cannot enable YetiBoss: "+ex.getMessage()+". CosmeticPets 1.5.0 or newer is required.");
             getServer().getPluginManager().disablePlugin(this);return;
@@ -93,10 +194,41 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     @Override public void onDisable() {
         stop(false);
+        if(webhook!=null)webhook.close();
         for(IceShot shot:shots.values()) { shot.entity.remove();if(shot.visual!=null)shot.visual.remove(); }
         shots.clear();
     }
     private void validate(FileConfiguration c) {
+        FrostItems.validate(c);
+        for(String key:List.of("attacks.throw-distance","attacks.flight-phase.height","attacks.flight-phase.landing-damage","attacks.flight-phase.landing-radius")) {
+            double n=c.getDouble(key);if(!Double.isFinite(n)||n<1||n>32)throw new IllegalArgumentException("Invalid "+key);
+        }
+        for(String key:List.of("attacks.pressure-damage-multiplier","attacks.recovery-vulnerability")) {
+            double value=c.getDouble(key);if(!Double.isFinite(value)||value<1||value>3)throw new IllegalArgumentException("Invalid combat multiplier: "+key);
+        }
+        for(String key:List.of("attacks.icefall.direct-radius","attacks.icefall.splash-radius","attacks.whirlwind.radius")) {
+            double n=c.getDouble(key);if(!Double.isFinite(n)||n<.5||n>12)throw new IllegalArgumentException("Invalid "+key);
+        }
+        double whirlHeal=c.getDouble("attacks.whirlwind.heal-fraction");
+        if(!Double.isFinite(whirlHeal)||whirlHeal<0||whirlHeal>.2)throw new IllegalArgumentException("Whirlwind healing must be 0–20%");
+        double splash=c.getDouble("attacks.icefall.splash-damage");
+        if(!Double.isFinite(splash)||splash<0||splash>100||c.getDouble("attacks.icefall.direct-radius")>c.getDouble("attacks.icefall.splash-radius"))throw new IllegalArgumentException("Invalid Icefall splash");
+        double heal=c.getDouble("attacks.flight-phase.heal-fraction");
+        if(!Double.isFinite(heal)||heal<0||heal>.3)throw new IllegalArgumentException("Flight healing must be 0–30% of max health");
+        double damageMultiplier=c.getDouble("attacks.enrage-damage-multiplier",1.2),cooldownMultiplier=c.getDouble("attacks.enrage-cooldown-multiplier",.8);
+        if(!Double.isFinite(damageMultiplier)||damageMultiplier<1||damageMultiplier>2||!Double.isFinite(cooldownMultiplier)||cooldownMultiplier<.5||cooldownMultiplier>1)
+            throw new IllegalArgumentException("Invalid enrage multipliers");
+        double hours=c.getDouble("schedule.interval-hours",5.0/60);
+        double previous=c.getDouble("schedule.previous-spawn-distance",64);
+        if(!Double.isFinite(previous)||previous<16||previous>1024)throw new IllegalArgumentException("schedule.previous-spawn-distance must be 16–1024");
+        int searchRadius=c.getInt("schedule.search-radius",4096);
+        if(searchRadius<128||searchRadius>8192)throw new IllegalArgumentException("schedule.search-radius must be 128–8192");
+        if(!Double.isFinite(hours)||hours<1.0/60||hours>168)throw new IllegalArgumentException("schedule.interval-hours must be 1 minute to 168 hours");
+        for(int minutes:c.getIntegerList("schedule.warning-minutes"))
+            if(minutes<=0||minutes>=hours*60)throw new IllegalArgumentException("Schedule warnings must precede the interval");
+        for(String key:List.of("x","y","z","yaw"))
+            if(!Double.isFinite(c.getDouble("schedule."+key)))throw new IllegalArgumentException("Invalid scheduled spawn coordinate");
+        if(c.getBoolean("discord.enabled"))BossWebhook.endpoint(c.getString("discord.webhook-url",""));
         for(String key:List.of("boss.health","boss.golem-scale","boss.model-scale","boss.movement-speed",
                 "boss.arena-radius","boss.leash-radius")) {
             double value=c.getDouble(key);
@@ -177,18 +309,132 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void cleanupStale(Entity entity) {
         if(entity.getPersistentDataContainer().has(entityKey,PersistentDataType.BYTE)
-                &&(encounter==null||(!entity.equals(encounter.body)&&!entity.equals(encounter.model)&&!entity.equals(encounter.hitbox)&&!belongsTo(encounter.mother,entity)&&!encounter.minions.containsKey(entity.getUniqueId())))
+                &&(encounter==null||(!entity.equals(encounter.body)&&!entity.equals(encounter.model)&&!entity.equals(encounter.hitbox)&&!belongsTo(encounter.mother,entity)&&!encounter.minions.containsKey(entity.getUniqueId())&&encounter.minions.values().stream().noneMatch(m->entity.equals(m.model))))
+                &&(encounter==null||encounter.fallingIce.stream().noneMatch(ice->entity.equals(ice.visual)))
                 &&!shots.containsKey(entity.getUniqueId())
                 &&shots.values().stream().noneMatch(shot->entity.equals(shot.visual))) entity.remove();
     }
+    private long spawnInterval(){return Math.round(getConfig().getDouble("schedule.interval-hours",5.0/60)*3600000);}
+    private World scheduledWorld() {
+        String name=getConfig().getString("schedule.world","");
+        World world=name.isBlank()?Bukkit.getWorlds().stream().filter(w->w.getEnvironment()==World.Environment.NORMAL).findFirst().orElse(null):Bukkit.getWorld(name);
+        return world!=null&&world.getEnvironment()==World.Environment.NORMAL?world:null;
+    }
+    private static boolean iceBiome(org.bukkit.block.Biome biome) {
+        return biome==org.bukkit.block.Biome.ICE_SPIKES||biome==org.bukkit.block.Biome.FROZEN_PEAKS
+            ||biome==org.bukkit.block.Biome.SNOWY_PLAINS||biome==org.bukkit.block.Biome.SNOWY_SLOPES;
+    }
+    private void findNaturalSpawn() {
+        World world=scheduledWorld();
+        if(world==null){announceEvent("skipped",null,0,"no configured overworld is available");return;}
+        Location center=world.getPlayers().isEmpty()?world.getSpawnLocation():world.getPlayers().get(random.nextInt(world.getPlayers().size())).getLocation();
+        var result=world.locateNearestBiome(center,getConfig().getInt("schedule.search-radius",4096),128,64,
+            org.bukkit.block.Biome.ICE_SPIKES,org.bukkit.block.Biome.FROZEN_PEAKS,
+            org.bukkit.block.Biome.SNOWY_PLAINS,org.bukkit.block.Biome.SNOWY_SLOPES);
+        if(result==null){announceEvent("skipped",null,0,"no ice biome found within the search radius");return;}
+        naturalSpawnSearch=true;
+        searchIceSurface(world,result.getLocation(),0);
+    }
+    private void searchIceSurface(World world,Location biome,int attempt) {
+        if(!isEnabled())return;
+        if(encounter!=null||attempt>=64){naturalSpawnSearch=false;announceEvent("skipped",null,0,encounter!=null?"an encounter became active during the search":"the ice biome has no safe new surface");return;}
+        // Look beyond the nearest-biome sample, so the last spawn does not
+        // exclude every candidate in one chunk on the following event.
+        int x=biome.getBlockX()+(attempt==0?0:random.nextInt(513)-256);
+        int z=biome.getBlockZ()+(attempt==0?0:random.nextInt(513)-256);
+        Location horizontal=new Location(world,x+.5,world.getSpawnLocation().getY(),z+.5);
+        if(!world.getWorldBorder().isInside(horizontal)||!spawnSchedule.awayFromPrevious(world.getUID().toString(),x+.5,z+.5,getConfig().getDouble("schedule.previous-spawn-distance",64))) {
+            Bukkit.getScheduler().runTask(this,()->searchIceSurface(world,biome,attempt+1));return;
+        }
+        world.getChunkAtAsync(x>>4,z>>4,true).whenComplete((chunk,error)->{
+            if(!isEnabled())return;
+            Bukkit.getScheduler().runTask(this,()->{
+                if(error==null&&chunk!=null&&encounter==null) {
+                    int y=world.getHighestBlockYAt(x,z,org.bukkit.HeightMap.MOTION_BLOCKING_NO_LEAVES)+1;
+                    Location at=new Location(world,x+.5,y,z+.5,random.nextInt(360),0);
+                    if(iceBiome(world.getBiome(x,y-1,z))&&spawnGroundReady(at)
+                            &&world.getNearbyEntities(at,4,8,4).stream().noneMatch(entity->entity instanceof LivingEntity)) {
+                        naturalSpawnSearch=false;spawn(at);return;
+                    }
+                }
+                searchIceSurface(world,biome,attempt+1);
+            });
+        });
+    }
+    private boolean spawnGroundReady(Location at) {
+        return at.getY()>at.getWorld().getMinHeight()&&at.getY()<at.getWorld().getMaxHeight()
+            &&at.getWorld().getWorldBorder().isInside(at)&&!at.clone().add(0,-1,0).getBlock().isPassable()
+            &&room(at,getConfig().getDouble("boss.golem-scale")*.7,
+                Math.max(getConfig().getDouble("boss.golem-scale")*2.7,getConfig().getDouble("boss.model-scale")));
+    }
+    private void tickSchedule() {
+        if(spawnSchedule==null||!getConfig().getBoolean("schedule.enabled"))return;
+        Location arena=null;long now=System.currentTimeMillis();
+        try {
+            if(now<spawnSchedule.next()) {
+                if(encounter==null&&scheduledWorld()!=null)for(int minutes:spawnSchedule.warnings(now,getConfig().getIntegerList("schedule.warning-minutes")))
+                    announceEvent("warning",arena,(int)Math.ceil((spawnSchedule.next()-now)/60000.0),"");
+                return;
+            }
+            // Commit the next slot before creating entities or sending messages.
+            spawnSchedule.advance(now,spawnInterval());
+            if(encounter!=null){announceEvent("skipped",arena,0,"an encounter is already active");return;}
+            if(naturalSpawnSearch){announceEvent("skipped",null,0,"an ice biome search is still in progress");return;}
+            findNaturalSpawn();
+        } catch(IOException ex){getLogger().severe("Cannot persist automatic spawn schedule; no scheduled spawn performed.");}
+    }
+    private String eventText(String template,String event,Location at,int minutes,String reason) {
+        String location=at==null?"an ice biome (coordinates announced on spawn)":at.getWorld().getName()+" ("+at.getWorld().getEnvironment().name().toLowerCase(Locale.ROOT)+") "
+            +at.getBlockX()+", "+at.getBlockY()+", "+at.getBlockZ();
+        long next=spawnSchedule==null?0:spawnSchedule.next()/1000;
+        return template.replace("{event}",event).replace("{minutes} minutes","{minutes} {minute_unit}").replace("{minutes}",Integer.toString(minutes)).replace("{minute_unit}",minutes==1?"minute":"minutes").replace("{location}",location)
+            .replace("{reason}",reason).replace("{next_spawn}",!getConfig().getBoolean("schedule.enabled")?"automatic spawning disabled":next==0?"not scheduled":"<t:"+next+":R>")
+            .replace("\\n","\n");
+    }
+    private void announceEvent(String event,Location at,int minutes,String reason) {
+        if(getConfig().getBoolean("schedule.broadcast",true)) {
+            String template=getConfig().getString("schedule.messages."+event,"");
+            if(!template.isBlank()) {
+                Component message=LegacyComponentSerializer.legacySection().deserialize(prefix()+eventText(template,event,at,minutes,reason));
+                if(event.equals("spawn")&&at!=null&&encounter!=null) {
+                    message=message.append(Component.text(" [Teleport]",NamedTextColor.AQUA)
+                        .decorate(TextDecoration.UNDERLINED)
+                        .clickEvent(ClickEvent.runCommand("/yetiboss join "+encounter.id))
+                        .hoverEvent(HoverEvent.showText(Component.text("Teleport to the Yeti's exact spawn coordinates"))));
+                }
+                for(Player player:Bukkit.getOnlinePlayers())player.sendMessage(message);
+                Bukkit.getConsoleSender().sendMessage(message);
+            }
+        }
+        if(webhook==null||!getConfig().getBoolean("discord.enabled")||!getConfig().getBoolean("discord.events."+event,true))return;
+        String message=getConfig().getString("discord.messages."+event,"");
+        if(message.isBlank())return;
+        webhook.send(getConfig().getString("discord.webhook-url",""),
+            eventText(getConfig().getString("discord.title","YetiBoss — {event}"),event,at,minutes,reason),
+            eventText(message,event,at,minutes,reason),event.equals("defeat")?0x55cc88:0x55ccff);
+    }
+    private void keepEncounterChunks(Location at) {
+        int x=at.getBlockX()>>4,z=at.getBlockZ()>>4;
+        for(int dx=-1;dx<=1;dx++)for(int dz=-1;dz<=1;dz++) {
+            Chunk chunk=at.getWorld().getChunkAt(x+dx,z+dz);
+            if(encounterChunks.add(chunk))chunk.addPluginChunkTicket(this);
+        }
+    }
+    private void releaseEncounterChunks() {
+        for(Chunk chunk:encounterChunks)chunk.removePluginChunkTicket(this);
+        encounterChunks.clear();
+    }
     private void spawn(Location at) {
-        encounter=createYeti(at,getConfig().getDouble("boss.health"),getConfig().getString("boss.name","Father Yeti"),false);
+        try {spawnSchedule.recordSpawn(at.getWorld().getUID().toString(),at.getX(),at.getZ());}
+        catch(IOException ex){getLogger().warning("Spawn cancelled: could not save previous location: "+ex.getMessage());return;}
+        encounter=createYeti(at,getConfig().getDouble("boss.health"),getConfig().getString("boss.name","Cyborg Father Yeti"),false);
         updateViewers(encounter);
         bossEffect(at,"spawn",Sound.ENTITY_ENDER_DRAGON_GROWL);
         encounter.voiceUntil=tick+103;
-        Bukkit.broadcastMessage(prefix()+ChatColor.RED+"The Father Yeti has appeared!");
+        announceEvent("spawn",at,0,"");
     }
     private Encounter createYeti(Location at,double health,String name,boolean mother) {
+        keepEncounterChunks(at);
         double size=mother?getConfig().getDouble("mother.size-multiplier",.75):1;
         double modelScale=getConfig().getDouble("boss.model-scale")*size;
         double bodyScale=getConfig().getDouble("boss.golem-scale")*size;
@@ -217,15 +463,13 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             display.setDisplayWidth(scale);display.setDisplayHeight(scale);display.setViewRange(2);
             display.setItemStack(modelItem(modelPrefix));
         });
-        IronGolem hitbox=at.getWorld().spawn(at,IronGolem.class,golem->{
-            tagged(golem);golem.setAI(false);golem.setGravity(false);golem.setSilent(true);
-            golem.setInvisible(true);golem.setCollidable(false);golem.setPlayerCreated(true);
-            golem.setRemoveWhenFarAway(false);
-            Objects.requireNonNull(golem.getAttribute(Attribute.MAX_HEALTH)).setBaseValue(1024);
-            golem.setHealth(1024);
-            // The approved mesh is 13.1 model units high; normal golem height is 2.7 blocks.
-            Objects.requireNonNull(golem.getAttribute(Attribute.SCALE)).setBaseValue(
-                modelScale*13.1/16/2.7);
+        // A size-one slime provides a compact cube around the broad visible core.
+        // The smaller native body remains hittable at the feet; horns are excluded.
+        Slime hitbox=at.getWorld().spawn(at.clone().add(0,ArenaSkills.hitboxOffset(modelScale),0),Slime.class,mob->{
+            tagged(mob);mob.setSize(1);mob.setAI(false);mob.setGravity(false);mob.setSilent(true);
+            mob.setInvisible(true);mob.setCollidable(false);mob.setRemoveWhenFarAway(false);
+            Objects.requireNonNull(mob.getAttribute(Attribute.MAX_HEALTH)).setBaseValue(1024);mob.setHealth(1024);
+            Objects.requireNonNull(mob.getAttribute(Attribute.SCALE)).setBaseValue(ArenaSkills.hitboxWidth(modelScale)/.52);
         });
         return new Encounter(body,model,hitbox,at.clone(),tick,name,health,modelPrefix,modelScale);
     }
@@ -236,6 +480,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         return encounter==e||(encounter!=null&&encounter.mother==e);
     }
     private void removeYeti(Encounter e) {
+        if(e!=null)clearIcefall(e);
         if(e!=null) {e.body.remove();e.model.remove();e.hitbox.remove();e.bar.removeAll();e.grabbed=null;}
     }
     private ItemStack modelItem(String name) {
@@ -244,6 +489,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void tick() {
         tick++;
+        if(tick%20==0){tickSchedule();returnVisitors();}
         for(Iterator<IceShot> it=shots.values().iterator();it.hasNext();) {
             IceShot shot=it.next();
             if(!shot.entity.isValid()||tick-shot.created>100||encounter==null||!shot.caster.isValid()||shot.caster.isDead()) {
@@ -263,14 +509,18 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         Encounter e=encounter;
         if(e==null) return;
         if(e.defeated) { victory(e);return; }
-        if(!e.body.isValid()||e.body.isDead()) { stop(false);return; }
-        if(tick-e.started>getConfig().getInt("boss.maximum-duration-seconds")*20L) { stop(true);return; }
+        keepEncounterChunks(e.body.getLocation());
+        if(e.mother!=null)keepEncounterChunks(e.mother.body.getLocation());
+        for(IceMinion minion:e.minions.values())if(minion.mob.isValid())keepEncounterChunks(minion.mob.getLocation());
+        if(!e.body.isValid()||e.body.isDead()) { stop(false,"boss entity removed or died unexpectedly");return; }
+        if(tick-e.started>getConfig().getInt("boss.maximum-duration-seconds")*20L) { stop(true,"maximum encounter duration reached");return; }
         List<Player> players=arenaPlayers();
         if(players.isEmpty()) {
-            if(tick-e.lastPlayers>getConfig().getInt("boss.idle-despawn-seconds")*20L) { stop(true);return; }
+            if(tick-e.lastPlayers>getConfig().getInt("boss.idle-despawn-seconds")*20L) { stop(true,"no eligible players in the arena for the idle timeout");return; }
         } else e.lastPlayers=tick;
-        if(e.body.getLocation().distanceSquared(e.origin)>Math.pow(getConfig().getDouble("boss.leash-radius"),2)) {
-            stop(true);return;
+        Location leashAt=e.body.getLocation();if(e.flightStarted>=0)leashAt.setY(e.origin.getY());
+        if(leashAt.distanceSquared(e.origin)>Math.pow(getConfig().getDouble("boss.leash-radius"),2)) {
+            stop(true,"boss left its leash radius");return;
         }
         Encounter mother=e.mother;
         if(mother!=null) {
@@ -282,9 +532,15 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         tickYeti(e,players,true);
     }
     private void tickYeti(Encounter e,List<Player> players,boolean father) {
+        if(e.whirlStarted>=0||e.icefallStarted>=0) {
+            if(father)tickMinions(e,players);
+            tickArenaSkill(e,players);return;
+        }
+        if(e.flightStarted>=0) {tickMinions(e,players);tickFlight(e,players);return;}
         tickGrab(e);
+        tickCombat(e,players);
         e.bar.setProgress(Math.max(0,Math.min(1,e.body.getHealth()/e.maximumHealth)));
-        e.enraged=e.bar.getProgress()<=.5;
+        e.enraged=e.flightUsed||e.bar.getProgress()<=.5;
         if(father) {
             tickMinions(e,players);
             if(getConfig().getBoolean("mother.enabled",true)&&e.motherTrigger.ready(e.bar.getProgress())&&tick>=e.nextMotherAttempt) {
@@ -297,7 +553,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                     summoned.origin.setX(e.origin.getX());summoned.origin.setY(e.origin.getY());summoned.origin.setZ(e.origin.getZ());
                     e.mother=summoned;e.motherTrigger.spawned();updateViewers(summoned);
                     bossEffect(at,"spawn",Sound.ENTITY_ENDER_DRAGON_GROWL);summoned.voiceUntil=tick+103;
-                    for(Player player:players)player.sendMessage(prefix()+ChatColor.RED+"The Father Yeti summoned the Mother Yeti!");
+                    for(Player player:players)player.sendMessage(prefix()+ChatColor.RED+"The Cyborg Father Yeti summoned the Mother Yeti!");
                 }
             }
         }
@@ -310,6 +566,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 for(Player player:players)player.sendMessage(prefix()+ChatColor.AQUA+"The Yeti has summoned an Ice Warden!");
             }
         }
+        if(father&&!e.flightUsed&&tick>=e.recoveryUntil&&getConfig().getBoolean("attacks.flight-phase.enabled",true)&&e.body.getHealth()<=e.maximumHealth*.5) {
+            startFlight(e,players);tickFlight(e,players);return;
+        }
+        if(father&&e.enraged&&tick%10==0)e.body.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,e.body.getLocation().add(0,3,0),12,1,1,1,.05);
         e.bar.setColor(e.enraged?BarColor.RED:BarColor.BLUE);
         e.bar.setTitle(e.name+(e.enraged?" — Enraged":""));
         if(tick%10==0) {
@@ -321,36 +581,49 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             e.nextGrowl=tick+240+random.nextInt(240);
         }
         Location at=e.body.getLocation();at.setPitch(0);
-        double moved=at.distance(e.last);
-        if(e.pending==null&&moved>.002&&moved<2) e.walk=(e.walk+moved)%1.8;
-        else if(e.pending==null) e.walk=0;
-        int frame=e.pending==null&&moved>.002?(int)(e.walk/1.8*12):-1;
+        double dx=at.getX()-e.last.getX(),dz=at.getZ()-e.last.getZ();
+        double moved=Math.hypot(dx,dz);
+        if(e.pending==null&&moved>.002&&moved<2) {
+            e.walk=(e.walk+moved*(e.chargeUntil>tick?1.5:1))%1.8;e.lastWalkTick=tick;
+        } else if(e.pending==null&&tick-e.lastWalkTick>3) {
+            // Settle toward the nearest neutral pose instead of snapping to idle.
+            double neutral=Math.round(e.walk/.9)*.9;
+            double delta=neutral-e.walk;
+            e.walk=Math.abs(delta)<.06?0:(e.walk+Math.copySign(.06,delta)+1.8)%1.8;
+        }
+        int walkFrames=e.modelPrefix.equals("giant_yeti")?24:12;
+        int frame=e.pending==null&&(moved>.002||e.walk!=0)?Math.min(walkFrames-1,(int)(e.walk/1.8*walkFrames)):-1;
         int attackFrame=e.pending==null?-1:Math.max(0,Math.min(3,
                 (int)((tick-e.windupStarted)*4/Math.max(1,e.releaseTick-e.windupStarted))));
         if(e.recovery!=null&&tick>=e.recoveryUntil)e.recovery=null;
-        Attack animated=e.pending!=null?e.pending:e.recovery;
+        Attack animated=e.pending!=null?e.pending:e.comboRemaining==1?Attack.SLAM:e.recovery;
         int poseFrame=e.pending!=null?attackFrame:e.recovery==null?0:
                 Math.min(7,4+(int)((tick-e.recoveryStarted)*4/Math.max(1,e.recoveryUntil-e.recoveryStarted)));
+        if(e.comboRemaining==1&&e.pending==null)poseFrame=Math.max(0,Math.min(3,(int)(4-(e.comboNext-tick)*4/18)));
         String pose=animated==Attack.SWIPE?"swipe":animated==Attack.ICE_BALL||animated==Attack.BARRAGE?"throw":
-                animated==Attack.ROAR||animated==Attack.SNOW_GOLEMS?"roar":"attack";
-        String model=e.grabbed!=null?e.modelPrefix+"_attack_3":animated!=null?e.modelPrefix+"_"+pose+"_"+poseFrame:
+                animated==Attack.WHIRLWIND?"whirl":animated==Attack.ICEFALL||animated==Attack.SONIC_BOOM||animated==Attack.ROAR||animated==Attack.SNOW_GOLEMS?"roar":"attack";
+        if(e.recovery==Attack.WHIRLWIND&&e.pending==null)poseFrame=Math.max(0,7-(int)((tick-e.recoveryStarted)*8/60));
+        String model=e.chargeUntil>tick?e.modelPrefix+"_gallop_"+Math.max(0,frame):e.grabbed!=null?e.modelPrefix+"_attack_3":animated!=null?e.modelPrefix+"_"+pose+"_"+poseFrame:
                 frame<0?e.modelPrefix:e.modelPrefix+"_walk_"+frame;
         if(!model.equals(e.modelName)) { e.model.setItemStack(modelItem(model));e.modelName=model; }
-        e.model.teleport(at);e.hitbox.teleport(at);e.last=at;
+        float turn=(float)Math.IEEEremainder(at.getYaw()-e.visualYaw,360);
+        e.visualYaw+=Math.max(-12f,Math.min(12f,turn));
+        Location visual=at.clone();visual.setYaw(e.visualYaw);visual.setPitch(0);
+        e.model.teleport(visual);e.hitbox.teleport(coreLocation(e,at));e.last=at;
         if(e.barrageRemaining>0&&tick>=e.nextShot) {
             Player target=chooseTarget(players,e.body);
             if(target!=null) launchAt(e,target.getEyeLocation(),Attack.BARRAGE);
             e.barrageRemaining--;e.nextShot=tick+getConfig().getInt("attacks.barrage.interval-ticks");
             return;
         }
-        if(e.grabbed!=null||e.recovery!=null)return;
+        if(e.grabbed!=null||e.recovery!=null||e.chargeUntil>tick||e.comboRemaining>0)return;
         if(e.pending!=null) {
             if(tick%5==0) telegraph(e);
             if(tick>=e.releaseTick) {
                 Attack attack=e.pending;e.pending=null;
                 execute(e,attack,players);
-                e.recovery=attack;e.recoveryStarted=tick;e.recoveryUntil=tick+12;
-                e.nextAttack=tick+getConfig().getInt("attacks.global-cooldown-ticks");
+                e.recovery=attack;e.recoveryStarted=tick;e.recoveryUntil=tick+(attack==Attack.SWIPE&&e.comboRemaining>0?46:attack==Attack.CHARGE?28:attack==Attack.SLAM?36:12);
+                e.nextAttack=tick+(BossBalance.cooldown(getConfig().getInt("attacks.global-cooldown-ticks"),e.enraged,getConfig().getDouble("attacks.enrage-cooldown-multiplier",.8)));
             }
             return;
         }
@@ -368,25 +641,191 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(!father||!getConfig().getBoolean("minions.snow-golems.enabled",true)
                 ||snowGolemCount(e)>=getConfig().getInt("minions.snow-golems.maximum"))
             weights.put(Attack.SNOW_GOLEMS,0);
+        if(!father){weights.put(Attack.CHARGE,0);weights.put(Attack.SONIC_BOOM,0);weights.put(Attack.ICEFALL,0);weights.put(Attack.WHIRLWIND,0);}
         Encounter other=father?e.mother:encounter;
         if(other!=null&&other.grabbed!=null)weights.put(Attack.GRAB_SLAM,0);
+        if(distance>getConfig().getDouble("attacks.whirlwind.radius")+2)weights.put(Attack.WHIRLWIND,0);
         if(distance>getConfig().getDouble("attacks.grab-slam.range"))weights.put(Attack.GRAB_SLAM,0);
         Player attackTarget=target;
-        e.selector.choose(tick,e.enraged,distance,getConfig().getDouble("attacks.swipe.range"),
-            getConfig().getDouble("attacks.slam.radius"),weights,random).ifPresent(attack->{
+        e.selector.chooseSequence(tick,e.enraged,distance,getConfig().getDouble("attacks.swipe.range"),
+            getConfig().getDouble("attacks.slam.radius"),weights,random,!father).ifPresent(attack->{
                 e.pending=attack;e.windupStarted=tick;e.target=attackTarget.getUniqueId();
                 e.aim=attackTarget.getEyeLocation().clone();
                 e.direction=attackTarget.getLocation().toVector().subtract(e.body.getLocation().toVector()).setY(0);
                 if(e.direction.lengthSquared()>0) e.direction.normalize();
                 e.releaseTick=tick+getConfig().getInt("attacks."+attack.key+".windup-ticks");
-                e.selector.used(attack,tick,getConfig().getInt("attacks."+attack.key+".cooldown-ticks"));
+                e.selector.used(attack,tick,BossBalance.cooldown(getConfig().getInt("attacks."+attack.key+".cooldown-ticks"),e.enraged,getConfig().getDouble("attacks.enrage-cooldown-multiplier",.8)));
                 e.body.getPathfinder().stopPathfinding();
                 e.body.setVelocity(new org.bukkit.util.Vector(0,e.body.getVelocity().getY(),0));
                 for(Player p:players)p.sendActionBar(net.kyori.adventure.text.Component.text(
-                    e.name+": "+attack.key.replace('-',' ')+"!",net.kyori.adventure.text.format.NamedTextColor.AQUA));
+                    e.name+": "+AttackDialogue.warning(attack,father),net.kyori.adventure.text.format.NamedTextColor.AQUA));
                 bossSound(e,"angry",Sound.ENTITY_POLAR_BEAR_WARNING,3f);
                 telegraph(e);
             });
+    }
+    private Location coreLocation(Encounter e,Location at) {
+        return at.clone().add(0,ArenaSkills.hitboxOffset(e.modelScale),0);
+    }
+    private void skillHit(Player player,double damage,org.bukkit.util.Vector direction,double kb,LivingEntity source) {
+        boolean previous=skillDamage;skillDamage=true;
+        try {hitWithEffects(player,damage,direction,kb,0,source);}finally{skillDamage=previous;}
+    }
+    private void clearIcefall(Encounter e) {
+        for(FallingIce ice:e.fallingIce)ice.visual.remove();
+        e.fallingIce.clear();e.icefallHits.clear();
+    }
+    private void spawnIceWave(Encounter e,List<Player> players) {
+        e.icefallSpawned++;e.icefallHits.clear();
+        List<Player> targets=new ArrayList<>(players);Collections.shuffle(targets,random);
+        List<Location> spots=new ArrayList<>();
+        for(Player player:targets.subList(0,Math.min(8,targets.size())))spots.add(player.getLocation());
+        // Extra nearby circles make a route choice necessary, without following runners.
+        for(int i=0;i<Math.min(4,targets.size());i++)spots.add(targets.get(i).getLocation().add(random.nextBoolean()?3:-3,0,random.nextBoolean()?3:-3));
+        for(Location spot:spots) {
+            World world=spot.getWorld();if(!world.isChunkLoaded(spot.getBlockX()>>4,spot.getBlockZ()>>4))continue;
+            RayTraceResult ground=world.rayTraceBlocks(spot.clone().add(0,.5,0),new org.bukkit.util.Vector(0,-1,0),12,FluidCollisionMode.NEVER,true);
+            if(ground==null)continue;
+            Location impact=ground.getHitPosition().toLocation(world).add(0,.08,0);
+            RayTraceResult ceiling=world.rayTraceBlocks(impact.clone().add(0,.2,0),new org.bukkit.util.Vector(0,1,0),12,FluidCollisionMode.NEVER,true);
+            double height=ceiling==null?Math.min(12,world.getMaxHeight()-impact.getY()-1):ceiling.getHitPosition().getY()-impact.getY()-.8;
+            if(height<3)continue;
+            if(!world.getWorldBorder().isInside(impact))continue;
+            Location top=impact.clone().add(-.6,height,-.6);
+            BlockDisplay visual=world.spawn(top,BlockDisplay.class,d->{
+                tagged(d);d.setBlock(Material.BLUE_ICE.createBlockData());d.setGravity(false);d.setInvulnerable(true);
+                d.setTeleportDuration(1);d.setTransformation(new Transformation(new Vector3f(),new Quaternionf(),new Vector3f(1.2f),new Quaternionf()));
+            });
+            e.fallingIce.add(new FallingIce(impact,visual,tick,height));
+        }
+        for(Player player:players)player.sendActionBar(Component.text("Icefall wave "+e.icefallSpawned+" — leave the icy circles!",NamedTextColor.AQUA));
+    }
+    private boolean impactVisible(Location at,Player player) {
+        org.bukkit.util.Vector direction=player.getEyeLocation().toVector().subtract(at.toVector());
+        double distance=direction.length();return distance<.01||at.getWorld().rayTraceBlocks(at,direction.normalize(),distance,FluidCollisionMode.NEVER,true)==null;
+    }
+    private void tickArenaSkill(Encounter e,List<Player> players) {
+        e.body.getPathfinder().stopPathfinding();e.body.setVelocity(new org.bukkit.util.Vector(0,e.body.getVelocity().getY(),0));
+        Location at=e.body.getLocation();
+        e.bar.setProgress(Math.max(0,Math.min(1,e.body.getHealth()/e.maximumHealth)));
+        e.bar.setColor(BarColor.PURPLE);e.bar.setTitle(e.name+(e.whirlStarted>=0?" — Healing Whirlwind":" — Icefall"));
+        if(tick%10==0){e.bar.removeAll();for(Player player:players)e.bar.addPlayer(player);updateViewers(e);}
+        if(e.whirlStarted>=0) {
+            int age=(int)(tick-e.whirlStarted);
+            double healed=ArenaSkills.healing(age),delta=healed-e.whirlHealed;e.whirlHealed=healed;
+            if(delta>0)e.body.setHealth(Math.min(e.maximumHealth,e.body.getHealth()+delta*e.maximumHealth*getConfig().getDouble("attacks.whirlwind.heal-fraction")));
+            e.visualYaw+=(float)(18*Math.min(1,age/12.0));at.setYaw(e.visualYaw);e.body.setRotation(e.visualYaw,0);
+            String name=e.modelPrefix+"_whirl_"+Math.min(7,3+age/3);
+            if(!name.equals(e.modelName)){e.model.setItemStack(modelItem(name));e.modelName=name;}
+            double radius=getConfig().getDouble("attacks.whirlwind.radius");
+            if(tick%2==0)for(int i=0;i<12;i++) {
+                double a=Math.toRadians(e.visualYaw)+i*Math.PI/6;
+                at.getWorld().spawnParticle(Particle.SNOWFLAKE,at.clone().add(Math.cos(a)*radius,.3+(i%4)*.8,Math.sin(a)*radius),1,0,0,0,0);
+            }
+            if(ArenaSkills.pulse(age)) {
+                at.getWorld().playSound(at,Sound.ENTITY_PLAYER_ATTACK_SWEEP,2f,.65f);
+                for(Player player:players) {
+                    org.bukkit.util.Vector d=player.getLocation().toVector().subtract(at.toVector());
+                    if(ArenaSkills.horizontalSquared(d.getX(),d.getZ())<=radius*radius&&Math.abs(d.getY())<4&&e.body.hasLineOfSight(player))
+                        skillHit(player,getConfig().getDouble("attacks.whirlwind.damage"),d,getConfig().getDouble("attacks.whirlwind.knockback"),e.body);
+                }
+            }
+            if(age>=ArenaSkills.WHIRL_DURATION)finishArenaSkill(e,Attack.WHIRLWIND,60);
+        } else {
+            int age=(int)(tick-e.icefallStarted);
+            if(e.icefallSpawned<e.icefallWaves&&age>=e.icefallSpawned*ArenaSkills.WAVE_INTERVAL)spawnIceWave(e,players);
+            Map<UUID,IceImpact> impacts=new HashMap<>();
+            for(Iterator<FallingIce> iterator=e.fallingIce.iterator();iterator.hasNext();) {
+                FallingIce ice=iterator.next();int iceAge=(int)(tick-ice.started);
+                if(tick%3==0) {
+                    double radius=getConfig().getDouble("attacks.icefall.direct-radius");
+                    for(int i=0;i<24;i++) {
+                        double a=2*Math.PI*i/24;
+                        if(i%2==0) {
+                            double outer=getConfig().getDouble("attacks.icefall.splash-radius");
+                            ice.impact.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,ice.impact.clone().add(Math.cos(a)*outer,.05,Math.sin(a)*outer),1,0,0,0,0);
+                        }
+                        ice.impact.getWorld().spawnParticle(Particle.SNOWFLAKE,ice.impact.clone().add(Math.cos(a)*radius,.05,Math.sin(a)*radius),1,0,0,0,0);
+                    }
+                }
+                if(iceAge<ArenaSkills.ICE_WARNING)continue;
+                if(iceAge==ArenaSkills.ICE_WARNING)ice.impact.getWorld().playSound(ice.impact,Sound.BLOCK_AMETHYST_BLOCK_RESONATE,1.5f,.6f);
+                double progress=ArenaSkills.fall(iceAge-ArenaSkills.ICE_WARNING);
+                Location pos=ice.impact.clone().add(-.6,ice.height*(1-progress),-.6);ice.visual.teleport(pos);
+                if(tick%2==0&&progress<1)pos.getWorld().spawnParticle(Particle.SNOWFLAKE,pos.clone().add(.6,.6,.6),3,.3,.3,.3,.01);
+                if(progress<1)continue;
+                ice.visual.remove();iterator.remove();
+                World world=ice.impact.getWorld();world.spawnParticle(Particle.BLOCK,ice.impact,45,1,.4,1,.05,Material.BLUE_ICE.createBlockData());
+                world.playSound(ice.impact,Sound.BLOCK_GLASS_BREAK,2f,.6f);
+                double direct=getConfig().getDouble("attacks.icefall.direct-radius"),splash=getConfig().getDouble("attacks.icefall.splash-radius");
+                for(Player player:players) {
+                    org.bukkit.util.Vector d=player.getLocation().toVector().subtract(ice.impact.toVector());double distance=ArenaSkills.horizontalSquared(d.getX(),d.getZ());
+                    if(distance>splash*splash||Math.abs(d.getY())>4||e.icefallHits.contains(player.getUniqueId())||!impactVisible(ice.impact.clone().add(0,.4,0),player))continue;
+                    double damage=getConfig().getDouble(distance<=direct*direct?"attacks.icefall.damage":"attacks.icefall.splash-damage");
+                    IceImpact prior=impacts.get(player.getUniqueId());
+                    if(prior==null||damage>prior.damage)impacts.put(player.getUniqueId(),new IceImpact(player,damage,d));
+                }
+            }
+            for(IceImpact impact:impacts.values()) {
+                e.icefallHits.add(impact.player.getUniqueId());
+                skillHit(impact.player,impact.damage,impact.direction,getConfig().getDouble("attacks.icefall.knockback"),e.body);
+            }
+            String name=e.modelPrefix+"_roar_"+(4+(int)(tick/8%4));
+            if(!name.equals(e.modelName)){e.model.setItemStack(modelItem(name));e.modelName=name;}
+            if(e.icefallSpawned>=e.icefallWaves&&e.fallingIce.isEmpty())finishArenaSkill(e,Attack.ICEFALL,40);
+        }
+        e.model.teleport(at);e.hitbox.teleport(coreLocation(e,at));e.last=at.clone();
+    }
+    private void finishArenaSkill(Encounter e,Attack attack,int recovery) {
+        e.whirlStarted=-1;e.icefallStarted=-1;clearIcefall(e);e.model.setTeleportDuration(2);
+        e.recovery=attack;e.recoveryStarted=tick;e.recoveryUntil=tick+recovery;e.nextAttack=e.recoveryUntil;
+    }
+    private record IceImpact(Player player,double damage,org.bukkit.util.Vector direction) {}
+    private record FallingIce(Location impact,BlockDisplay visual,long started,double height) {}
+    private void startFlight(Encounter e,List<Player> players) {
+        e.flightUsed=true;e.flightStarted=tick;e.flightGround=e.body.getLocation().clone();e.flightHealed=0;
+        double desired=getConfig().getDouble("attacks.flight-phase.height",16),height=0;
+        for(double h=.5;h<=desired;h+=.5) {
+            if(!room(e.flightGround.clone().add(0,h,0),.8,getConfig().getDouble("boss.model-scale")))break;
+            height=h;
+        }
+        e.flightHeight=height;e.grabbed=null;e.pending=null;e.recovery=null;e.comboRemaining=0;e.barrageRemaining=0;e.chargeUntil=0;e.waveStarted=0;
+        e.body.getPathfinder().stopPathfinding();e.body.setGravity(false);e.body.setVelocity(new org.bukkit.util.Vector());
+        for(Player player:players)player.sendMessage(prefix()+ChatColor.RED+"Cyborg Father Yeti — Phase 2! Reactor retreat: he is regenerating, then returning with a frost impact!");
+        bossSound(e,"angry",Sound.ENTITY_POLAR_BEAR_WARNING,3f);
+    }
+    private void tickFlight(Encounter e,List<Player> players) {
+        long age=tick-e.flightStarted;
+        double heal=FlightPhase.healProgress(age),delta=heal-e.flightHealed;e.flightHealed=heal;
+        if(delta>0)e.body.setHealth(Math.min(e.maximumHealth,e.body.getHealth()+delta*e.maximumHealth*getConfig().getDouble("attacks.flight-phase.heal-fraction",.15)));
+        Location at=e.flightGround.clone().add(0,FlightPhase.height(age,e.flightHeight),0);
+        // Abort downward movement if players placed an obstruction; stay at the
+        // current position until safe landing ground can be located.
+        if(age>=FlightPhase.ASCEND+FlightPhase.HEAL&&!room(at,.8,2.7)) {
+            Location safe=spawnPoint(e,.8,getConfig().getDouble("boss.model-scale"));
+            if(safe!=null){e.flightGround=safe;at=safe.clone().add(0,FlightPhase.height(age,e.flightHeight),0);}
+            else at=e.body.getLocation();
+        }
+        if(!e.body.teleport(at))at=e.body.getLocation();e.body.setVelocity(new org.bukkit.util.Vector());at.setPitch(0);
+        e.model.teleport(at);e.hitbox.teleport(coreLocation(e,at));e.last=at.clone();
+        e.model.setItemStack(modelItem(e.modelPrefix+"_roar_3"));e.modelName=e.modelPrefix+"_roar_3";
+        e.bar.setProgress(Math.max(0,Math.min(1,e.body.getHealth()/e.maximumHealth)));e.bar.setColor(BarColor.PURPLE);
+        e.bar.setTitle(e.name+" — Phase 2: "+(age<40?"Ascending":age<140?"Reactor regeneration":"Incoming frost impact"));
+        if(tick%10==0){e.bar.removeAll();for(Player p:players)e.bar.addPlayer(p);updateViewers(e);}
+        at.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,at.clone().add(0,.5,0),16,.7,.3,.7,.04);
+        at.getWorld().spawnParticle(Particle.FLAME,at,5,.3,.1,.3,.01);
+        if(age>=100&&tick%5==0) {
+            double radius=getConfig().getDouble("attacks.flight-phase.landing-radius",8);
+            for(int i=0;i<24;i++){double angle=i*Math.PI/12;e.flightGround.getWorld().spawnParticle(Particle.SNOWFLAKE,e.flightGround.clone().add(Math.cos(angle)*radius,.2,Math.sin(angle)*radius),1,0,0,0,0);}
+        }
+        if(age==100)for(Player p:players)p.sendActionBar(Component.text("Father is coming down — clear the marked frost ring!",NamedTextColor.RED));
+        if(age<FlightPhase.DURATION)return;
+        e.flightStarted=-1;e.body.setGravity(true);e.enraged=true;e.nextAttack=tick+40;
+        e.body.getWorld().spawnParticle(Particle.SNOWFLAKE,at,100,3,.3,3,.08);
+        e.body.getWorld().playSound(at,Sound.ENTITY_GENERIC_EXPLODE,1,.7f);
+        double radius=getConfig().getDouble("attacks.flight-phase.landing-radius",8);
+        for(Player p:players)if(p.getLocation().distanceSquared(at)<=radius*radius&&e.body.hasLineOfSight(p))
+            hitWithEffects(p,getConfig().getDouble("attacks.flight-phase.landing-damage",20),p.getLocation().toVector().subtract(at.toVector()),1.2,40,e.body);
+        for(Player p:players)p.sendMessage(prefix()+ChatColor.RED+"Cyborg Father Yeti has landed — Phase 2 remains enraged!");
     }
     private Player chooseTarget(List<Player> players,IronGolem body) {
         // Usually chase the nearest player; sometimes pressure another participant.
@@ -404,7 +843,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         e.body.setInvisible(custom);
         e.customVisible=custom;
         Objects.requireNonNull(e.hitbox.getAttribute(Attribute.SCALE)).setBaseValue(custom?
-            e.modelScale*13.1/16/2.7:.01);
+            ArenaSkills.hitboxWidth(e.modelScale)/.52:.01);
         for(Player player:e.body.getWorld().getPlayers()) {
             if(custom&&viewers.contains(player))player.showEntity(this,e.hitbox);
             else player.hideEntity(this,e.hitbox);
@@ -428,8 +867,13 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         String url=getConfig().getString("resource-pack.url",
             "https://github.com/aemiroo/YetiBoss/releases/download/yeti-pack/YetiBoss-Pack.zip");
         if(bossPackHash==null||url==null||url.isBlank()) { packStates.put(id,"DISABLED");return; }
+        // Match the pack to this JAR, including draft builds; the legacy URL
+        // otherwise serves a different ZIP after a model update.
+        if(url.equals("https://github.com/aemiroo/YetiBoss/releases/download/yeti-pack/YetiBoss-Pack.zip"))
+            url="https://github.com/aemiroo/YetiBoss/releases/download/yeti-pack-assets/YetiBoss-Pack-"
+                +HexFormat.of().formatHex(bossPackHash)+".zip";
         packStates.put(id,"REQUESTED");
-        try { player.addResourcePack(BOSS_PACK_ID,url,bossPackHash,"Giant Yeti boss model",false); }
+        try { player.addResourcePack(BOSS_PACK_ID,url,bossPackHash,"Cyborg Father Yeti boss model",false); }
         catch(IllegalArgumentException ex) { packStates.put(id,"INVALID_URL");getLogger().warning("Invalid boss resource-pack URL"); }
     }
     @EventHandler public void bossPackStatus(PlayerResourcePackStatusEvent event) {
@@ -467,8 +911,20 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private void telegraph(Encounter e) {
         Location at=e.body.getLocation();World world=at.getWorld();
         world.spawnParticle(Particle.SNOWFLAKE,at.clone().add(0,2,0),12,1,1,1,.02);
-        if(e.pending==Attack.SLAM||e.pending==Attack.ROAR) {
-            double r=getConfig().getDouble("attacks.slam.radius");
+        if(e.pending==Attack.SONIC_BOOM) {
+            Location origin=at.clone().add(0,3,0);
+            org.bukkit.util.Vector beam=e.aim.toVector().subtract(origin.toVector());
+            if(beam.lengthSquared()>.001) {
+                beam.normalize();
+                for(int i=1;i<=16;i++)world.spawnParticle(Particle.ELECTRIC_SPARK,origin.clone().add(beam.clone().multiply(i)),2,.12,.12,.12,0);
+            }
+            world.playSound(origin,Sound.ENTITY_WARDEN_SONIC_CHARGE,2f,1f);
+        }
+        if(e.pending==Attack.CHARGE) {
+            for(int i=1;i<=14;i++)world.spawnParticle(Particle.SNOWFLAKE,at.clone().add(e.direction.clone().multiply(i)).add(0,.2,0),2,.2,0,.2,0);
+        }
+        if(e.pending==Attack.SLAM||e.pending==Attack.ROAR||e.pending==Attack.WHIRLWIND) {
+            double r=getConfig().getDouble(e.pending==Attack.WHIRLWIND?"attacks.whirlwind.radius":"attacks.slam.radius");
             for(int i=0;i<32;i++) {
                 double a=2*Math.PI*i/32;
                 world.spawnParticle(Particle.SNOWFLAKE,at.clone().add(Math.cos(a)*r,.15,Math.sin(a)*r),1,0,0,0,0);
@@ -479,6 +935,34 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private void execute(Encounter e,Attack attack,List<Player> players) {
         Location at=e.body.getLocation();
         switch(attack) {
+            case ICEFALL -> {
+                e.icefallStarted=tick;e.icefallWaves=e.enraged?3:2;e.icefallSpawned=0;
+                e.recovery=null;e.body.getPathfinder().stopPathfinding();spawnIceWave(e,players);
+            }
+            case WHIRLWIND -> {
+                e.whirlStarted=tick;e.whirlHealed=0;e.recovery=null;e.body.getPathfinder().stopPathfinding();
+                e.model.setTeleportDuration(1);
+            }
+            case SONIC_BOOM -> {
+                Location origin=at.clone().add(0,3,0);
+                org.bukkit.util.Vector beam=e.aim.toVector().subtract(origin.toVector());
+                if(beam.lengthSquared()<.001)break;
+                beam.normalize();double length=16;
+                org.bukkit.util.RayTraceResult wall=at.getWorld().rayTraceBlocks(origin,beam,length,FluidCollisionMode.NEVER,true);
+                if(wall!=null)length=wall.getHitPosition().distance(origin.toVector());
+                for(double d=0;d<=length;d+=1.5)at.getWorld().spawnParticle(Particle.SONIC_BOOM,origin.clone().add(beam.clone().multiply(d)),1,0,0,0,0);
+                at.getWorld().playSound(origin,Sound.ENTITY_WARDEN_SONIC_BOOM,3f,1f);
+                for(Player player:players) {
+                    org.bukkit.util.Vector delta=player.getEyeLocation().toVector().subtract(origin.toVector());
+                    double along=delta.dot(beam);
+                    if(along>=0&&along<=length&&delta.clone().subtract(beam.clone().multiply(along)).lengthSquared()<=1.44)
+                        hitWithEffects(player,getConfig().getDouble("attacks.sonic-boom.damage"),beam,
+                            getConfig().getDouble("attacks.sonic-boom.knockback"),0,e.body);
+                }
+            }
+            case CHARGE -> {
+                e.chargeUntil=tick+(e.enraged?22:18);e.chargeHits.clear();
+            }
             case ROAR -> {
                 double radius=getConfig().getDouble("attacks.roar.radius");
                 for(Player player:players) {
@@ -498,10 +982,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                         ||!e.body.hasLineOfSight(victim))return;
                 Location landing=victim.getLocation().clone();
                 // Only grab over solid ground with clear space for a player-sized lift.
-                if(landing.clone().add(0,-.1,0).getBlock().isPassable()||!room(landing,.35,4.5))return;
+                if(!room(landing,.35,4.2))return;
                 e.grabbed=victim.getUniqueId();e.grabLanding=landing;e.grabStarted=tick;
                 e.body.getPathfinder().stopPathfinding();
-                victim.sendActionBar(net.kyori.adventure.text.Component.text("The Yeti grabbed you!"));
+                victim.sendActionBar(net.kyori.adventure.text.Component.text("The Yeti grabbed you — brace for the throw!"));
             }
             case SNOW_GOLEMS -> {
                 int count=Math.min(getConfig().getInt("minions.snow-golems.per-wave"),
@@ -520,6 +1004,12 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 e.barrageRemaining=getConfig().getInt("attacks.barrage.count");e.nextShot=tick;
             }
             case SWIPE, SLAM -> {
+                if(attack==Attack.SWIPE&&!e.comboExecuting) {
+                    e.comboRemaining=2;e.comboNext=tick+14;e.recoveryUntil=tick+46;
+                }
+                if(attack==Attack.SLAM&&e.modelPrefix.equals("giant_yeti")) {
+                    e.waveOrigin=at.clone();e.waveStarted=tick;e.waveHits.clear();
+                }
                 playGolemAttack(e.body);
                 double range=getConfig().getDouble("attacks."+attack.key+(attack==Attack.SLAM?".radius":".range"));
                 for(Player p:players) {
@@ -533,6 +1023,49 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 }
                 at.getWorld().spawnParticle(Particle.SNOWFLAKE,at.clone().add(0,.5,0),45,2,.4,2,.04);
                 at.getWorld().playSound(at,Sound.ENTITY_IRON_GOLEM_ATTACK,1,.7f);
+            }
+        }
+    }
+    private void tickCombat(Encounter e,List<Player> players) {
+        if(e.chargeUntil==tick) {
+            e.chargeUntil=0;e.body.setVelocity(new org.bukkit.util.Vector(0,e.body.getVelocity().getY(),0));
+        }
+        if(e.chargeUntil>tick) {
+            org.bukkit.util.Vector velocity=e.direction.clone().multiply(e.enraged?.95:.75);
+            Location next=e.body.getLocation().add(velocity);
+            if(!room(next,.8,2.8)||next.clone().add(0,-.5,0).getBlock().isPassable()) {
+                e.chargeUntil=0;e.body.setVelocity(new org.bukkit.util.Vector(0,e.body.getVelocity().getY(),0));
+            } else {
+                e.body.setVelocity(velocity.setY(e.body.getVelocity().getY()));
+                for(Player p:players)if(p.getLocation().distanceSquared(e.body.getLocation())<9&&e.body.hasLineOfSight(p)&&e.chargeHits.add(p.getUniqueId()))
+                    hitWithEffects(p,getConfig().getDouble("attacks.charge.damage"),e.direction,getConfig().getDouble("attacks.charge.knockback"),0,e.body);
+            }
+        }
+        if(e.comboRemaining>0&&tick>=e.comboNext) {
+            e.comboExecuting=true;
+            try {execute(e,e.comboRemaining==2?Attack.SWIPE:Attack.SLAM,players);}
+            finally {e.comboExecuting=false;}
+            e.comboRemaining--;e.comboNext=tick+18;
+            if(e.comboRemaining==1) {
+                for(Player p:players)p.sendActionBar(net.kyori.adventure.text.Component.text(e.name+": Frost shockwave — jump or retreat!",net.kyori.adventure.text.format.NamedTextColor.AQUA));
+                e.pending=Attack.SLAM;telegraph(e);e.pending=null;
+            }
+            e.recovery=e.comboRemaining==1?Attack.SWIPE:Attack.SLAM;e.recoveryStarted=tick;
+            if(e.comboRemaining==0) {e.recoveryUntil=tick+36;e.nextAttack=e.recoveryUntil;}
+
+        }
+        if(e.waveOrigin!=null) {
+            double radius=(tick-e.waveStarted)*.45;
+            if(radius>12) {e.waveOrigin=null;return;}
+            for(int i=0;i<48;i++) {
+                double a=i*Math.PI/24;
+                e.waveOrigin.getWorld().spawnParticle(Particle.SNOWFLAKE,e.waveOrigin.clone().add(Math.cos(a)*radius,.2,Math.sin(a)*radius),1,0,0,0,0);
+            }
+            for(Player p:players) {
+                org.bukkit.util.Vector delta=p.getLocation().toVector().subtract(e.waveOrigin.toVector());
+                double height=delta.getY();double distance=delta.clone().setY(0).length();
+                if(Math.abs(height)<.8&&Math.abs(distance-radius)<.6&&e.body.hasLineOfSight(p)&&e.waveHits.add(p.getUniqueId()))
+                    hitWithEffects(p,e.enraged?10:7,delta,.7,40,e.body);
             }
         }
     }
@@ -553,7 +1086,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             e.grabbed=null;return;
         }
         long age=tick-e.grabStarted;
-        double lift=age<10?age*.22:age<20?2.2:Math.max(0,2.2-(age-20)*.44);
+        double lift=Math.min(2.2,age*.22);
         Location held=e.grabLanding.clone().add(0,lift,0);
         held.setYaw(p.getLocation().getYaw());held.setPitch(p.getLocation().getPitch());
         if(!room(held,.35,1.9)) {e.grabbed=null;return;}
@@ -569,6 +1102,16 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             hitWithEffects(p,getConfig().getDouble("attacks.grab-slam.damage"),
                     p.getLocation().toVector().subtract(e.body.getLocation().toVector()),
                     getConfig().getDouble("attacks.grab-slam.knockback"),40,e.body);
+            org.bukkit.util.Vector away=p.getLocation().toVector().subtract(e.body.getLocation().toVector()).setY(0);
+            if(away.lengthSquared()<.01)away=e.direction.clone().setY(0);
+            if(away.lengthSquared()<.01)away=new org.bukkit.util.Vector(0,0,1);
+            double distance=getConfig().getDouble("attacks.throw-distance",18);
+            org.bukkit.util.Vector velocity=away.normalize().multiply(ThrowArc.horizontalSpeed(distance,2.2)).setY(.55);
+            // Apply AFTER accepted-hit knockback. The old next-tick knockback
+            // overwrote the throw impulse, causing inconsistent short throws.
+            Bukkit.getScheduler().runTask(this,()->{
+                if(p.isOnline()&&!p.isDead()&&p.getWorld().equals(held.getWorld()))p.setVelocity(velocity);
+            });
             held.getWorld().spawnParticle(Particle.SNOWFLAKE,held,55,1.2,.25,1.2,.08);
             bossEffect(held,"grab_slam",Sound.ENTITY_IRON_GOLEM_ATTACK);
         }
@@ -613,8 +1156,29 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private void hit(Player player,double damage,LivingEntity source) {
         if(encounter==null)return;
+        Encounter attacker=source.equals(encounter.body)?encounter:encounter.mother;
+        if(!skillDamage&&attacker!=null&&source.equals(attacker.body)&&attacker.enraged)damage*=getConfig().getDouble("attacks.enrage-damage-multiplier",1.2);
+        if(!skillDamage&&attacker!=null&&source.equals(attacker.body))
+            damage*=getConfig().getDouble("attacks.pressure-damage-multiplier",1.6)*encounter.pressure.multiplier(player.getUniqueId(),tick);
         scriptedDamage=true;
+        double before=player.getHealth()+player.getAbsorptionAmount();
         try { player.damage(damage,source); } finally { scriptedDamage=false; }
+        if(damageDebug)damageLog("Scripted hit: source="+source.getType()+" target="+player.getName()+" requested="+damage
+            +" healthChange="+(before-player.getHealth()-player.getAbsorptionAmount())+" difficulty="+player.getWorld().getDifficulty()
+            +" invulnerable="+player.isInvulnerable()+" noDamageTicks="+player.getNoDamageTicks()+" lastDamage="+player.getLastDamage());
+    }
+    private void damageLog(String message) {
+        if(tick-damageDebugWindow>=20){damageDebugWindow=tick;damageDebugLines=0;}
+        if(damageDebugLines++<12)getLogger().info("[DamageDebug] "+message);
+    }
+    @EventHandler(priority=EventPriority.MONITOR)
+    public void debugDamage(EntityDamageEvent event) {
+        if(!damageDebug||encounter==null)return;
+        if(!(event instanceof EntityDamageByEntityEvent by)||!(allied(by.getDamager())
+                ||by.getDamager() instanceof Projectile projectile&&projectile.getShooter() instanceof Entity shooter&&allied(shooter)
+                ||allied(event.getEntity())))return;
+        damageLog("Event: source="+by.getDamager().getType()+" target="+event.getEntity().getType()+" cause="+event.getCause()
+            +" raw="+event.getDamage()+" final="+event.getFinalDamage()+" cancelled="+event.isCancelled()+" scripted="+scriptedDamage);
     }
     private boolean allied(Entity entity) {
         return encounter!=null&&(entity.equals(encounter.body)||entity.equals(encounter.hitbox)||belongsTo(encounter.mother,entity)||encounter.minions.containsKey(entity.getUniqueId()));
@@ -651,6 +1215,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         return null;
     }
     private void spawnMinion(Encounter e,Location at,boolean warden) {
+        keepEncounterChunks(at);
         Mob mob=warden?at.getWorld().spawn(at,Warden.class):at.getWorld().spawn(at,Snowman.class);
         tagged(mob);mob.setAI(true);getServer().getMobGoals().removeAllGoals(mob);mob.setRemoveWhenFarAway(false);mob.setSilent(true);
         mob.setCustomNameVisible(true);
@@ -661,16 +1226,53 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         Objects.requireNonNull(mob.getAttribute(Attribute.MOVEMENT_SPEED)).setBaseValue(
                 warden?getConfig().getDouble("minions.ice-warden.movement-speed"):.22);
         if(mob instanceof Snowman snowman)snowman.setDerp(true);
-        e.minions.put(mob.getUniqueId(),new IceMinion(mob,warden,tick+30));
+        IceMinion minion=new IceMinion(mob,warden,tick+30);
+        if(warden)minion.model=at.getWorld().spawn(at,ItemDisplay.class,d->{
+            tagged(d);d.setVisibleByDefault(false);d.setGravity(false);d.setInvulnerable(true);
+            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
+            d.setTransformation(new Transformation(new Vector3f(),new Quaternionf(),new Vector3f(2.9f),new Quaternionf()));
+            d.setTeleportDuration(2);d.setInterpolationDuration(2);d.setViewRange(2);
+            d.setDisplayWidth(3);d.setDisplayHeight(3);d.setItemStack(modelItem("ice_warden"));
+        });
+        minion.last=at.clone();minion.yaw=at.getYaw();minion.spawnStarted=tick;
+        e.minions.put(mob.getUniqueId(),minion);
         at.getWorld().spawnParticle(Particle.SNOWFLAKE,at.clone().add(0,1,0),25,.5,1,.5,.03);
+    }
+    private void updateWardenModel(IceMinion minion) {
+        Mob mob=minion.mob;Location at=mob.getLocation();
+        List<Player> viewers=mob.getWorld().getPlayers().stream()
+            .filter(p->p.getLocation().distanceSquared(at)<96*96).toList();
+        boolean custom=BossVisibility.custom(viewers.size(),(int)viewers.stream()
+            .filter(p->bossPackReady.contains(p.getUniqueId())).count(),minion.model.isValid());
+        mob.setInvisible(custom);
+        for(Player p:mob.getWorld().getPlayers()) {
+            if(custom&&viewers.contains(p))p.showEntity(this,minion.model);else p.hideEntity(this,minion.model);
+        }
+        double distance=at.toVector().subtract(minion.last.toVector()).setY(0).length();
+        if(distance<1)minion.phase+=distance*9;
+        String nativePose=mob.getPose().name();
+        if(!nativePose.equals(minion.nativePose)){minion.nativePose=nativePose;minion.poseStarted=tick;}
+        String name;
+        if(tick-minion.strikeStarted<12)name="ice_warden_strike_"+(tick-minion.strikeStarted);
+        else if(tick-minion.hurtStarted<8)name="ice_warden_hurt_"+(tick-minion.hurtStarted);
+        else if(tick-minion.spawnStarted<24)name="ice_warden_emerge_"+Math.min(7,(tick-minion.spawnStarted)/3);
+        else if(nativePose.equals("EMERGING"))name="ice_warden_emerge_"+Math.min(7,(tick-minion.poseStarted)/10);
+        else if(nativePose.equals("ROARING"))name="ice_warden_roar_"+Math.min(7,(tick-minion.poseStarted)/5);
+        else if(nativePose.equals("SNIFFING"))name="ice_warden_sniff_"+((tick-minion.poseStarted)/5%8);
+        else name=distance>.002?"ice_warden_walk_"+((int)minion.phase%24):"ice_warden_idle_"+(tick/6%8);
+        if(!name.equals(minion.pose)){minion.model.setItemStack(modelItem(name));minion.pose=name;}
+        float turn=(float)Math.IEEEremainder(at.getYaw()-minion.yaw,360);
+        minion.yaw+=Math.max(-12f,Math.min(12f,turn));
+        Location visual=at.clone();visual.setYaw(minion.yaw);visual.setPitch(0);minion.model.teleport(visual);minion.last=at;
     }
     private void tickMinions(Encounter e,List<Player> players) {
         for(IceMinion minion:new ArrayList<>(e.minions.values())) {
             Mob mob=minion.mob;
-            if(!mob.isValid()||mob.isDead()) {e.minions.remove(mob.getUniqueId());continue;}
+            if(!mob.isValid()||mob.isDead()) {if(minion.model!=null)minion.model.remove();e.minions.remove(mob.getUniqueId());continue;}
             if(mob.getLocation().distanceSquared(e.origin)>Math.pow(getConfig().getDouble("boss.leash-radius"),2)) {
-                mob.remove();e.minions.remove(mob.getUniqueId());continue;
+                if(minion.model!=null)minion.model.remove();mob.remove();e.minions.remove(mob.getUniqueId());continue;
             }
+            if(minion.model!=null)updateWardenModel(minion);
             if(tick%10==0)mob.getWorld().spawnParticle(Particle.SNOWFLAKE,mob.getLocation().add(0,1,0),3,.4,.8,.4,0);
             Player target=players.stream().filter(mob::hasLineOfSight)
                 .min(Comparator.comparingDouble(p->p.getLocation().distanceSquared(mob.getLocation()))).orElse(null);
@@ -741,6 +1343,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 } else event.setCancelled(true);
             }
             if(allied(event.getEntity())) {
+                Encounter hurt=event.getEntity().equals(encounter.body)?encounter:encounter.mother;
+                if(hurt!=null&&event.getEntity().equals(hurt.body)&&hurt.recovery!=null&&hurt.pending==null
+                        &&hurt.comboRemaining==0&&hurt.grabbed==null&&hurt.chargeUntil<=tick&&hurt.flightStarted<0&&hurt.whirlStarted<0&&hurt.icefallStarted<0)
+                    event.setDamage(event.getDamage()*getConfig().getDouble("attacks.recovery-vulnerability",1.25));
                 Player p=attacker(by.getDamager());
                 if(p==null||!eligible(p,encounter.origin,getConfig().getDouble("boss.arena-radius"))) event.setCancelled(true);
             }
@@ -755,8 +1361,15 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     public void acceptedDamage(EntityDamageByEntityEvent event) {
         if(event.getFinalDamage()<=0) return;
         Encounter e=encounter;
+        if(e!=null&&scriptedDamage&&event.getEntity() instanceof Player player
+                &&(event.getDamager().equals(e.body)||e.mother!=null&&event.getDamager().equals(e.mother.body))) {
+            int stacks=e.pressure.accepted(player.getUniqueId(),tick);
+            player.sendActionBar(Component.text("Frost exposure: "+stacks+"/5 — dodge hits for 8s to clear",NamedTextColor.AQUA));
+        }
         IceMinion striking=e==null?null:e.minions.get(event.getDamager().getUniqueId());
         if(striking!=null&&striking.warden&&!scriptedDamage&&event.getEntity() instanceof Player player) {
+            striking.strikeStarted=tick;
+            if(striking.model!=null)updateWardenModel(striking);
             striking.nextAttack=tick+getConfig().getInt("minions.ice-warden.attack-cooldown-ticks");
             int duration=getConfig().getInt("minions.ice-warden.slow-ticks");
             Bukkit.getScheduler().runTask(this,()->{
@@ -764,6 +1377,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                     player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS,duration,0));
             });
         }
+        IceMinion hurtMinion=e==null?null:e.minions.get(event.getEntity().getUniqueId());
+        if(hurtMinion!=null&&hurtMinion.warden){hurtMinion.hurtStarted=tick;if(hurtMinion.model!=null)updateWardenModel(hurtMinion);}
         Encounter hurt=e==null?null:event.getEntity().equals(e.body)?e:
             e.mother!=null&&event.getEntity().equals(e.mother.body)?e.mother:null;
         if(hurt!=null&&!hurt.defeated&&event.getFinalDamage()<hurt.body.getHealth()&&tick>=hurt.nextHurtSound) {
@@ -773,21 +1388,6 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         }
         if(e!=null&&allied(event.getEntity())) {
             Player p=attacker(event.getDamager());if(p!=null)e.participation.damage(p.getUniqueId(),event.getFinalDamage());
-        }
-        if(event.getDamager() instanceof Player p&&event.getEntity() instanceof LivingEntity victim) {
-            ItemStack item=p.getInventory().getItemInMainHand();ItemMeta meta=item.getItemMeta();
-            if(meta!=null&&meta.getPersistentDataContainer().has(swordKey,PersistentDataType.BYTE)
-                    &&tick>=swordCooldown.getOrDefault(p.getUniqueId(),0L)
-                    &&random.nextDouble()<getConfig().getDouble("rewards.sword.frost-chance")) {
-                swordCooldown.put(p.getUniqueId(),tick+getConfig().getInt("rewards.sword.frost-cooldown-ticks"));
-                // MONITOR does not alter the event. Apply the effect next tick.
-                Bukkit.getScheduler().runTask(this,()->{
-                    if(victim.isValid()&&!victim.isDead()) {
-                        victim.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS,getConfig().getInt("rewards.sword.slow-ticks"),1));
-                        victim.getWorld().spawnParticle(Particle.SNOWFLAKE,victim.getLocation().add(0,1,0),8,.3,.5,.3,0);
-                    }
-                });
-            }
         }
     }
     @EventHandler public void projectileHit(ProjectileHitEvent event) {
@@ -832,14 +1432,17 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             bossEffect(event.getEntity().getLocation(),"death",Sound.ENTITY_ENDER_DRAGON_DEATH);
             removeYeti(encounter.mother);encounter.mother=null;return;
         }
-        if(encounter.minions.remove(event.getEntity().getUniqueId())!=null) {
+        IceMinion deadMinion=encounter.minions.remove(event.getEntity().getUniqueId());
+        if(deadMinion!=null) {
+            if(deadMinion.model!=null)deadMinion.model.remove();
             event.getDrops().clear();event.setDroppedExp(0);return;
         }
         if(!event.getEntity().equals(encounter.body))return;
         event.getDrops().clear();event.setDroppedExp(0);encounter.defeated=true;
+        announceEvent("defeat",encounter.origin,0,"");
         bossEffect(event.getEntity().getLocation(),"death",Sound.ENTITY_ENDER_DRAGON_DEATH);
         encounter.recipients=encounter.participation.finish();
-        encounter.model.remove();encounter.hitbox.remove();encounter.bar.removeAll();
+        clearIcefall(encounter);encounter.model.remove();encounter.hitbox.remove();encounter.bar.removeAll();
         removeYeti(encounter.mother);encounter.mother=null;
         victory(encounter);
     }
@@ -850,35 +1453,42 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             e.retryReward=tick+200;getLogger().severe("Reward save failed; encounter rewards will retry: "+ex.getMessage());return;
         }
         if(!e.recipients.isEmpty()) {
-            ItemStack sword=sword();
-            e.origin.getWorld().dropItemNaturally(e.last,sword);
+            frostItems.loot(e.last);
             for(UUID id:e.recipients) {
                 try { pets.unlock(id); } catch(ReflectiveOperationException ex) { getLogger().warning("Yeti unlock queued for "+id); }
                 Player p=Bukkit.getPlayer(id);if(p!=null)claim(p);
             }
             if(getConfig().getBoolean("snowfall.enabled"))snowUntil=tick+getConfig().getInt("snowfall.duration-seconds")*20L;
-            Bukkit.broadcastMessage(prefix()+ChatColor.AQUA+"The Giant Yeti was defeated! Participants earned a Baby Yeti and XP. Frostfang is on the ground!");
+            Bukkit.broadcastMessage(prefix()+ChatColor.AQUA+"The Cyborg Father Yeti was defeated! Participants earned a Baby Yeti and XP. Loot is on the ground!");
         }
+        finishVisits(e,30);
         stop(false);
     }
-    private ItemStack sword() {
-        ItemStack sword=new ItemStack(Material.NETHERITE_SWORD);ItemMeta meta=sword.getItemMeta();
-        meta.setItemModel(new NamespacedKey("yetiboss","frostfang"));
-        meta.setDisplayName(ChatColor.translateAlternateColorCodes('&',getConfig().getString("rewards.sword.name","&bFrostfang")));
-        meta.setLore(List.of(ChatColor.AQUA+"Frost Strike",ChatColor.GRAY+"Hits can briefly slow your target."));
-        meta.getPersistentDataContainer().set(swordKey,PersistentDataType.BYTE,(byte)1);
-        int level=getConfig().getInt("rewards.sword.damage-enchantment-level");
-        if(level>0)meta.addEnchant(Enchantment.SHARPNESS,level,false);
-        sword.setItemMeta(meta);return sword;
+    private void finishVisits(Encounter e,int seconds) {
+        if(returnTrips==null)return;
+        try {returnTrips.finish(e.id,System.currentTimeMillis()+seconds*1000L);}
+        catch(IOException ex){getLogger().severe("Could not schedule return teleports: "+ex.getMessage());}
     }
-    private ItemStack frostGear(String kind) {
-        if(kind.equals("frostfang"))return sword();
-        ItemStack item=new ItemStack(kind.equals("frostbow")?Material.BOW:Material.NETHERITE_PICKAXE);
-        ItemMeta meta=item.getItemMeta();
-        meta.setItemModel(new NamespacedKey("yetiboss",kind));
-        meta.setDisplayName(ChatColor.AQUA+(kind.equals("frostbow")?"Frost Bow":"Glacier Pickaxe"));
-        item.setItemMeta(meta);return item;
+    private void returnVisitors() {
+        if(returnTrips==null)return;
+        for(var entry:returnTrips.ready(System.currentTimeMillis()).entrySet()) {
+            UUID id=entry.getKey();ReturnTrips.Trip trip=entry.getValue();Player player=Bukkit.getPlayer(id);World world=Bukkit.getWorld(trip.world());
+            if(player==null||player.isDead()||world==null||!travelPending.add(id))continue;
+            Location at=new Location(world,trip.x(),trip.y(),trip.z(),trip.yaw(),trip.pitch());
+            player.teleportAsync(at).whenComplete((success,error)->{
+                if(!isEnabled())return;
+                Bukkit.getScheduler().runTask(this,()->{
+                    travelPending.remove(id);
+                    if(error==null&&Boolean.TRUE.equals(success)) {
+                        try{returnTrips.remove(id,trip);}catch(IOException ex){getLogger().warning("Could not clear return location: "+ex.getMessage());}
+                        if(player.isOnline())player.sendMessage(prefix()+"Returned to your original location.");
+                    }
+                });
+            });
+        }
     }
+    boolean modelHitbox(Entity entity) {return encounter!=null&&(entity.equals(encounter.hitbox)||(encounter.mother!=null&&entity.equals(encounter.mother.hitbox)));}
+    private ItemStack frostGear(String kind) {return frostItems.create(kind);}
     private void claim(Player player) {
         UUID id=player.getUniqueId();if(!ledger.hasYeti(id))return;
         try {
@@ -904,37 +1514,89 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         for(Entity entity:event.getChunk().getEntities())cleanupStale(entity);
     }
     @EventHandler public void chunkUnload(ChunkUnloadEvent event) {
-        if(encounter!=null&&encounter.body.getLocation().getChunk().equals(event.getChunk())) {stop(true);return;}
+        if(encounter!=null&&encounter.body.getLocation().getChunk().equals(event.getChunk())) {stop(true,"boss chunk unloaded despite its ticket");return;}
         if(encounter!=null&&encounter.mother!=null&&encounter.mother.body.getLocation().getChunk().equals(event.getChunk())) {
             removeYeti(encounter.mother);encounter.mother=null;
         }
         if(encounter!=null)for(IceMinion minion:new ArrayList<>(encounter.minions.values()))
             if(minion.mob.getLocation().getChunk().equals(event.getChunk())) {
-                minion.mob.remove();encounter.minions.remove(minion.mob.getUniqueId());
+                if(minion.model!=null)minion.model.remove();minion.mob.remove();encounter.minions.remove(minion.mob.getUniqueId());
             }
     }
-    private void stop(boolean announce) {
+    private void stop(boolean announce) {stop(announce,announce?"encounter stopped":"server shutdown or cleanup");}
+    private void stop(boolean announce,String reason) {
         Encounter e=encounter;encounter=null;
-        if(e==null)return;
+        if(e==null){releaseEncounterChunks();return;}
+        if(!e.defeated)finishVisits(e,0);
         removeYeti(e);removeYeti(e.mother);
-        for(IceMinion minion:e.minions.values())minion.mob.remove();
+        for(IceMinion minion:e.minions.values()){if(minion.model!=null)minion.model.remove();minion.mob.remove();}
         e.minions.clear();
         for(Player player:Bukkit.getOnlinePlayers()) player.hideEntity(this,e.model);
         for(IceShot shot:shots.values()) { shot.entity.remove();if(shot.visual!=null)shot.visual.remove(); }shots.clear();
-        if(announce)Bukkit.broadcastMessage(prefix()+"The Giant Yeti encounter ended without rewards.");
+        if(!e.defeated){getLogger().info("Encounter ended: "+reason);announceEvent("despawn",e.origin,0,reason);}
+        releaseEncounterChunks();
     }
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args) {
+        if(args.length>0&&args[0].equalsIgnoreCase("join")) {
+            if(!(sender instanceof Player player)){sender.sendMessage("Use this command in-game.");return true;}
+            if(args.length!=2||encounter==null||encounter.defeated||!encounter.id.toString().equals(args[1])) {
+                player.sendMessage(prefix()+"That Yeti encounter is no longer active.");return true;
+            }
+            if(player.isDead()){player.sendMessage(prefix()+"Respawn before joining the encounter.");return true;}
+            if(!travelPending.add(player.getUniqueId()))return true;
+            ReturnTrips.Trip previous=returnTrips.get(player.getUniqueId());
+            if(previous!=null&&(!previous.encounter().equals(encounter.id)||previous.due()>0)) {
+                travelPending.remove(player.getUniqueId());player.sendMessage(prefix()+"Your return to the previous location is still pending.");return true;
+            }
+            Location from=player.getLocation();Encounter visit=encounter;
+            try {returnTrips.remember(player.getUniqueId(),new ReturnTrips.Trip(visit.id,from.getWorld().getUID(),from.getX(),from.getY(),from.getZ(),from.getYaw(),from.getPitch(),0));}
+            catch(IOException ex){travelPending.remove(player.getUniqueId());player.sendMessage(prefix()+"Could not save your return location; teleport cancelled.");getLogger().warning(ex.getMessage());return true;}
+            ReturnTrips.Trip saved=returnTrips.get(player.getUniqueId());
+            player.teleportAsync(visit.origin.clone()).whenComplete((success,error)->{
+                if(!isEnabled())return;
+                Bukkit.getScheduler().runTask(this,()->{
+                    travelPending.remove(player.getUniqueId());
+                    if(error!=null||!Boolean.TRUE.equals(success)) {
+                        if(previous==null)try{returnTrips.remove(player.getUniqueId(),saved);}catch(IOException ex){getLogger().warning(ex.getMessage());}
+                        if(player.isOnline())player.sendMessage(prefix()+"Teleport could not be completed.");
+                    } else {
+                        if(player.isOnline())player.sendMessage(prefix()+"Your original location is saved. You will return 30 seconds after the boss is defeated.");
+                        if(encounter!=visit)try{returnTrips.finish(visit.id,System.currentTimeMillis()+30000);}catch(IOException ex){getLogger().warning(ex.getMessage());}
+                    }
+                });
+            });
+            return true;
+        }
         if(!sender.hasPermission("yetiboss.admin"))return true;
         if(args.length==2&&args[0].equalsIgnoreCase("give")) {
             String kind=args[1].toLowerCase(Locale.ROOT);
             if(!(sender instanceof Player player)) {sender.sendMessage("Use this command in-game.");return true;}
-            if(!List.of("frostfang","frostbow","frostpickaxe").contains(kind))return false;
+            if(!List.of("frostfang","frostbow","frostpickaxe","frostbomb","frostbite_book").contains(kind))return false;
             for(ItemStack leftover:player.getInventory().addItem(frostGear(kind)).values())
                 player.getWorld().dropItemNaturally(player.getLocation(),leftover);
             requestBossPack(player);return true;
         }
         if(args.length!=1)return false;
         switch(args[0].toLowerCase(Locale.ROOT)) {
+            case "damagecheck" -> {
+                damageDebug=!damageDebug;damageDebugLines=0;
+                sender.sendMessage(prefix()+"Damage diagnostics "+(damageDebug?"enabled; let Mother or a Snow Golem hit you, then check the server console.":"disabled."));
+                if(sender instanceof Player player) {
+                    sender.sendMessage(prefix()+"World difficulty: "+player.getWorld().getDifficulty()+" | Mode: "+player.getGameMode()+" | Invulnerable: "+player.isInvulnerable()
+                        +" | No-damage ticks: "+player.getNoDamageTicks()+" | Effects: "+player.getActivePotionEffects());
+                    if(encounter!=null)sender.sendMessage(prefix()+"Eligible in arena: "+eligible(player,encounter.origin,getConfig().getDouble("boss.arena-radius")));
+                }
+                getLogger().info("Damage diagnostics "+damageDebug+"; enabled plugins: "+Arrays.stream(getServer().getPluginManager().getPlugins()).filter(p->p.isEnabled()).map(p->p.getName()+" "+p.getDescription().getVersion()).toList());
+            }
+            case "setspawn" -> {
+                if(!(sender instanceof Player player)){sender.sendMessage("Set the arena in-game.");return true;}
+                Location at=player.getLocation().clone();at.setPitch(0);
+                if(!spawnGroundReady(at)){sender.sendMessage(prefix()+"Stand on solid ground in an open arena.");return true;}
+                getConfig().set("schedule.world",at.getWorld().getName());
+                getConfig().set("schedule.x",at.getX());getConfig().set("schedule.y",at.getY());getConfig().set("schedule.z",at.getZ());
+                getConfig().set("schedule.yaw",at.getYaw());getConfig().set("schedule.enabled",true);saveConfig();
+                sender.sendMessage(prefix()+"Automatic spawn search world saved; ice biome scheduling enabled. Next spawn: "+java.time.Instant.ofEpochMilli(spawnSchedule.next()));
+            }
             case "spawn" -> {
                 if(encounter!=null) { sender.sendMessage(prefix()+"An encounter is already active.");return true; }
                 if(!(sender instanceof Player p)) { sender.sendMessage("Spawn in-game.");return true; }
@@ -963,9 +1625,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 stop(true);sender.sendMessage(prefix()+"Encounter stopped.");
             }
             case "status" -> {
+                sender.sendMessage(prefix()+"Automatic spawns: "+getConfig().getBoolean("schedule.enabled")+" | Next slot: "+java.time.Instant.ofEpochMilli(spawnSchedule.next()));
                 sender.sendMessage(prefix()+(encounter==null?"No active Yeti.":"Health: "+Math.ceil(encounter.body.getHealth())+
                     " | Mother: "+(encounter.mother==null?"absent":Math.ceil(encounter.mother.body.getHealth())+" HP")+" | Summons: "+encounter.minions.size()+" | Participants: "+encounter.participation.size()+" | Phase: "+(encounter.enraged?"enraged":"normal")+
-                    " | Model: "+(encounter.customVisible?"Giant Yeti":"visible golem fallback")));
+                    " | Model: "+(encounter.customVisible?"Cyborg Father Yeti":"visible golem fallback")));
                 if(sender instanceof Player player)sender.sendMessage(prefix()+"Your boss pack: "+
                     packStates.getOrDefault(player.getUniqueId(),"not requested"));
             }
@@ -986,31 +1649,39 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     @Override public List<String> onTabComplete(CommandSender sender,Command command,String alias,String[] args) {
         if(!sender.hasPermission("yetiboss.admin"))return List.of();
         if(args.length==2&&args[0].equalsIgnoreCase("give"))
-            return List.of("frostfang","frostbow","frostpickaxe").stream().filter(s->s.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
+            return List.of("frostfang","frostbow","frostpickaxe","frostbomb","frostbite_book").stream().filter(s->s.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
         if(args.length!=1)return List.of();
-        return List.of("spawn","stop","status","reload","give").stream().filter(s->s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        return List.of("spawn","setspawn","stop","status","reload","give","damagecheck").stream().filter(s->s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
     }
     private record IceShot(Snowball entity,BlockDisplay visual,long created,Attack attack,LivingEntity caster,double damage,double knockback,int slow) {}
     private record Hit(UUID player,org.bukkit.util.Vector direction,double knockback,int slow) {}
     private static final class IceMinion {
+        ItemDisplay model;Location last;float yaw;double phase;long strikeStarted=-100,hurtStarted=-100,spawnStarted=-100,poseStarted;String nativePose="",pose="ice_warden";
         final Mob mob;final boolean warden;long nextAttack,nextShot;int remaining;
         IceMinion(Mob mob,boolean warden,long nextAttack) {this.mob=mob;this.warden=warden;this.nextAttack=nextAttack;}
     }
     private static final class Encounter {
-        final UUID id=UUID.randomUUID();final IronGolem body,hitbox;final ItemDisplay model;
+        final UUID id=UUID.randomUUID();final IronGolem body;final Slime hitbox;final ItemDisplay model;
+        float visualYaw;long lastWalkTick;
         final Location origin;Location last,aim;org.bukkit.util.Vector direction;
         final long started;long lastPlayers,nextAttack,releaseTick,nextShot,retryReward,nextRetarget,windupStarted;
-        final ThresholdSummon wardenTrigger=new ThresholdSummon(),motherTrigger=new ThresholdSummon(.5);
+        final CombatPressure pressure=new CombatPressure();
+        final ThresholdSummon wardenTrigger=new ThresholdSummon(),motherTrigger=new ThresholdSummon(.7);
         Encounter mother;long nextMotherAttempt;final String name,modelPrefix;final double maximumHealth,modelScale;
         final Map<UUID,IceMinion> minions=new HashMap<>();
         long nextWardenAttempt,grabStarted;UUID grabbed;Location grabLanding;
         final AttackSelector selector=new AttackSelector();final Participation participation=new Participation();
-        final BossBar bar=Bukkit.createBossBar("Giant Yeti",BarColor.BLUE,BarStyle.SEGMENTED_10);
+        final BossBar bar=Bukkit.createBossBar("Cyborg Father Yeti",BarColor.BLUE,BarStyle.SEGMENTED_10);
         Attack pending,recovery;long recoveryStarted,recoveryUntil,nextGrowl,voiceUntil,nextHurtSound;UUID target,chaseTarget;boolean enraged,defeated,customVisible;int barrageRemaining;
+        long chargeUntil,comboNext,waveStarted;int comboRemaining;boolean comboExecuting;
+        long whirlStarted=-1,icefallStarted=-1;double whirlHealed;int icefallWaves,icefallSpawned;
+        final List<FallingIce> fallingIce=new ArrayList<>();final Set<UUID> icefallHits=new HashSet<>();
+        boolean flightUsed;long flightStarted=-1;Location flightGround;double flightHeight,flightHealed;
+        Location waveOrigin;final Set<UUID> chargeHits=new HashSet<>(),waveHits=new HashSet<>();
         double walk;String modelName="giant_yeti";Set<UUID> recipients=Set.of();
         final Set<UUID> warned=new HashSet<>();
-        Encounter(IronGolem body,ItemDisplay model,IronGolem hitbox,Location origin,long tick,String name,double maximumHealth,String modelPrefix,double modelScale) {
-            this.modelPrefix=modelPrefix;this.modelName=modelPrefix;this.modelScale=modelScale;this.name=name;this.maximumHealth=maximumHealth;this.body=body;this.model=model;this.hitbox=hitbox;this.origin=origin;last=origin.clone();started=tick;lastPlayers=tick;
+        Encounter(IronGolem body,ItemDisplay model,Slime hitbox,Location origin,long tick,String name,double maximumHealth,String modelPrefix,double modelScale) {
+            this.modelPrefix=modelPrefix;this.modelName=modelPrefix;this.modelScale=modelScale;this.name=name;this.maximumHealth=maximumHealth;this.body=body;this.model=model;this.hitbox=hitbox;this.origin=origin;last=origin.clone();visualYaw=origin.getYaw();lastWalkTick=tick;started=tick;lastPlayers=tick;
         }
     }
 }

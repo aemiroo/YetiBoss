@@ -196,3 +196,105 @@ All three items have new darker forged metal, stitched leather wraps, pale rime 
 Rebuilds all three items from the approved concept sheet: Frostfang has a long dark fuller, cyan rune panels, jagged ice edges, hooked guard and faceted jewels; Glacier Pickaxe has a downward-curved two-sided head, socket jewel, decorated wrapped haft and silver collars; Frost Bow has stepped recurve limbs, crystal clusters, metallic reinforcement, a jewel-trimmed central grip, connected string and three nocked-arrow draw stages.
 
 The models use native cuboids and legal 45-degree diamond accents, with matching textures and 64px geometry-derived Bedrock icons. First/third-person grip anchors remain shared across Java and Bedrock. All gear IDs and commands remain compatible. Update both packs and the plugin for the new pack hash, then restart and reconnect. This release remodels the visuals; the previously planned bow/mining/loot mechanics are still pending.
+
+
+## 0.8.0 — Yeti combat overhaul
+
+Cyborg Father Yeti now uses a distance-driven knuckle gait and a bounding gallop during his telegraphed charge. His melee sequence performs two swipes 14 ticks apart, then a slam 18 ticks later. Slams send an expanding, jumpable frost ring out to 12 blocks; each ring and charge hits each player at most once. At half health, reactor sparks, faster attack cadence, longer/faster charges and stronger frost rings intensify the fight.
+
+Both Yetis now lift and throw a grabbed player instead of slamming them downward. The randomized 5–15 block distance is estimated for level ground; walls, elevation, water and player movement affect actual travel. Existing grab cancellation and cleanup rules remain. Mother Yeti retains her exact model, textures and animation assets.
+
+The idle bow carry pose has been retuned from the in-game screenshot. Actions run titles include version 0.8.0 and the commit description. Schema 9 adds charge settings and updates only the previous default global cooldown. Validate bow carrying/shooting in both hands, terrain collision during charge, throw distances and fight balance on the actual server before using this draft for an event.
+
+### Ice Warden appearance (0.8.7)
+The summoned Ice Warden uses an original ice-armored sentinel model with crystal horns, a luminous chest core, and a 24-frame distance-driven walk. Its native Warden combat is retained. Mixed resource-pack readiness uses the vanilla Warden fallback. Father and Mother assets are unchanged.
+
+### Sculpted Yeti silhouettes (0.8.8)
+Father and Mother now have faceted shoulders, heads, hands and limbs, tapered torsos, and layered fur edges. Existing palettes, connected horns, Father machinery and all animation rigs are retained. Ice Warden assets and combat are unchanged.
+
+### Cyborg body repair (0.8.9)
+Closed the Father torso seam, joined the hips and shoulders with a continuous inner torso, removed loose Father fur tufts, and gave the mechanical half a solid steel shell. Model displays stay upright regardless of their underlying mob look pitch. Mother geometry is unchanged.
+
+### Ice Warden animations (0.8.10)
+Added idle breathing, an emerge entrance, two-arm melee follow-through, hit recoil, and native roar/sniff pose animations. Melee animation triggers on accepted damage; hit recoil triggers when the minion takes damage. These poses replace walking temporarily and settle back to the movement cycle. Native damage and attack cadence are retained.
+
+### Reactor sonic boom and face repair (0.8.11)
+Father has solid skull backing and aligned organic/cyborg eyes. Added a Father-only sonic boom at 6–16 blocks: a 45-tick warned charge, locked firing line, wall-blocked beam, 12 damage and knockback, with a 280-tick cooldown. Weight, timing, damage and knockback are configurable; schema 10 adds missing defaults while preserving custom settings.
+
+### Automatic events and Discord (0.8.12)
+1. Install the new JAR, restart, and stand in an open boss arena.
+2. Run `/yetiboss setspawn` to save the location and enable the default three-hour schedule.
+3. Set `discord.enabled: true` and `discord.webhook-url` to your Discord channel webhook URL in `plugins/YetiBoss/config.yml`.
+4. Run `/yetiboss reload` while no encounter is active. `/yetiboss status` shows the next scheduled slot in UTC.
+
+Warnings default to 15 and 5 minutes before spawning, in Minecraft and Discord. Webhook embeds also announce manual/scheduled spawns, defeat, despawn and skipped slots. Templates support `{event}`, `{minutes}`, `{location}`, `{reason}`, `{next_spawn}` and `\n`; Discord displays next-spawn timestamps in each viewer's timezone. Events can be toggled under `discord.events`. Delivery is asynchronous with a bounded queue and up to three attempts; failures never block combat.
+
+The schedule is saved in `spawn-schedule.properties`; do not delete it to preserve the timer. Restarting does not reset it. A due slot is skipped if an encounter is active, the world is unavailable, or the arena becomes obstructed. A server returning after downtime processes one due slot and advances to the next future slot, without catch-up bursts. The saved arena chunk is loaded at spawn time. Scheduling is opt-in through `setspawn` or `schedule.enabled`; webhook delivery remains disabled until configured. Changing the interval preserves the already pending slot and applies the new interval afterward.
+
+### Natural ice-biome test events (0.8.13)
+Automatic spawns now search for snowy plains, ice spikes, frozen peaks or snowy slopes around a randomly selected overworld player (world spawn when empty). The biome lookup is bounded by `schedule.search-radius` (4096 blocks by default); the selected chunk loads asynchronously. The boss spawns only on a matching biome surface with solid ground, sufficient headroom, room inside the world border and no nearby living entity. Unsafe/missing biomes skip that slot and announce the reason; no biome fallback is used.
+
+This upgrade enables automatic spawning, sets the temporary interval to **5 minutes**, resets the saved pending timer, and uses **2-minute and 1-minute warnings**. Subsequent restarts preserve the timer. `schedule.world: ''` selects the first overworld; an existing world setting selects that overworld. `/yetiboss setspawn` can select the search world; its coordinates no longer fix the boss location. Manual `/yetiboss spawn` remains available for admin testing. Set `schedule.interval-hours: 3.0` and `schedule.warning-minutes: [15, 5]` to restore production timing. Current pending slots retain their time when reloading interval changes.
+
+### Webhook message replacement (0.8.14)
+Warnings use `{minute_unit}` to render `1 minute` and `2 minutes`; the old `{minutes} minutes` template is migrated automatically. After a new announcement succeeds, YetiBoss deletes its preceding tracked webhook announcement. IDs are saved across restarts in `webhook-messages`; webhook URLs/tokens are not stored there. Failed sends retain the previous message, and failed deletions are retried on subsequent announcements. Messages from older versions lack stored IDs and cannot be deleted automatically.
+
+### Nose seam repair (0.8.15)
+Father’s organic and steel muzzle halves now meet flush across the full front surface. The seam remains closed across all 81 animation poses. Mother, Ice Warden, combat and schedule settings are unchanged.
+
+### Rear head closure (0.8.16)
+Father’s seam-facing facets retain their full cross section, closing the rear skull and crown between the organic and mechanical halves. Outer silhouette facets remain shaped. All 81 poses are checked for rear and top surface coverage.
+
+### Encounter chunk lifetime (0.8.17)
+Plugin chunk tickets keep the boss, Mother and minions loaded even when automatic ice-biome spawning selects an area outside player view distance. Tickets cover neighboring chunks and follow moving entities; all are released when the encounter ends or the plugin shuts down. Existing idle, duration and leash limits still apply. The server log now records the reason for an unexpected removal, idle timeout, duration limit, leash exit, chunk unload or admin stop.
+
+### Nearby spawns and stronger proportions (0.8.19)
+Automatic spawns now try up to 64 safe surface locations in an ice biome, 64–256 blocks horizontally from an online survival/adventure player. They stay at least 64 blocks from every nearby player and the previous spawn in that world. The previous location is saved across reloads and restarts, including manual spawns. If no suitable new spot is found, the scheduled slot is skipped. Configure `schedule.minimum-player-distance`, `schedule.maximum-player-distance`, and `schedule.previous-spawn-distance`; the old search radius no longer controls spawn distance. The five-minute test interval is unchanged.
+
+Father now has a deeper chest, wider abdomen and hips, and thicker shoulders and forearms. Mother has a fuller torso, waist and arms, preserving her palette and horns. Existing animation pivots and repaired face/body seams are retained.
+
+### Frost loot and equipment overhaul (0.9.0)
+Every kill with a qualifying participant independently rolls: Frostfang 20% (1), Frost Bow 15% (1), Glacier Pickaxe 15% (1), Frost Bombs 30% (2–4), Frostbite I book 10% (1), diamonds 75% (2–5), emeralds 100% (8–16), packed ice 100% (16–32), blue ice 50% (4–8), netherite scrap 15% (1–2), enchanted golden apple 5% (1). Loot is shared ground drops. Each participant still receives 3,000 XP and the Baby Yeti unlock. Despawns do not award loot. Existing configs receive the new `loot` and `items` settings automatically.
+
+Frostfang's fifth successful hit (at most one stack per half-second) against the same target triggers 4 bonus damage and a 2-second strong slow, with a 4-second cooldown; stacks expire after 5 seconds. Fully charged Frost Bow arrows produce a 3-block burst for 4 damage and a 3-second slow, with a 3-second cooldown. Right-click a Frost Bomb to launch an ice projectile, consuming one outside creative mode; it bursts for 5 damage in a 3-block radius and slows for 3 seconds, with a 3-second throw cooldown. Bonus damage is fixed and does not multiply with Sharpness or Power. Damage uses normal damage events and armor; cancelled damage does not apply slow.
+
+Sneak-mining with the Glacier Pickaxe breaks up to eight extra blocks in the face plane. It uses the player's normal block-breaking path, respecting cancelled breaks, tool requirements, drops, Fortune and Silk Touch. Containers, unbreakable blocks, out-of-border blocks and unloaded neighbors are excluded. Each successful extra block has an additional durability cost of 1; default cooldown is 10 seconds.
+
+Apply Frostbite books in an anvil for levels I–III. Equal levels combine up to III; lower books do not downgrade gear. Each level adds 1 sword bonus damage and 0.5 seconds of sword slow, adds 1 second of bow slow, or subtracts 1 second from pickaxe cooldown. All three allow Unbreaking and Mending. Sword also allows Sharpness and Looting (no Fire Aspect or Knockback); bow allows Power (no Flame, Punch or Infinity); pickaxe allows Efficiency and Fortune OR Silk Touch. Only this custom enchant is supported, and only on the three special gear items. Anvils reject forbidden combinations and abilities reject invalid equipment at runtime. Enchantment-table rolls containing forbidden enchantments are cancelled without applying them.
+
+Use `/yetiboss give frostfang|frostbow|frostpickaxe|frostbomb|frostbite_book` for testing. Existing tagged Frostfang swords receive the new stack ability; old untagged admin bows/pickaxes need replacement. Model names and weapon orientations remain unchanged; Frost Bomb gets a new Java/Bedrock model. All loot probabilities and ability values are configurable. Live protection-plugin, anvil, durability and combat balance checks remain necessary.
+
+### Frost Bomb interaction repair (0.9.2)
+Frost Bomb throws now inspect the item-use result independently of the block-use result. Right-click air can deny block interaction without denying item use; ignoring those events let vanilla snowballs launch without registering an explosion. Item-use denial from protection plugins remains respected. Test `/yetiboss give frostbomb` by throwing at ground and a hostile mob on Normal difficulty.
+
+### Announcement teleport return (0.9.3)
+Clicking the spawn announcement saves the player's first original world, precise coordinates and facing before teleporting. Repeated clicks cannot replace that origin. After defeat, visitors return after 30 seconds so they can collect ground loot. Offline or dead visitors return when next online/alive; saved origins survive restarts, and interrupted encounters recover on startup. Failed or cancelled return teleports retain the destination for retry. Despawn/admin stop also schedules a return. Players who travel to the boss themselves are unaffected.
+
+### Combat buff (0.9.4)
+Father rises from 700 to 1,000 HP and moves faster; Mother rises from 175 to 350 HP at default settings. Their primary attacks hit about 30–67% harder, with shorter reuse cooldowns. Enrage adds 20% scripted damage and reduces attack reuse cooldowns by 20%. Wind-up durations, collision, armor, protection-plugin checks, throw distance, rewards and the test spawn schedule remain unchanged. Frost shockwaves hit harder. Evil Snow Golems rise from 25 to 40 HP, deal 4.5 rather than 3 damage, fire more often, and summon three at a time up to six. Ice Warden rises to 280 HP, 16 damage, faster movement and a 45-tick melee cooldown.
+
+Installing upgrades old default combat values automatically and retains customized values. `config-before-0.9.4.yml` preserves the previous settings. New enrage multipliers remain configurable. Test with the group on Normal difficulty and report fight duration, armor/loadout, and any unavoidable attack combinations before treating this as release balance.
+
+### Wide spawn search restored (0.9.5)
+Removed the 64–256 block player-distance requirement. Automatic events again locate an ice biome within `schedule.search-radius` (default 4,096 blocks) around an online player or world spawn when nobody is online. After locating the biome, a bounded asynchronous surface search tries up to 64 candidates across its surrounding area, still checking biome, safe open ground, world border and 64-block separation from the previous spawn. Old minimum/maximum player-distance keys are ignored. Combat buffs, five-minute testing schedule, loot and announcement return teleports are retained.
+
+### Damage, throws and retreat phase (0.9.6)
+Both Yetis gain roughly 33–50% more main-attack damage. Grab reach rises to 7.5 blocks and the throw targets a fixed 18 blocks on level ground. Its impulse is now queued after hit knockback, fixing the next-tick velocity overwrite that truncated throws; walls and terrain still affect travel.
+
+Father's one-time Phase 2 starts at 50% HP: 2 seconds ascending, 5 seconds hovering and regenerating up to 15% max HP, then 2 seconds descending. He remains damageable; summons continue fighting. A marked 8-block ring and warning precede his landing impact, followed by a 2-second recovery. Once entered, Phase 2 stays enraged even after healing. Flight height is capped by ceiling/build-height clearance, so enclosed arenas may have a low retreat. Configurable height, healing and landing damage/radius live under `attacks.flight-phase`; `attacks.throw-distance` controls the throw. Default-value damage migration backs up `config-before-0.9.6.yml` and preserves custom tuning. Test flight collision, throw distances, and group balance in-game.
+
+### 0.9.7 encounter rework
+Father now cycles through range-appropriate attack sequences; Mother prioritizes barrage, roar and grabs. Both respect configured weights (zero disables), individual cooldowns and range checks. Barrages are available before enrage. Mother arrives at 70% HP to apply pressure before Father's existing half-health flight. Both Yetis use swipe/swipe/slam combinations; finishers leave 1.8 seconds of recovery with 25% increased incoming damage.
+
+Yeti body attacks have a configurable 1.6 damage multiplier. Each accepted positive Yeti hit adds frost exposure (maximum five stacks); each existing stack increases subsequent Yeti damage by 8%. Eight seconds without a hit clears it. Minions do not build exposure. Normal armor, Protection, shields, immunity frames and protection-plugin cancellation remain in effect; there is no direct health subtraction. An actionbar shows exposure. Configuration schema 17 backs up old settings and adds the two multipliers without replacing custom damage values. Existing loot and flight healing remain.
+
+CI checks sequence cooldown/range enforcement and exposure expiry/cap. Actual difficulty against enchanted netherite requires live-server balancing; attack warnings and escape routes remain essential.
+
+### 0.9.8 — Icefall, Whirlwind and Father silhouette
+Father keeps his half-fur/half-machinery identity and connected antlers, with a broader chest/hips, layered organic shoulder fur, bevelled pauldron, cooling vents, thicker hip plates and emissive reactor strips. Eight rigged Whirlwind poses spread the arms; existing walk, slam and face-seam fixes remain. Mother geometry is unchanged. The custom-model damage proxy is now an invisible living cube around the torso (3.84 blocks wide/high, 1.152 blocks above the ground at default Father scale), rather than a tall narrow golem. The smaller native body covers feet. Hits on the proxy re-enter the body's normal damage events; attacks on horns/outstretched arms are deliberately excluded. Custom-model fallback and the Mother's scaled proxy use the same visibility rules.
+
+Icefall has a two-second casting warning followed by two waves (three after enrage). Each wave locks up to eight player positions and four adjacent spots; 1.5-block inner circles warn of direct hits and dotted three-block outer circles show splash. Ice hovers for 35 ticks, then accelerates down over 20 ticks. Waves are 60 ticks apart, so earlier impacts finish before new markers. One strongest hit per player per wave prevents overlapping circles from multiplying damage. Direct damage defaults to 55; splash to 18. Walls obstruct impact damage. Spots with less than three blocks of overhead clearance or no nearby ground are skipped. Displays do not place blocks or damage terrain and are removed on impact, stop, defeat and shutdown.
+
+Whirlwind warns for two seconds, spins for ten seconds within a 6.5-block radius, pushes players outward and applies at most one pulse per second. Healing is incremental, capped at 10% maximum HP per use (100 HP with default Father health), and Father remains damageable. Ranged damage can outpace healing; there is no separate stagger mechanic. Three seconds of recovery follow. Its 50-second cooldown and Icefall's 35-second cooldown start on cast selection. Both attacks occupy Father's action slot and cannot overlap each other or his flight; threshold flight/summons resume after an active special attack finishes. Mother and minions continue fighting.
+
+Special skill damage is the configured raw damage without enrage/pressure multipliers, to prevent accidental compounded one-shots. Normal armor, Protection, shields, immunity frames and protection-plugin cancellations apply. Accepted hits still build exposure for later ordinary attacks. Config schema 18 adds the skill sections and backs up the old configuration. Java and Bedrock packs include the new Father poses. Reinstall the Bedrock pack and both mappings if using GeyserDisplayEntity. Live-server verification of collision, shields, cramped terrain and animation interpolation remains necessary.

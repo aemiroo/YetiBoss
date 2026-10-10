@@ -1,13 +1,13 @@
 """Port our Java surface models to Bedrock attachables for GeyserDisplayEntity.
 
 The extension and its own resource pack are installed separately; neither is
-bundled here. All generated model/texture content remains original MIT content.
+bundled here. Imported third-party gear retains its original asset rights.
 """
 import json, struct, zlib, zipfile
-from build_pack import ROOT, MODELS, files as java_files
+from build_pack import ROOT, MODELS, WARDEN_MODELS, files as java_files
 
 from gear_model import GEAR_MODELS,GEAR_ITEMS,grip_point,icon as gear_icon
-PETS = MODELS+GEAR_MODELS
+PETS = MODELS+WARDEN_MODELS+GEAR_MODELS
 
 def encoded(value):
     return json.dumps(value, indent=2).encode()
@@ -38,6 +38,7 @@ def tga(colors):
 
 def geometry(pet, model, names):
     cubes = []
+    tile_size=64 if pet in GEAR_MODELS else 16
     glowing = []
     translate = model['display']['fixed']['translation']
     gear=pet in GEAR_MODELS
@@ -49,7 +50,7 @@ def geometry(pet, model, names):
             # Mirroring Java's X axis swaps east and west; north stays -Z.
             bedrock_face = {'east':'west','west':'east'}.get(face,face)
             tile = names.index(definition['texture'][1:])
-            uv[bedrock_face] = {'uv':[tile*16,0], 'uv_size':[16,16]}
+            uv[bedrock_face] = {'uv':[tile*tile_size,0], 'uv_size':[tile_size,tile_size]}
         destination = glowing if element.get('light_emission',0) else cubes
         cube={'origin':[gx-b[0]-translate[0],a[1]+translate[1]-gy,a[2]-gz+translate[2]],
                       'size':[b[i]-a[i] for i in range(3)],'uv':uv}
@@ -58,9 +59,12 @@ def geometry(pet, model, names):
             px,py,pz=rotation['origin']
             cube['pivot']=[gx-px-translate[0],py+translate[1]-gy,pz-gz+translate[2]]
             # Bedrock cube rotations use the opposite X rotation convention.
-            cube['rotation']=[-rotation['angle'] if rotation['axis']=='x' else 0,
-                              rotation['angle'] if rotation['axis']=='y' else 0,
-                              rotation['angle'] if rotation['axis']=='z' else 0]
+            if 'axis' in rotation:
+                cube['rotation']=[-rotation['angle'] if rotation['axis']=='x' else 0,
+                                  rotation['angle'] if rotation['axis']=='y' else 0,
+                                  rotation['angle'] if rotation['axis']=='z' else 0]
+            else:
+                cube['rotation']=[-rotation.get('x',0),rotation.get('y',0),rotation.get('z',0)]
         destination.append(cube)
     # The extension's geyser_z bone is at Y=8, with mapping y-offset=-0.5.
     # This keeps Java's item centre (and pumpkin's fixed translation) aligned.
@@ -69,7 +73,7 @@ def geometry(pet, model, names):
         bones.append({'name':'pet_light','parent':'pet','pivot':[0,8,0],'cubes':glowing})
     return {'format_version':'1.16.0','minecraft:geometry':[{
         'description':{'identifier':'geometry.yetiboss.'+pet,
-                       'texture_width':16*len(names),'texture_height':16,
+                       'texture_width':tile_size*len(names),'texture_height':tile_size,
                        'visible_bounds_width':3,'visible_bounds_height':3,
                        'visible_bounds_offset':[0,0.5,0]},
         'bones':bones}]}
@@ -98,13 +102,21 @@ def files():
     for pet in PETS:
         model = json.loads(source['assets/yetiboss/models/'+('gear' if pet in GEAR_MODELS else 'boss')+'/'+pet+'.json'])
         names = list(model['textures'])
-        colors = [pixels(source['assets/'+model['textures'][n].replace(':','/textures/')+'.png']) for n in names]
+        if pet in GEAR_MODELS:
+            from png_codec import decode,encode
+            tiles=[decode(source['assets/'+model['textures'][n].replace(':','/textures/')+'.png']) for n in names]
+            assert all(w==64 and h==64 for w,h,_ in tiles)
+            rgba=b''.join(b''.join(data[y*64*4:(y+1)*64*4] for _,_,data in tiles) for y in range(64))
+            result['textures/yetiboss/'+pet+'.png']=encode(64*len(tiles),64,rgba)
+            colors=[]
+        else:
+            colors = [pixels(source['assets/'+model['textures'][n].replace(':','/textures/')+'.png']) for n in names]
         if pet=='pumpkin':
             mask=[c[:3]+bytes([0 if n=='pumpkin_glow' else 255])
                   for n,c in zip(names,colors)]
             result['textures/yetiboss/'+pet+'.tga'] = tga(mask)
             result['textures/yetiboss/'+pet+'_icon.png'] = atlas(colors)
-        else:
+        elif pet not in GEAR_MODELS:
             result['textures/yetiboss/'+pet+'.png'] = atlas(colors)
         if pet in GEAR_MODELS:result['textures/yetiboss/'+pet+'_icon.png']=gear_icon(pet)
         result['models/entity/'+pet+'.geo.json'] = encoded(geometry(pet,model,names))
@@ -122,14 +134,14 @@ def files():
 def mappings():
     items={'minecraft:paper':[
         {'type':'definition','model':'yetiboss:'+pet,'bedrock_identifier':'yetiboss:'+pet,
-         'display_name':pet.title()+' Boss'} for pet in MODELS]}
+         'display_name':pet.title()+' Boss'} for pet in MODELS+WARDEN_MODELS]}
     for name,base in GEAR_ITEMS.items():
         items[base]=[{'type':'definition','model':'yetiboss:'+name,'bedrock_identifier':'yetiboss:'+name,
-                      'display_name':{'frostfang':'Frostfang','frostbow':'Frost Bow','frostpickaxe':'Glacier Pickaxe'}[name]}]
+                      'display_name':{'frostfang':'Frostfang','frostbow':'Frost Bow','frostpickaxe':'Glacier Pickaxe','frostbomb':'Frost Bomb'}[name]}]
     return {'format_version':2,'items':items}
 
 def display_mappings():
-    return 'mappings:\n'+''.join('  yetiboss_'+pet+':\n    type: "minecraft:paper"\n    item-identifier: "yetiboss:'+pet+'"\n    displayentityoptions:\n      y-offset: -0.5\n      vanilla-scale: false\n      vanilla-scale-multiplier: 1\n      hand: false\n' for pet in MODELS)
+    return 'mappings:\n'+''.join('  yetiboss_'+pet+':\n    type: "minecraft:paper"\n    item-identifier: "yetiboss:'+pet+'"\n    displayentityoptions:\n      y-offset: -0.5\n      vanilla-scale: false\n      vanilla-scale-multiplier: 1\n      hand: false\n' for pet in MODELS+WARDEN_MODELS)
 
 if __name__ == '__main__':
     target = ROOT/'target'

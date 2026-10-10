@@ -1,11 +1,11 @@
-schema-version: 7
+schema-version: 18
 prefix: '&b[Yeti] &7'
 boss:
-  name: 'Father Yeti'
-  health: 700.0
+  name: 'Cyborg Father Yeti'
+  health: 1000
   golem-scale: 1.0
   model-scale: 6.4
-  movement-speed: 0.24
+  movement-speed: 0.28
   arena-radius: 64.0
   leash-radius: 80.0
   idle-despawn-seconds: 180
@@ -13,80 +13,123 @@ boss:
 mother:
   enabled: true
   name: 'Mother Yeti'
-  # Summoned once at Father's 50% HP; her max HP is this fraction of Father's.
-  health-fraction: 0.25
+  # Summoned once at Father's 70% HP; her max HP is this fraction of Father's.
+  health-fraction: 0.35
   # Relative to Father; accepted range is 0.5 to below 1.0.
   size-multiplier: 0.75
 attacks:
+  icefall:
+    weight: 3
+    cooldown-ticks: 700
+    windup-ticks: 40
+    # Special damage is literal raw damage, without pressure/enrage multipliers.
+    damage: 55
+    splash-damage: 18
+    direct-radius: 1.5
+    splash-radius: 3.0
+    knockback: 0.8
+  whirlwind:
+    weight: 2
+    cooldown-ticks: 1000
+    windup-ticks: 40
+    damage: 18
+    radius: 6.5
+    knockback: 1.5
+    heal-fraction: 0.10
+  # Armor, Protection, shields and damage cancellation still apply.
+  pressure-damage-multiplier: 1.6
+  recovery-vulnerability: 1.25
+  sonic-boom:
+    weight: 3
+    cooldown-ticks: 220
+    windup-ticks: 45
+    damage: 26
+    knockback: 1.1
+  charge:
+    weight: 4
+    cooldown-ticks: 160
+    windup-ticks: 30
+    damage: 19
+    knockback: 1.2
   roar:
     weight: 2
-    cooldown-ticks: 260
+    cooldown-ticks: 220
     windup-ticks: 45
-    damage: 4.0
+    damage: 9
     radius: 7.0
     knockback: 0.9
     slow-ticks: 60
   grab-slam:
     weight: 2
-    cooldown-ticks: 240
+    cooldown-ticks: 200
     windup-ticks: 35
-    range: 5.0
-    damage: 14.0
+    range: 7.5
+    damage: 24
     knockback: 0.5
-  global-cooldown-ticks: 35
+  # Enrage buffs damage and attack reuse; readable wind-ups remain unchanged.
+  enrage-damage-multiplier: 1.2
+  enrage-cooldown-multiplier: 0.8
+  throw-distance: 18.0
+  flight-phase:
+    enabled: true
+    height: 16.0
+    heal-fraction: 0.15
+    landing-damage: 20.0
+    landing-radius: 8.0
+  global-cooldown-ticks: 20
   ice-ball:
     weight: 5
-    cooldown-ticks: 90
+    cooldown-ticks: 70
     windup-ticks: 25
-    damage: 6.0
-    speed: 1.3
+    damage: 11
+    speed: 1.5
     knockback: 0.6
     slow-ticks: 40
   swipe:
     weight: 4
-    cooldown-ticks: 60
+    cooldown-ticks: 50
     windup-ticks: 20
-    damage: 9.0
+    damage: 16
     range: 5.0
     knockback: 0.8
   slam:
     weight: 2
-    cooldown-ticks: 150
+    cooldown-ticks: 120
     windup-ticks: 40
-    damage: 12.0
+    damage: 22
     radius: 7.0
     knockback: 1.1
   barrage:
     weight: 3
-    cooldown-ticks: 220
+    cooldown-ticks: 180
     windup-ticks: 35
-    damage: 5.0
+    damage: 10
     speed: 1.4
     knockback: 0.5
     slow-ticks: 30
-    count: 4
+    count: 5
     interval-ticks: 10
   snow-golems:
     weight: 2
-    cooldown-ticks: 320
+    cooldown-ticks: 240
     windup-ticks: 40
 minions:
   snow-golems:
     enabled: true
-    maximum: 4
-    per-wave: 2
-    health: 25.0
-    barrage-count: 4
-    barrage-cooldown-ticks: 120
+    maximum: 6
+    per-wave: 3
+    health: 40
+    barrage-count: 5
+    barrage-cooldown-ticks: 90
     barrage-interval-ticks: 10
-    damage: 3.0
+    damage: 4.5
     slow-ticks: 60
   ice-warden:
     enabled: true
-    health: 200.0
-    damage: 12.0
-    movement-speed: 0.18
-    attack-cooldown-ticks: 60
+    health: 280
+    damage: 16
+    movement-speed: 0.22
+    attack-cooldown-ticks: 45
     slow-ticks: 60
 rewards:
   # XP points, not levels. Anyone who deals accepted positive damage participates.
@@ -108,3 +151,76 @@ resource-pack:
 bedrock:
   # Enable only after installing the boss Bedrock pack and both boss mappings.
   enabled: false
+
+# Natural ice-biome spawns. Five-minute interval for testing; set to 3.0 for production.
+schedule:
+  enabled: true
+  interval-hours: 0.08333333333333333
+  warning-minutes: [2, 1]
+  # Search for ice biomes in this wider radius; no nearby player is required.
+  # Previous spawn location persists across restarts.
+  previous-spawn-distance: 64
+  search-radius: 4096
+  world: ''
+  x: 0.0
+  y: 64.0
+  z: 0.0
+  yaw: 0.0
+  broadcast: true
+  messages:
+    warning: 'Cyborg Father Yeti spawns in {minutes} {minute_unit} at {location}.'
+    spawn: 'Cyborg Father Yeti has spawned at {location}!'
+    defeat: 'Cyborg Father Yeti was defeated at {location}!'
+    despawn: 'The Yeti encounter ended at {location}.'
+    skipped: 'The scheduled Yeti spawn was skipped: {reason}.'
+discord:
+  enabled: false
+  webhook-url: ''
+  title: 'YetiBoss — {event}'
+  events:
+    warning: true
+    spawn: true
+    defeat: true
+    despawn: true
+    skipped: true
+  messages:
+    warning: 'Spawn in **{minutes} {minute_unit}** at {location}.\nNext spawn: {next_spawn}'
+    spawn: '**Cyborg Father Yeti has appeared!**\nArena: {location}\nNext spawn: {next_spawn}'
+    defeat: '**Cyborg Father Yeti was defeated!**\nArena: {location}\nNext spawn: {next_spawn}'
+    despawn: 'Encounter ended at {location}.\nNext spawn: {next_spawn}'
+    skipped: 'Scheduled spawn skipped: {reason}\nNext spawn: {next_spawn}'
+
+# Independent rolls once per kill. Personal XP and pet rewards remain above.
+loot:
+  frostfang: {chance: 0.20, min: 1, max: 1}
+  frostbow: {chance: 0.15, min: 1, max: 1}
+  frostpickaxe: {chance: 0.15, min: 1, max: 1}
+  frostbomb: {chance: 0.30, min: 2, max: 4}
+  frostbite_book: {chance: 0.10, min: 1, max: 1}
+  diamond: {chance: 0.75, min: 2, max: 5}
+  emerald: {chance: 1.0, min: 8, max: 16}
+  packed_ice: {chance: 1.0, min: 16, max: 32}
+  blue_ice: {chance: 0.50, min: 4, max: 8}
+  netherite_scrap: {chance: 0.15, min: 1, max: 2}
+  enchanted_golden_apple: {chance: 0.05, min: 1, max: 1}
+items:
+  sword:
+    stacks: 5
+    stack-expiry-ticks: 100
+    cooldown-ticks: 80
+    bonus-damage: 4.0
+    slow-ticks: 40
+  bow:
+    cooldown-ticks: 60
+    radius: 3.0
+    damage: 4.0
+    slow-ticks: 60
+  bomb:
+    cooldown-ticks: 60
+    radius: 3.0
+    damage: 5.0
+    slow-ticks: 60
+  pickaxe:
+    cooldown-ticks: 200
+    level-reduction-ticks: 20
+    extra-durability: 1

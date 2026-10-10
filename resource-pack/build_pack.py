@@ -3,19 +3,23 @@ import base64,hashlib,json,math,pathlib,struct,zlib,zipfile
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 from gear_model import GEAR_MODELS, MATERIALS, model as gear_model, texture as gear_texture, item_definition
 from boss_model import model,mother_model,COLORS,texture_color
+from warden_model import model as warden_model, MATERIALS as WARDEN_MATERIALS, texture_color as warden_texture_color
+WARDEN_MODELS=("ice_warden",)+tuple("ice_warden_walk_"+str(i) for i in range(24))+tuple("ice_warden_"+kind+"_"+str(i) for kind in ("idle","hurt","emerge","roar","sniff","strike") for i in range(12 if kind=="strike" else 8))
 def png(name):
  def chunk(kind,data): return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
  rows=[]
  for y in range(16):
   row=bytearray()
   for x in range(16):
-   row.extend(list(texture_color(name,x,15-y))+[255])
+   row.extend(list(warden_texture_color(name,x,15-y) if name in WARDEN_MATERIALS else texture_color(name,x,15-y))+[255])
   rows.append(b'\0'+bytes(row))
  raw=b''.join(rows)
  return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',16,16,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
 SOUNDS=('idle','angry','spawn','death','hurt_1','hurt_2','grab_slam')
-FATHER_MODELS=('giant_yeti',)+tuple('giant_yeti_walk_'+str(i) for i in range(12))+tuple('giant_yeti_attack_'+str(i) for i in range(8))+tuple('giant_yeti_'+kind+'_'+str(i) for kind in ('swipe','throw','roar') for i in range(8))
-MODELS=FATHER_MODELS+tuple(name.replace('giant_yeti','mother_yeti') for name in FATHER_MODELS)
+FATHER_MODELS=('giant_yeti',)+tuple('giant_yeti_walk_'+str(i) for i in range(24))+tuple('giant_yeti_attack_'+str(i) for i in range(8))+tuple('giant_yeti_'+kind+'_'+str(i) for kind in ('swipe','throw','roar') for i in range(8))
+FATHER_MODELS+=tuple('giant_yeti_whirl_'+str(i) for i in range(8))
+FATHER_MODELS+=tuple('giant_yeti_gallop_'+str(i) for i in range(24))
+MODELS=FATHER_MODELS+tuple(name.replace('giant_yeti','mother_yeti') for name in FATHER_MODELS if '_whirl_' not in name and '_gallop_' not in name and ('_walk_' not in name or int(name.rsplit('_',1)[1])<12))
 def files():
  result={'pack.mcmeta':json.dumps({'pack':{'description':'YetiBoss - Father and Mother Yeti','min_format':[97,1],'max_format':[97,1]}}).encode(),
          'LICENSE.txt':b'Original YetiBoss model and textures: GPL-3.0. Audio clips supplied by the server owner; original audio rights remain with their respective creators.\n'}
@@ -24,9 +28,14 @@ def files():
   if name in ('giant_yeti','mother_yeti'):m=make()
   else:
    kind=name.split('_')[-2];index=int(name.rsplit('_',1)[1])
-   m=make(frame=index) if kind=='walk' else make(attack=index,kind='slam' if kind=='attack' else kind)
+   m=make(frame=index,kind=kind) if kind in ('walk','gallop') else make(attack=index,kind='slam' if kind=='attack' else kind)
   result['assets/yetiboss/models/boss/'+name+'.json']=json.dumps(m).encode()
   result['assets/yetiboss/items/'+name+'.json']=json.dumps({'model':{'type':'minecraft:model','model':'yetiboss:boss/'+name}}).encode()
+ for name in WARDEN_MODELS:
+  m=warden_model() if name=='ice_warden' else warden_model(int(name.rsplit('_',1)[1]),kind=name.rsplit('_',2)[1])
+  result['assets/yetiboss/models/boss/'+name+'.json']=json.dumps(m).encode()
+  result['assets/yetiboss/items/'+name+'.json']=json.dumps({'model':{'type':'minecraft:model','model':'yetiboss:boss/'+name}}).encode()
+ result['GEAR-SOURCES.txt']=(ROOT/'resource-pack/imported/SOURCES.md').read_bytes()
  for name in GEAR_MODELS:
   result['assets/yetiboss/models/gear/'+name+'.json']=json.dumps(gear_model(name)).encode()
   if '_pull_' not in name:result['assets/yetiboss/items/'+name+'.json']=json.dumps(item_definition(name)).encode()
