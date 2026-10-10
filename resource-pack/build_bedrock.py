@@ -137,7 +137,7 @@ def mappings():
          'display_name':pet.title()+' Boss'} for pet in MODELS+WARDEN_MODELS]}
     for name,base in GEAR_ITEMS.items():
         items[base]=[{'type':'definition','model':'yetiboss:'+name,'bedrock_identifier':'yetiboss:'+name,
-                      'display_name':{'frostfang':'Frostfang','frostbow':'Frost Bow','frostpickaxe':'Glacier Pickaxe'}[name]}]
+                      'display_name':{'frostfang':'Frostfang','frostbow':'Frost Bow','frostpickaxe':'Glacier Pickaxe','frostbomb':'Frost Bomb'}[name]}]
     return {'format_version':2,'items':items}
 
 def display_mappings():

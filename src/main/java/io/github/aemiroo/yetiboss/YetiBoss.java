@@ -47,6 +47,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private final Set<UUID> bossPackReady=new HashSet<>();
     private final Map<UUID,String> packStates=new HashMap<>();
     private byte[] bossPackHash;
+    private FrostItems frostItems;
     private SpawnSchedule spawnSchedule;
     private BossWebhook webhook;
     private boolean naturalSpawnSearch;
@@ -119,10 +120,16 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             }
             getConfig().set("schema-version",13);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<14) {
+            for(String key:getConfig().getDefaults().getKeys(true))
+                if(!getConfig().getDefaults().isConfigurationSection(key)&&(key.startsWith("loot.")||key.startsWith("items."))&&!getConfig().contains(key,true))getConfig().set(key,getConfig().getDefaults().get(key));
+            getConfig().set("schema-version",14);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
             validate(getConfig());
+            frostItems=new FrostItems(this);
             pets=new PetBridge(Objects.requireNonNull(getServer().getPluginManager().getPlugin("CosmeticPets")));
             ledger=new RewardLedger(getDataFolder().toPath().resolve("rewards.yml"));
             spawnSchedule=new SpawnSchedule(getDataFolder().toPath().resolve("spawn-schedule.properties"),System.currentTimeMillis(),spawnInterval());
@@ -150,6 +157,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         shots.clear();
     }
     private void validate(FileConfiguration c) {
+        FrostItems.validate(c);
         double hours=c.getDouble("schedule.interval-hours",5.0/60);
         double minimum=c.getDouble("schedule.minimum-player-distance",64),maximum=c.getDouble("schedule.maximum-player-distance",256),previous=c.getDouble("schedule.previous-spawn-distance",64);
         if(!Double.isFinite(minimum)||!Double.isFinite(maximum)||!Double.isFinite(previous)||minimum<16||maximum<=minimum||maximum>1024||previous<16||previous>1024)
@@ -1102,21 +1110,6 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(e!=null&&allied(event.getEntity())) {
             Player p=attacker(event.getDamager());if(p!=null)e.participation.damage(p.getUniqueId(),event.getFinalDamage());
         }
-        if(event.getDamager() instanceof Player p&&event.getEntity() instanceof LivingEntity victim) {
-            ItemStack item=p.getInventory().getItemInMainHand();ItemMeta meta=item.getItemMeta();
-            if(meta!=null&&meta.getPersistentDataContainer().has(swordKey,PersistentDataType.BYTE)
-                    &&tick>=swordCooldown.getOrDefault(p.getUniqueId(),0L)
-                    &&random.nextDouble()<getConfig().getDouble("rewards.sword.frost-chance")) {
-                swordCooldown.put(p.getUniqueId(),tick+getConfig().getInt("rewards.sword.frost-cooldown-ticks"));
-                // MONITOR does not alter the event. Apply the effect next tick.
-                Bukkit.getScheduler().runTask(this,()->{
-                    if(victim.isValid()&&!victim.isDead()) {
-                        victim.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS,getConfig().getInt("rewards.sword.slow-ticks"),1));
-                        victim.getWorld().spawnParticle(Particle.SNOWFLAKE,victim.getLocation().add(0,1,0),8,.3,.5,.3,0);
-                    }
-                });
-            }
-        }
     }
     @EventHandler public void projectileHit(ProjectileHitEvent event) {
         IceShot shot=shots.remove(event.getEntity().getUniqueId());if(shot==null) return;
@@ -1181,35 +1174,17 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             e.retryReward=tick+200;getLogger().severe("Reward save failed; encounter rewards will retry: "+ex.getMessage());return;
         }
         if(!e.recipients.isEmpty()) {
-            ItemStack sword=sword();
-            e.origin.getWorld().dropItemNaturally(e.last,sword);
+            frostItems.loot(e.last);
             for(UUID id:e.recipients) {
                 try { pets.unlock(id); } catch(ReflectiveOperationException ex) { getLogger().warning("Yeti unlock queued for "+id); }
                 Player p=Bukkit.getPlayer(id);if(p!=null)claim(p);
             }
             if(getConfig().getBoolean("snowfall.enabled"))snowUntil=tick+getConfig().getInt("snowfall.duration-seconds")*20L;
-            Bukkit.broadcastMessage(prefix()+ChatColor.AQUA+"The Cyborg Father Yeti was defeated! Participants earned a Baby Yeti and XP. Frostfang is on the ground!");
+            Bukkit.broadcastMessage(prefix()+ChatColor.AQUA+"The Cyborg Father Yeti was defeated! Participants earned a Baby Yeti and XP. Loot is on the ground!");
         }
         stop(false);
     }
-    private ItemStack sword() {
-        ItemStack sword=new ItemStack(Material.NETHERITE_SWORD);ItemMeta meta=sword.getItemMeta();
-        meta.setItemModel(new NamespacedKey("yetiboss","frostfang"));
-        meta.setDisplayName(ChatColor.translateAlternateColorCodes('&',getConfig().getString("rewards.sword.name","&bFrostfang")));
-        meta.setLore(List.of(ChatColor.AQUA+"Frost Strike",ChatColor.GRAY+"Hits can briefly slow your target."));
-        meta.getPersistentDataContainer().set(swordKey,PersistentDataType.BYTE,(byte)1);
-        int level=getConfig().getInt("rewards.sword.damage-enchantment-level");
-        if(level>0)meta.addEnchant(Enchantment.SHARPNESS,level,false);
-        sword.setItemMeta(meta);return sword;
-    }
-    private ItemStack frostGear(String kind) {
-        if(kind.equals("frostfang"))return sword();
-        ItemStack item=new ItemStack(kind.equals("frostbow")?Material.BOW:Material.NETHERITE_PICKAXE);
-        ItemMeta meta=item.getItemMeta();
-        meta.setItemModel(new NamespacedKey("yetiboss",kind));
-        meta.setDisplayName(ChatColor.AQUA+(kind.equals("frostbow")?"Frost Bow":"Glacier Pickaxe"));
-        item.setItemMeta(meta);return item;
-    }
+    private ItemStack frostGear(String kind) {return frostItems.create(kind);}
     private void claim(Player player) {
         UUID id=player.getUniqueId();if(!ledger.hasYeti(id))return;
         try {
@@ -1274,7 +1249,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(args.length==2&&args[0].equalsIgnoreCase("give")) {
             String kind=args[1].toLowerCase(Locale.ROOT);
             if(!(sender instanceof Player player)) {sender.sendMessage("Use this command in-game.");return true;}
-            if(!List.of("frostfang","frostbow","frostpickaxe").contains(kind))return false;
+            if(!List.of("frostfang","frostbow","frostpickaxe","frostbomb","frostbite_book").contains(kind))return false;
             for(ItemStack leftover:player.getInventory().addItem(frostGear(kind)).values())
                 player.getWorld().dropItemNaturally(player.getLocation(),leftover);
             requestBossPack(player);return true;
@@ -1342,7 +1317,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     @Override public List<String> onTabComplete(CommandSender sender,Command command,String alias,String[] args) {
         if(!sender.hasPermission("yetiboss.admin"))return List.of();
         if(args.length==2&&args[0].equalsIgnoreCase("give"))
-            return List.of("frostfang","frostbow","frostpickaxe").stream().filter(s->s.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
+            return List.of("frostfang","frostbow","frostpickaxe","frostbomb","frostbite_book").stream().filter(s->s.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
         if(args.length!=1)return List.of();
         return List.of("spawn","setspawn","stop","status","reload","give").stream().filter(s->s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
     }

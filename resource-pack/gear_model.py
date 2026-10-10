@@ -37,7 +37,7 @@ def color(name,x,y):
 def imported(name):
  base=name.split('_pull_')[0]
  return json.loads((_IMPORTED/(base+'.json')).read_text())
-def grip_point(name):return tuple(imported(name)['grip'])
+def grip_point(name):return (8,8,8) if name=='frostbomb' else tuple(imported(name)['grip'])
 def hand_pose(name,rotation,scale,target,left=False):
  # Anchor the physical grip to the vanilla holder's palm, before parent transforms.
  x,y,z=(v-8 for v in grip_point(name))
@@ -53,16 +53,22 @@ def hand_pose(name,rotation,scale,target,left=False):
  translation=[round(t-v*scale,6) for t,v in zip(target,(x,y,z))]
  if left:translation[0]=-translation[0]
  return {'rotation':rotation,'translation':translation,'scale':[scale]*3}
-GEAR_MODELS=('frostfang','frostbow','frostbow_pull_0','frostbow_pull_1','frostbow_pull_2','frostpickaxe')
-GEAR_ITEMS={'frostfang':'minecraft:netherite_sword','frostbow':'minecraft:bow','frostpickaxe':'minecraft:netherite_pickaxe'}
+GEAR_MODELS=('frostfang','frostbow','frostbow_pull_0','frostbow_pull_1','frostbow_pull_2','frostpickaxe','frostbomb')
+GEAR_ITEMS={'frostfang':'minecraft:netherite_sword','frostbow':'minecraft:bow','frostpickaxe':'minecraft:netherite_pickaxe','frostbomb':'minecraft:snowball'}
 def texture(name):
  if name in _IMPORTED_TEXTURES:return base64.b64decode(_IMPORTED_TEXTURES[name])
  def chunk(kind,data):return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
  def pixel(x,y):
-  return bytes(color(name,x,y))+b'\xff'
- raw=b''.join(b'\0'+b''.join(pixel(x,y) for x in range(16)) for y in range(16))
- return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',16,16,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
+  return bytes(color(name,x//4,y//4))+b'\xff'
+ raw=b''.join(b'\0'+b''.join(pixel(x,y) for x in range(64)) for y in range(64))
+ return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',64,64,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
 def model(name):
+ if name=='frostbomb':
+  es=[]
+  for a,b,mat in [((4,4,4),(12,12,12),'gear_ice'),((6,12,6),(10,13,10),'gear_steel'),((6.5,6.5,3.7),(9.5,9.5,4),'gear_gem')]:
+   es.append({'from':list(a),'to':list(b),'faces':{f:{'uv':[0,0,16,16],'texture':'#'+mat} for f in ('north','south','east','west','up','down')}})
+  return {'textures':{n:'yetiboss:gear/'+n for n in ('gear_ice','gear_steel','gear_gem')},'elements':es,
+   'display':{'gui':{'rotation':[20,30,0],'scale':[1,1,1]},'ground':{'rotation':[0,0,0],'translation':[0,3,0],'scale':[.45]*3},'fixed':{'rotation':[0,0,0],'translation':[0,0,0],'scale':[.8]*3},**{hand:hand_pose(name,[0,0,0],.55 if hand.startswith('thirdperson') else .65,(0,-2,1) if hand.startswith('thirdperson') else (1.13,-1.3,-.5),hand.endswith('lefthand')) for hand in ('thirdperson_righthand','thirdperson_lefthand','firstperson_righthand','firstperson_lefthand')}}}
  original=imported(name)
  es=copy.deepcopy(original['elements'])
  if '_pull_' in name:

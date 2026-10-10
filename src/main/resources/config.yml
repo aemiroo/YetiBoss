@@ -1,4 +1,4 @@
-schema-version: 13
+schema-version: 14
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Cyborg Father Yeti'
@@ -159,3 +159,38 @@ discord:
     defeat: '**Cyborg Father Yeti was defeated!**\nArena: {location}\nNext spawn: {next_spawn}'
     despawn: 'Encounter ended at {location}.\nNext spawn: {next_spawn}'
     skipped: 'Scheduled spawn skipped: {reason}\nNext spawn: {next_spawn}'
+
+# Independent rolls once per kill. Personal XP and pet rewards remain above.
+loot:
+  frostfang: {chance: 0.20, min: 1, max: 1}
+  frostbow: {chance: 0.15, min: 1, max: 1}
+  frostpickaxe: {chance: 0.15, min: 1, max: 1}
+  frostbomb: {chance: 0.30, min: 2, max: 4}
+  frostbite_book: {chance: 0.10, min: 1, max: 1}
+  diamond: {chance: 0.75, min: 2, max: 5}
+  emerald: {chance: 1.0, min: 8, max: 16}
+  packed_ice: {chance: 1.0, min: 16, max: 32}
+  blue_ice: {chance: 0.50, min: 4, max: 8}
+  netherite_scrap: {chance: 0.15, min: 1, max: 2}
+  enchanted_golden_apple: {chance: 0.05, min: 1, max: 1}
+items:
+  sword:
+    stacks: 5
+    stack-expiry-ticks: 100
+    cooldown-ticks: 80
+    bonus-damage: 4.0
+    slow-ticks: 40
+  bow:
+    cooldown-ticks: 60
+    radius: 3.0
+    damage: 4.0
+    slow-ticks: 60
+  bomb:
+    cooldown-ticks: 60
+    radius: 3.0
+    damage: 5.0
+    slow-ticks: 60
+  pickaxe:
+    cooldown-ticks: 200
+    level-reduction-ticks: 20
+    extra-durability: 1

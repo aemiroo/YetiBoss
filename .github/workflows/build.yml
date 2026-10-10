@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.8.19 — Nearby varied spawns and stronger Yeti proportions"
+run-name: "YetiBoss 0.9.0 — Frost gear abilities, loot overhaul and enchant restrictions"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
