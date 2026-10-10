@@ -152,6 +152,13 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 if((key.startsWith("attacks.flight-phase.")||key.equals("attacks.throw-distance"))&&!getConfig().getDefaults().isConfigurationSection(key)&&!getConfig().contains(key,true))getConfig().set(key,getConfig().getDefaults().get(key));
             getConfig().set("schema-version",16);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<17) {
+            try {getConfig().save(new java.io.File(getDataFolder(),"config-before-0.9.7.yml"));}
+            catch(IOException ex){getLogger().severe("Cannot back up combat configuration: "+ex.getMessage());getServer().getPluginManager().disablePlugin(this);return;}
+            for(String key:List.of("attacks.pressure-damage-multiplier","attacks.recovery-vulnerability"))
+                if(!getConfig().contains(key,true))getConfig().set(key,getConfig().getDefaults().get(key));
+            getConfig().set("schema-version",17);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
@@ -188,6 +195,9 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         FrostItems.validate(c);
         for(String key:List.of("attacks.throw-distance","attacks.flight-phase.height","attacks.flight-phase.landing-damage","attacks.flight-phase.landing-radius")) {
             double n=c.getDouble(key);if(!Double.isFinite(n)||n<1||n>32)throw new IllegalArgumentException("Invalid "+key);
+        }
+        for(String key:List.of("attacks.pressure-damage-multiplier","attacks.recovery-vulnerability")) {
+            double value=c.getDouble(key);if(!Double.isFinite(value)||value<1||value>3)throw new IllegalArgumentException("Invalid combat multiplier: "+key);
         }
         double heal=c.getDouble("attacks.flight-phase.heal-fraction");
         if(!Double.isFinite(heal)||heal<0||heal>.3)throw new IllegalArgumentException("Flight healing must be 0–30% of max health");
@@ -593,7 +603,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             if(tick>=e.releaseTick) {
                 Attack attack=e.pending;e.pending=null;
                 execute(e,attack,players);
-                e.recovery=attack;e.recoveryStarted=tick;e.recoveryUntil=tick+(attack==Attack.SWIPE&&e.comboRemaining>0?46:attack==Attack.CHARGE?28:12);
+                e.recovery=attack;e.recoveryStarted=tick;e.recoveryUntil=tick+(attack==Attack.SWIPE&&e.comboRemaining>0?46:attack==Attack.CHARGE?28:attack==Attack.SLAM?36:12);
                 e.nextAttack=tick+(BossBalance.cooldown(getConfig().getInt("attacks.global-cooldown-ticks"),e.enraged,getConfig().getDouble("attacks.enrage-cooldown-multiplier",.8)));
             }
             return;
@@ -617,8 +627,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(other!=null&&other.grabbed!=null)weights.put(Attack.GRAB_SLAM,0);
         if(distance>getConfig().getDouble("attacks.grab-slam.range"))weights.put(Attack.GRAB_SLAM,0);
         Player attackTarget=target;
-        e.selector.choose(tick,e.enraged,distance,getConfig().getDouble("attacks.swipe.range"),
-            getConfig().getDouble("attacks.slam.radius"),weights,random).ifPresent(attack->{
+        e.selector.chooseSequence(tick,e.enraged,distance,getConfig().getDouble("attacks.swipe.range"),
+            getConfig().getDouble("attacks.slam.radius"),weights,random,!father).ifPresent(attack->{
                 e.pending=attack;e.windupStarted=tick;e.target=attackTarget.getUniqueId();
                 e.aim=attackTarget.getEyeLocation().clone();
                 e.direction=attackTarget.getLocation().toVector().subtract(e.body.getLocation().toVector()).setY(0);
@@ -848,7 +858,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 e.barrageRemaining=getConfig().getInt("attacks.barrage.count");e.nextShot=tick;
             }
             case SWIPE, SLAM -> {
-                if(attack==Attack.SWIPE&&!e.comboExecuting&&e.modelPrefix.equals("giant_yeti")) {
+                if(attack==Attack.SWIPE&&!e.comboExecuting) {
                     e.comboRemaining=2;e.comboNext=tick+14;e.recoveryUntil=tick+46;
                 }
                 if(attack==Attack.SLAM&&e.modelPrefix.equals("giant_yeti")) {
@@ -895,6 +905,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 e.pending=Attack.SLAM;telegraph(e);e.pending=null;
             }
             e.recovery=e.comboRemaining==1?Attack.SWIPE:Attack.SLAM;e.recoveryStarted=tick;
+            if(e.comboRemaining==0) {e.recoveryUntil=tick+36;e.nextAttack=e.recoveryUntil;}
+
         }
         if(e.waveOrigin!=null) {
             double radius=(tick-e.waveStarted)*.45;
@@ -1000,6 +1012,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         if(encounter==null)return;
         Encounter attacker=source.equals(encounter.body)?encounter:encounter.mother;
         if(attacker!=null&&source.equals(attacker.body)&&attacker.enraged)damage*=getConfig().getDouble("attacks.enrage-damage-multiplier",1.2);
+        if(attacker!=null&&source.equals(attacker.body))
+            damage*=getConfig().getDouble("attacks.pressure-damage-multiplier",1.6)*encounter.pressure.multiplier(player.getUniqueId(),tick);
         scriptedDamage=true;
         double before=player.getHealth()+player.getAbsorptionAmount();
         try { player.damage(damage,source); } finally { scriptedDamage=false; }
@@ -1183,6 +1197,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 } else event.setCancelled(true);
             }
             if(allied(event.getEntity())) {
+                Encounter hurt=event.getEntity().equals(encounter.body)?encounter:encounter.mother;
+                if(hurt!=null&&event.getEntity().equals(hurt.body)&&hurt.recovery!=null&&hurt.pending==null
+                        &&hurt.comboRemaining==0&&hurt.grabbed==null&&hurt.chargeUntil<=tick&&hurt.flightStarted<0)
+                    event.setDamage(event.getDamage()*getConfig().getDouble("attacks.recovery-vulnerability",1.25));
                 Player p=attacker(by.getDamager());
                 if(p==null||!eligible(p,encounter.origin,getConfig().getDouble("boss.arena-radius"))) event.setCancelled(true);
             }
@@ -1197,6 +1215,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     public void acceptedDamage(EntityDamageByEntityEvent event) {
         if(event.getFinalDamage()<=0) return;
         Encounter e=encounter;
+        if(e!=null&&scriptedDamage&&event.getEntity() instanceof Player player
+                &&(event.getDamager().equals(e.body)||e.mother!=null&&event.getDamager().equals(e.mother.body))) {
+            int stacks=e.pressure.accepted(player.getUniqueId(),tick);
+            player.sendActionBar(Component.text("Frost exposure: "+stacks+"/5 — dodge hits for 8s to clear",NamedTextColor.AQUA));
+        }
         IceMinion striking=e==null?null:e.minions.get(event.getDamager().getUniqueId());
         if(striking!=null&&striking.warden&&!scriptedDamage&&event.getEntity() instanceof Player player) {
             striking.strikeStarted=tick;
@@ -1496,7 +1519,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         float visualYaw;long lastWalkTick;
         final Location origin;Location last,aim;org.bukkit.util.Vector direction;
         final long started;long lastPlayers,nextAttack,releaseTick,nextShot,retryReward,nextRetarget,windupStarted;
-        final ThresholdSummon wardenTrigger=new ThresholdSummon(),motherTrigger=new ThresholdSummon(.5);
+        final CombatPressure pressure=new CombatPressure();
+        final ThresholdSummon wardenTrigger=new ThresholdSummon(),motherTrigger=new ThresholdSummon(.7);
         Encounter mother;long nextMotherAttempt;final String name,modelPrefix;final double maximumHealth,modelScale;
         final Map<UUID,IceMinion> minions=new HashMap<>();
         long nextWardenAttempt,grabStarted;UUID grabbed;Location grabLanding;

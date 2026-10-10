@@ -1,4 +1,4 @@
-schema-version: 16
+schema-version: 17
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Cyborg Father Yeti'
@@ -13,11 +13,14 @@ boss:
 mother:
   enabled: true
   name: 'Mother Yeti'
-  # Summoned once at Father's 50% HP; her max HP is this fraction of Father's.
+  # Summoned once at Father's 70% HP; her max HP is this fraction of Father's.
   health-fraction: 0.35
   # Relative to Father; accepted range is 0.5 to below 1.0.
   size-multiplier: 0.75
 attacks:
+  # Armor, Protection, shields and damage cancellation still apply.
+  pressure-damage-multiplier: 1.6
+  recovery-vulnerability: 1.25
   sonic-boom:
     weight: 3
     cooldown-ticks: 220

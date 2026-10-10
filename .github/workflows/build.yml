@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.9.6 — Stronger damage, reliable throws and reactor flight phase"
+run-name: "YetiBoss 0.9.7 — Sequenced combat and frost pressure"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
