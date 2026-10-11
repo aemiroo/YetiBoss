@@ -3,6 +3,26 @@ import java.util.*;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 class ArenaSkillsTest {
+ @Test void icefallGrowsWithTheRaidAndCapsEntityLoad() {
+  assertEquals(0,ArenaSkills.icefallScale(0).maximumDrops());
+  assertEquals(4,ArenaSkills.icefallScale(1).maximumDrops());
+  assertEquals(10,ArenaSkills.icefallScale(4).maximumDrops());
+  assertEquals(18,ArenaSkills.icefallScale(8).maximumDrops());
+  assertEquals(30,ArenaSkills.icefallScale(16).maximumDrops());
+  assertEquals(32,ArenaSkills.icefallScale(Integer.MAX_VALUE).maximumDrops());
+  assertEquals(12,ArenaSkills.icefallScale(Integer.MAX_VALUE).radius());
+  for(int n=1;n<100;n++) {
+   var before=ArenaSkills.icefallScale(n);var after=ArenaSkills.icefallScale(n+1);
+   assertTrue(after.maximumDrops()>=before.maximumDrops());assertTrue(after.radius()>=before.radius());
+   assertTrue(after.maximumDrops()<=32);assertTrue(after.radius()<=12);
+  }
+ }
+ @Test void scatteredIceStaysInTheDiskAndAvoidsDuplicateMarkers() {
+  assertEquals(0,ArenaSkills.scatterDistance(0,12));assertEquals(12,ArenaSkills.scatterDistance(1,12));
+  assertEquals(6,ArenaSkills.scatterDistance(.25,12));
+  assertFalse(ArenaSkills.separated(1,0,1));assertTrue(ArenaSkills.separated(2,0,0));
+  assertTrue(ArenaSkills.separated(0,4,0));
+ }
  @Test void fallAcceleratesAndClampsAtGround() {
   assertEquals(0,ArenaSkills.fall(-20));assertEquals(0,ArenaSkills.fall(0));
   assertEquals(.25,ArenaSkills.fall(10));assertEquals(1,ArenaSkills.fall(20));assertEquals(1,ArenaSkills.fall(40));

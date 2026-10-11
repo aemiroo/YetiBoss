@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.9.8 — Icefall, healing whirlwind and sculpted Father"
+run-name: "YetiBoss 0.9.9 — Raid-scaled Icefall coverage"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

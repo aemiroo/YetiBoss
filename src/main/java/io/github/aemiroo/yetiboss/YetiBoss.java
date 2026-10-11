@@ -677,10 +677,18 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private void spawnIceWave(Encounter e,List<Player> players) {
         e.icefallSpawned++;e.icefallHits.clear();
         List<Player> targets=new ArrayList<>(players);Collections.shuffle(targets,random);
+        ArenaSkills.RaidScale scale=ArenaSkills.icefallScale(targets.size());
         List<Location> spots=new ArrayList<>();
-        for(Player player:targets.subList(0,Math.min(8,targets.size())))spots.add(player.getLocation());
-        // Extra nearby circles make a route choice necessary, without following runners.
-        for(int i=0;i<Math.min(4,targets.size());i++)spots.add(targets.get(i).getLocation().add(random.nextBoolean()?3:-3,0,random.nextBoolean()?3:-3));
+        for(Player player:targets.subList(0,scale.targets()))addIceSpot(spots,player.getLocation());
+        // Snapshot this wave's raiders. Growing raids widen the scatter disk and
+        // increase its drop budget; already marked locations never move.
+        for(int i=0;i<scale.scattered();i++)for(int attempt=0;attempt<8;attempt++) {
+            Location spot=targets.get(i%targets.size()).getLocation();
+            double angle=random.nextDouble()*Math.PI*2,distance=ArenaSkills.scatterDistance(random.nextDouble(),scale.radius());
+            spot.add(Math.cos(angle)*distance,0,Math.sin(angle)*distance);
+            if(spot.distanceSquared(e.origin)>Math.pow(getConfig().getDouble("boss.arena-radius"),2))continue;
+            if(addIceSpot(spots,spot))break;
+        }
         for(Location spot:spots) {
             World world=spot.getWorld();if(!world.isChunkLoaded(spot.getBlockX()>>4,spot.getBlockZ()>>4))continue;
             RayTraceResult ground=world.rayTraceBlocks(spot.clone().add(0,.5,0),new org.bukkit.util.Vector(0,-1,0),12,FluidCollisionMode.NEVER,true);
@@ -698,6 +706,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             e.fallingIce.add(new FallingIce(impact,visual,tick,height));
         }
         for(Player player:players)player.sendActionBar(Component.text("Icefall wave "+e.icefallSpawned+" — leave the icy circles!",NamedTextColor.AQUA));
+    }
+    private boolean addIceSpot(List<Location> spots,Location candidate) {
+        for(Location existing:spots)if(!ArenaSkills.separated(candidate.getX()-existing.getX(),candidate.getY()-existing.getY(),candidate.getZ()-existing.getZ()))return false;
+        spots.add(candidate);return true;
     }
     private boolean impactVisible(Location at,Player player) {
         org.bukkit.util.Vector direction=player.getEyeLocation().toVector().subtract(at.toVector());
