@@ -165,188 +165,6 @@ def texture_color(mat,x,y):
  if name=='scream':return (28,41,44) if 3<=x<=12 and 3<=y<=12 else (198,215,216)
  return _previous_texture_color(name,x,y)
 
-def model(frame=None,attack=None,kind='slam'):
- """Antlered Father with forward shoulders and a low knuckle stance."""
- es=[];phase=2*math.pi*(frame or 0)/24
- def box(a,b,mat,part=None,angle=0,pivot=None,axis='x'):
-  if part:
-   side=-1 if part.endswith('l') else 1
-   pivot=[8+side*4.5,10.3,7.2] if part.startswith('arm') else [8+side*1.7,4.4,8.5]
-   if frame is not None:
-    limb_phase=phase+(.25*side if kind=='gallop' else math.pi if side==1 else 0)
-    if part.startswith('leg'):limb_phase+=math.pi*.65
-    angle=round(math.sin(limb_phase)*(20 if kind=='gallop' else 12 if part.startswith('leg') else 10),6)
-    lift=max(0,math.sin(limb_phase))*(.45 if part.startswith('leg') else .65)
-    a=(a[0],a[1]+lift,a[2]);b=(b[0],b[1]+lift,b[2])
-   if attack is not None and part.startswith('arm'):
-    peak=round(math.sin(math.pi*attack/7)*2)*22.5
-    angle=peak if kind=='slam' else -peak
-    if kind=='swipe' and side==1:angle=0
-    if kind=='throw' and side==-1:angle=0
-    if kind=='roar':angle=22.5
-    if kind=='whirl':angle=side*45*attack/7;axis='z'
-  e={'from':list(a),'to':list(b),'faces':{f:{'uv':[0,0,16,16],'texture':'#'+mat} for f in ('north','south','east','west','up','down')}}
-  if part:e['_part']=part;e['name']=part
-  if part is None and mat in ('face_plain','muzzle','scream','tooth','horn','ice_face','nose'):e['_head']=True
-  if angle:e['rotation']={'origin':pivot,'angle':angle,'axis':axis,'rescale':False}
-  es.append(e);return e
- # Deep shoulder mantle, low hips and a head recessed into the chest.
- box((2.8,6.5,6.1),(13.2,11.5,12.65),'fur',angle=22.5,pivot=[8,6.5,8])
- box((3.6,10.35,6.2),(12.4,12.6,11.6),'fur_light')
- box((4.6,4.2,6.7),(11.4,6.65,11.45),'fur_shadow')
- box((5.8,3.65,6.5),(10.2,4.4,10.7),'fur')
- # Broad projecting pectorals make the silhouette read as an ape, not a suit.
- box((3.2,6.62,4.70),(12.8,10.5,7.18),'fur',angle=22.5,pivot=[8,6.5,8])
- for side in (-1,1):
-  part='leg_l' if side==-1 else 'leg_r';x=5.2 if side==-1 else 8.6
-  box((x,2.45,8.05),(x+2.2,4.25,11.0),'fur',part)
-  box((x,1.0,7.2),(x+2.2,2.42,10.35),'fur_shadow',part)
-  box((x-.15,0,6.3),(x+2.35,1.03,10.7),'fur_light',part)
-  part='arm_l' if side==-1 else 'arm_r'
-  def arm(a,b,mat):
-   if side==1:a,b=(16-b[0],a[1],a[2]),(16-a[0],b[1],b[2])
-   return box(a,b,mat,part)
-  arm((.8,6.6,5.4),(3.58,10.9,10.8),'fur_light')
-  arm((1.15,2.6,4.6),(3.75,6.58,9.2),'fur')
-  arm((.85,0.1,3.6),(3.85,2.63,8.9),'fur_shadow')
-  # Light cuff and subtly striped oversized fist.
-  arm((.79,2.5,3.54),(3.91,3.1,8.96),'fur_light')
- head_start=len(es)
- box((5.25,10.3,4.8),(10.75,13.4,8.0),'fur_light')
- face=box((5.85,11.15,4.49),(10.15,12.95,4.78),'face_plain')
- face['faces']['north']['texture']='#face_plain'
- # Wide projecting muzzle conceals the lower face, rather than a small nose.
- box((5.35,9.25,2.8),(10.65,11.17,4.47),'muzzle')
- if kind=='roar' and attack is not None:
-  mouth=box((6.0,8.9,2.75),(10.0,9.23,3.9),'face_plain')
-  mouth['faces']['north']['texture']='#scream'
-  for x in (6.15,6.7,7.25,7.8,8.35,8.9,9.45):
-   box((x,9.0,2.69),(x+.28,9.215,2.74),'tooth')
- # Pale blue fringe beneath the square muzzle.
- for j,x in enumerate((6.1,7.2,8.3,9.4)):
-  box((x,8.55-(j%2)*.25,3.5),(x+.65,9.21,4.25),'fur_shadow')
- # Antlers use shared joint coordinates; extend each beam into its joint.
- # Rotating disconnected boxes about their own centers left floating tips.
- for side in (-1,1):
-  def beam(start,length,vertical=False,angle=-22.5,width=.62):
-   radians=math.radians(angle)
-   direction=(-math.sin(radians),math.cos(radians)) if vertical else (-math.cos(radians),-math.sin(radians))
-   end=(start[0]+direction[0]*length,start[1]+direction[1]*length)
-   center=[(start[0]+end[0])/2,(start[1]+end[1])/2,6.02]
-   half=[width/2,(length+.28)/2] if vertical else [(length+.28)/2,width/2]
-   a=(center[0]-half[0],center[1]-half[1],5.62)
-   b=(center[0]+half[0],center[1]+half[1],6.42)
-   if side==1:
-    a,b=(16-b[0],a[1],a[2]),(16-a[0],b[1],b[2]);center[0]=16-center[0]
-   box(a,b,'horn',angle=angle if side==-1 else -angle,pivot=center,axis='z')
-   return end
-  root=(5.32,12.68)
-  joint=beam(root,1.8)
-  tip=beam(joint,1.65,width=.55)
-  beam(tip,1.5,vertical=True,angle=22.5,width=.46)
-  beam(joint,1.1,vertical=True,angle=-22.5,width=.48)
-  beam((joint[0]+.35,joint[1]-.15),.95,vertical=True,angle=22.5,width=.45)
- # Lowered head and antlers sit forward of the shoulder mantle.
- for e in es[head_start:]:
-  e['_head']=True
-  for bound in ('from','to'):
-   e[bound][1]=round(e[bound][1]-1.1,6)
-   e[bound][2]=round(e[bound][2]-.45,6)
-  if 'rotation' in e:
-   e['rotation']['origin'][1]-=1.1
-   e['rotation']['origin'][2]-=.45
- # Solid skull backing closes the faceted seam and the brow-to-muzzle gap.
- skull=box((5.8,9.1,3.90),(10.23,12.15,7.60),'fur');skull['name']='skull_core';skull['_head']=True
- # Continuous inner torso joins hips to shoulders under the shaped outer shell.
- core=box((4.3,4.0,4.8),(11.7,11.25,11.5),'fur');core['name']='torso_core'
- # Replace the right half with metal, leaving the opposite half organic.
- import copy
- rebuilt=[]
- for e in es:
-  mat=e['faces']['up']['texture'][1:]
-  if mat not in ('fur','fur_light','fur_shadow','muzzle'):
-   rebuilt.append(e);continue
-  if e['to'][0]<=8:
-   rebuilt.append(e);continue
-  mechanical=e
-  if e['from'][0]<8:
-   organic=copy.deepcopy(e);organic['to'][0]=8
-   mechanical=copy.deepcopy(e);mechanical['from'][0]=8
-   # The seam is internal; do not draw opposing coplanar faces.
-   organic['faces'].pop('east');mechanical['faces'].pop('west')
-   rebuilt.append(organic)
-  replacement={'fur':'steel','fur_light':'steel','fur_shadow':'metal_edge','muzzle':'steel'}[mat]
-  for f in mechanical['faces'].values():f['texture']='#'+replacement
-  rebuilt.append(mechanical)
- es=rebuilt
- # Exposed elbow/forearm pistons and finger armor follow the same shoulder rig.
- box((12.0,6.2,4.42),(15.25,7.12,5.67),'metal_edge','arm_r')
- box((12.18,3.2,4.08),(12.55,6.26,4.40),'metal_edge','arm_r')
- box((14.65,3.25,4.02),(15.03,6.21,4.39),'metal_edge','arm_r')
- box((12.80,3.15,4.32),(14.38,6.14,4.70),'mechanism','arm_r')
- box((13.31,3.7,4.10),(13.86,5.76,4.30),'reactor','arm_r')
- for j in range(3):
-  x=12.28+j*.92
-  box((x,.35,3.21),(x+.70,2.34,3.54),'steel','arm_r')
-  box((x+.16,.68,3.05),(x+.53,1.05,3.19),'metal_edge','arm_r')
- # A shoulder cap and external conduit leave the dark frame visible.
- box((12.1,9.7,5.33),(15.45,10.99,10.59),'steel','arm_r')
- box((15.46,7.44,6.1),(15.72,9.55,6.47),'cable','arm_r')
- # Half chest plate, reactor and exposed lower rib rails tilt with the torso.
- def chest(a,b,mat):
-  a=(a[0],a[1],a[2]-1.4);b=(b[0],b[1],b[2]-1.4)
-  return box(a,b,mat,angle=22.5,pivot=[8,6.5,8])
- chest((8.12,8.72,6.04),(12.15,10.22,6.34),'steel')
- chest((8.15,6.72,5.96),(11.88,8.66,6.29),'mechanism')
- chest((9.1,7.18,5.68),(10.76,8.44,5.94),'metal_edge')
- chest((9.35,7.38,5.49),(10.52,8.23,5.67),'reactor')
- for y in (6.91,7.42,7.93):chest((10.91,y,5.70),(11.65,y+.18,5.95),'metal_edge')
- chest((8.25,7.04,5.71),(8.57,8.51,5.95),'cable')
- # A blunt gorilla nose projects past the muzzle.
- box((6.75,9.3,2.34),(9.25,10.0,2.76),'nose')
- # Organic eye shares the mechanical lens height, size and front plane.
- organic_eye=box((6.48,10.68,3.48),(7.30,11.18,3.58),'face_plain')
- organic_eye['faces']['north']['texture']='#ice_face'
- # Mechanical eye covers only one side of the recessed face.
- box((8.15,10.05,3.78),(10.2,11.89,4.025),'steel')['_head']=True
- box((8.53,10.55,3.59),(9.7,11.35,3.77),'mechanism')['_head']=True
- lens=box((8.70,10.68,3.48),(9.52,11.18,3.58),'steel')
- lens['faces']['north']['texture']='#optic';lens['_head']=True
- # Boot/shin plates finish the repaired mechanical half.
- box((8.91,1.2,6.81),(10.48,2.34,7.19),'steel','leg_r')
- box((9.42,1.38,6.60),(9.97,2.11,6.80),'reactor','leg_r')
- # Layered, rounded-looking mantle on the organic half; each tuft is rigged.
- for k in range(5):
-  x=.6+k*.54
-  box((x,8.7-(k%2)*.28,5.05),(x+.48,10.65+(k%2)*.24,5.55),'fur_light','arm_l')
-  box((x+.04,7.9-(k%2)*.28,5.15),(x+.43,8.85,5.62),'fur_shadow','arm_l')
- # Bevelled mechanical pauldron, elbow guards and cooling vents.
- box((12.0,10.85,5.6),(15.4,11.32,10.12),'metal_edge','arm_r')
- box((12.3,11.31,6.0),(15.1,11.65,9.78),'steel','arm_r')
- for k in range(4):
-  x=12.4+k*.61
-  box((x,10.88,5.25),(x+.35,11.2,5.58),'mechanism','arm_r')
-  box((x+.04,10.91,5.15),(x+.24,11.13,5.26),'reactor','arm_r')
- box((12.04,5.94,4.4),(15.1,6.35,4.62),'steel','arm_r')
- # Thicker hip armour and a three-piece abdominal plate preserve a strong waist.
- for k in range(3):
-  chest((8.25,5.3+k*.44,6.38),(11.46-k*.15,5.65+k*.44,6.62),'steel')
- box((8.7,2.6,7.74),(11.04,4.12,8.04),'metal_edge','leg_r')
- # Reactor bands stay on the mechanical half and read clearly while spinning.
- for k in range(3):chest((9.05,8.72+k*.35,5.78),(11.79,8.84+k*.35,6.01),'reactor')
- for element in es:
-  if any(face['texture']=='#reactor' for face in element['faces'].values()):element['light_emission']=12
- if frame is not None:
-  sway=.18*math.sin(phase);bob=(.35 if kind=='gallop' else .12)*(1-math.cos(2*phase))
-  for element in es:
-   for bound in ('from','to'):
-    element[bound][0]+=sway;element[bound][1]+=bob
-   if 'rotation' in element:
-    element['rotation']['origin'][0]+=sway;element['rotation']['origin'][1]+=bob
- return {'elements':es,'textures':{n:'yetiboss:boss/father_'+n for n in (*BASE_MATERIALS,*CYBORG_MATERIALS)},
-         'display':{'fixed':{'rotation':[0,0,0],'translation':[0,8,0],'scale':[1,1,1]}}}
-
-
 def sculpt_silhouette(mesh,continuous_half=False):
  """Facet large volumes and taper their lower ends without changing the rig.
 
@@ -406,28 +224,153 @@ def sculpt_silhouette(mesh,continuous_half=False):
  mesh['elements']=elements
  return mesh
 
-_block_father_model=model
 _block_mother_model=mother_model
-def gorilla_point(point,arm=False):
- """Short legs, a tall barrel chest, and a forward knuckle stance."""
- x,y,z=point
- height=y*.65 if y<=4.4 else 2.86+(y-4.4)*1.15 if y<=11.5 else 11.025+(y-11.5)*.75
- return [x,round(height,8),round(z-.08*max(0,y-3)-(.8 if arm else 0),8)]
-
-def gorilla_silhouette(mesh):
- for e in mesh['elements']:
-  arm=e.pop('_part','').startswith('arm')
-  head=e.pop('_head',False)
-  if head:
-   for bound in ('from','to'):
-    q=e[bound];e[bound]=[8+(q[0]-8)*.82,10+(q[1]-10)*.82,q[2]]
-   if 'rotation' in e:
-    q=e['rotation']['origin'];e['rotation']['origin']=[8+(q[0]-8)*.82,10+(q[1]-10)*.82,q[2]]
-  for bound in ('from','to'):e[bound]=gorilla_point(e[bound],arm)
-  if 'rotation' in e:e['rotation']['origin']=gorilla_point(e['rotation']['origin'],arm)
- return mesh
 
 def model(frame=None,attack=None,kind='slam'):
- return gorilla_silhouette(sculpt_silhouette(_block_father_model(frame,attack,kind),continuous_half=True))
+ """Purpose-built silverback anatomy; no remapping of the previous robot body.
+
+ All decorative parts share their limb pivot. A closed barrel joins the
+ shoulders and hips; the forward fists and rear feet establish a knuckle stance.
+ """
+ es=[];phase=2*math.pi*(frame or 0)/24
+ def box(a,b,mat,part=None,role=None,angle=0,pivot=None,axis='x',front=None):
+  a=list(a);b=list(b)
+  if part:
+   side=-1 if part.endswith('l') else 1
+   pivot=[8+side*4.5,10.3,7.2] if part.startswith('arm') else [8+side*1.7,3.0,10.4]
+   if frame is not None:
+    limb_phase=phase+(.25*side if kind=='gallop' else math.pi if side==1 else 0)
+    if part.startswith('leg'):limb_phase+=math.pi*.65
+    angle=round(math.sin(limb_phase)*(20 if kind=='gallop' else 12 if part.startswith('leg') else 10),6)
+    lift=max(0,math.sin(limb_phase))*(.35 if part.startswith('leg') else .55)
+    a[1]+=lift;b[1]+=lift
+   if attack is not None and part.startswith('arm'):
+    peak=round(math.sin(math.pi*attack/7)*2)*22.5
+    angle=peak if kind=='slam' else -peak
+    if (kind=='swipe' and side==1) or (kind=='throw' and side==-1):angle=0
+    if kind=='roar':angle=22.5
+    if kind=='whirl':angle=side*45*attack/7;axis='z'
+  e={'from':a,'to':b,'faces':{f:{'uv':[0,0,16,16],'texture':'#'+mat} for f in ('north','south','east','west','up','down')}}
+  if part:e['name']=part
+  if role:e['role']=role
+  if front:e['faces']['north']['texture']='#'+front
+  if angle:e['rotation']={'origin':pivot,'angle':angle,'axis':axis,'rescale':False}
+  if mat=='reactor':e['light_emission']=12
+  es.append(e);return e
+ def half(a,b,mat,metal='steel',role=None):
+  # Closed halves meet at the internal seam. Only their internal faces are omitted.
+  l=box(a,(8,b[1],b[2]),mat,role=role);r=box((8,a[1],a[2]),b,metal,role=role)
+  l['faces'].pop('east');r['faces'].pop('west')
+  if role in ('torso_core','skull_core'):l['name']=r['name']=role
+ # A rounded barrel made from interlocking stepped volumes, not a tall slab.
+ half((4.05,3.0,4.0),(11.95,9.9,11.0),'fur_shadow',role='torso_core')
+ half((3.35,6.1,3.4),(12.65,10.6,11.65),'fur',role='ribcage')
+ half((3.0,8.0,4.35),(13.0,11.75,12.35),'fur_light',role='mantle')
+ half((4.0,10.4,6.15),(12.0,13.15,12.85),'fur_shadow',role='silverback_hump')
+ half((5.0,12.35,7.2),(11.0,13.55,12.2),'fur_light',role='hump_crown')
+ half((4.65,2.45,7.25),(11.35,4.05,12.4),'fur',role='hips')
+ # Separate projecting pectorals and tapered abdomen give the front a V shape.
+ box((3.62,7.5,2.92),(7.98,10.35,5.2),'fur_light',role='pectoral_l')
+ box((8.02,7.5,2.90),(12.38,10.35,5.18),'steel',role='pectoral_r')
+ half((4.7,4.15,3.35),(11.3,7.45,5.6),'fur',role='abdomen')
+ for j in range(3):
+  box((8.18,4.35+j*.83,3.13),(10.98-j*.13,4.98+j*.83,3.32),'metal_edge',role='belly_plate')
+ # Short, bent rear legs and broad feet hold the weight of the hunched body.
+ for side in (-1,1):
+  part='leg_l' if side<0 else 'leg_r';x=4.55 if side<0 else 8.95
+  organic=side<0
+  box((x,1.3,8.65),(x+2.5,3.3,12.45),'fur' if organic else 'steel',part,role='thigh')
+  box((x+.12,.55,9.1),(x+2.34,1.8,12.7),'fur_shadow' if organic else 'metal_edge',part,role='shin')
+  box((x-.23,0,7.65),(x+2.72,.83,13.05),'fur_light' if organic else 'steel',part,role='foot')
+  if not organic:
+   box((x+.62,.9,8.94),(x+1.82,1.55,9.08),'mechanism',part)
+   box((x+.92,1.03,8.79),(x+1.48,1.43,8.93),'reactor',part)
+ # Broad rounded shoulders, tapering upper arms, thick forward forearms.
+ for side in (-1,1):
+  part='arm_l' if side<0 else 'arm_r'
+  def arm(a,b,mat,role=None):
+   if side>0:a,b=(16-b[0],a[1],a[2]),(16-a[0],b[1],b[2])
+   return box(a,b,mat if side<0 else {'fur':'steel','fur_light':'steel','fur_shadow':'metal_edge'}.get(mat,mat),part,role)
+  arm((.45,8.1,4.2),(4.25,11.55,10.65),'fur_light','shoulder')
+  arm((1.05,10.9,5.15),(3.9,12.25,9.7),'fur','shoulder_crown')
+  arm((.85,5.2,3.9),(3.95,8.75,9.4),'fur','upper_arm')
+  arm((.3,1.5,1.72),(4.02,5.8,7.28),'fur_light','forearm')
+  arm((.18,0,.6),(4.27,2.05,6.2),'fur_shadow','fist')
+  # Three broad knuckles with separated creases, rather than a square cuff.
+  for j in range(3):
+   x=.32+j*1.24
+   arm((x,.28,.27),(x+1.07,1.62,.59),'fur_light','knuckle')
+  arm((3.72,.65,1.32),(4.55,2.65,3.15),'fur','thumb')
+ # Long layered fur follows the organic shoulder and elbow, tapering in length.
+ for j in range(5):
+  x=.55+j*.65
+  box((x,7.15+(j%2)*.25,3.92),(x+.52,10.6-abs(j-2)*.22,4.18),'fur_light','arm_l',role='shoulder_fur')
+  box((x+.08,6.7+(j%2)*.25,4.02),(x+.42,7.7+(j%2)*.15,4.28),'fur_shadow','arm_l')
+ for j in range(3):
+  x=.72+j*.92
+  box((x,2.18,1.38),(x+.72,4.72-j*.12,1.69),'fur','arm_l',role='forearm_fur')
+ # Machinery is integrated into the thick arm, not a cage of floating rails.
+ box((12.18,2.25,1.31),(12.55,5.45,1.69),'metal_edge','arm_r',role='piston')
+ box((14.92,2.28,1.29),(15.3,5.39,1.67),'metal_edge','arm_r',role='piston_outer')
+ box((12.81,2.51,1.39),(14.51,4.95,1.7),'mechanism','arm_r',role='forearm_motor')
+ box((13.34,2.98,1.2),(13.93,4.47,1.38),'reactor','arm_r')
+ box((12.34,7.4,3.57),(14.91,8.15,3.88),'metal_edge','arm_r')
+ box((12.39,9.0,3.91),(15.15,10.75,4.17),'metal_edge','arm_r',role='shoulder_plate')
+ box((15.57,6.12,4.42),(15.78,9.25,4.8),'cable','arm_r')
+ for j in range(4):
+  x=12.52+j*.63
+  box((x,9.35,3.70),(x+.39,10.42,3.9),'mechanism','arm_r')
+  box((x+.08,9.55,3.54),(x+.27,10.2,3.69),'reactor','arm_r')
+ # Chest reactor sits over solid armor and deliberately stays below the jaw.
+ box((8.38,7.85,2.61),(10.42,9.39,2.89),'metal_edge',role='reactor_socket')
+ box((8.65,8.11,2.42),(10.14,9.12,2.6),'reactor',role='chest_reactor')
+ for j in range(3):
+  box((10.65,8.1+j*.5,2.67),(11.91,8.28+j*.5,2.89),'mechanism')
+  box((10.81,8.14+j*.5,2.48),(11.62,8.24+j*.5,2.66),'reactor')
+ # Head sits below the shoulder crowns and well ahead of the high rear hump.
+ half((5.15,8.5,2.25),(10.85,11.65,6.65),'fur',role='skull_core')
+ half((5.6,11.1,2.0),(10.4,11.95,5.8),'fur_light',role='crown')
+ box((5.56,9.35,1.86),(10.44,11.25,2.23),'face_plain',role='face')
+ # Heavy diagonal brows narrow the eyes into an aggressive stare.
+ box((5.7,10.75,1.5),(7.85,11.3,1.85),'fur_shadow',role='brow_l',angle=-22.5,pivot=[7.6,10.95,1.7],axis='z')
+ box((8.15,10.75,1.49),(10.3,11.3,1.84),'metal_edge',role='brow_r',angle=22.5,pivot=[8.4,10.95,1.7],axis='z')
+ box((6.1,10.23,1.6),(7.35,10.65,1.85),'face_plain',role='eye_l',front='ice_face')
+ box((8.65,10.23,1.6),(9.9,10.65,1.85),'metal_edge',role='eye_r',front='optic')
+ half((5.8,8.7,1.04),(10.2,10.13,2.5),'muzzle',role='muzzle')
+ box((6.62,9.49,.69),(9.38,10.14,1.03),'nose',role='nose')
+ # Dark lower jaw and cheek framing avoid the previous rectangular face panel.
+ half((6.1,8.35,1.37),(9.9,8.77,3.1),'fur_shadow',role='jaw')
+ box((5.02,8.82,2.01),(5.57,10.85,3.8),'fur_light',role='cheek_l')
+ box((10.43,8.83,2.02),(10.98,10.86,3.81),'steel',role='cheek_r')
+ if kind=='roar' and attack is not None:
+  box((6.15,8.04,1.01),(9.85,8.64,1.36),'face_plain',role='mouth',front='scream')
+  for j in range(7):
+   x=6.26+j*.5
+   box((x,8.37,.94),(x+.28,8.59,1.0),'tooth',role='tooth')
+ # Swept branching horns retain connected joints, emerging from the skull sides.
+ for side in (-1,1):
+  def beam(start,length,vertical=False,angle=-22.5,width=.62):
+   radians=math.radians(angle)
+   direction=(-math.sin(radians),math.cos(radians)) if vertical else (-math.cos(radians),-math.sin(radians))
+   end=(start[0]+direction[0]*length,start[1]+direction[1]*length)
+   center=[(start[0]+end[0])/2,(start[1]+end[1])/2,4.65]
+   halfsize=[width/2,(length+.28)/2] if vertical else [(length+.28)/2,width/2]
+   a=(center[0]-halfsize[0],center[1]-halfsize[1],4.25);b=(center[0]+halfsize[0],center[1]+halfsize[1],5.05)
+   if side>0:a,b=(16-b[0],a[1],a[2]),(16-a[0],b[1],b[2]);center[0]=16-center[0]
+   box(a,b,'horn',role='antler',angle=angle if side<0 else -angle,pivot=center,axis='z')
+   return end
+  joint=beam((5.32,11.5),1.8)
+  tip=beam(joint,1.65,width=.55)
+  beam(tip,1.5,vertical=True,angle=22.5,width=.46)
+  beam(joint,1.1,vertical=True,angle=-22.5,width=.48)
+  beam((joint[0]+.35,joint[1]-.15),.95,vertical=True,angle=22.5,width=.45)
+ if frame is not None:
+  sway=.12*math.sin(phase);bob=(.22 if kind=='gallop' else .08)*(1-math.cos(2*phase))
+  for e in es:
+   for bound in ('from','to'):e[bound][0]+=sway;e[bound][1]+=bob
+   if 'rotation' in e:e['rotation']['origin'][0]+=sway;e['rotation']['origin'][1]+=bob
+ return {'elements':es,'textures':{n:'yetiboss:boss/father_'+n for n in (*BASE_MATERIALS,*CYBORG_MATERIALS)},
+         'display':{'fixed':{'rotation':[0,0,0],'translation':[0,8,0],'scale':[1,1,1]}}}
+
 def mother_model(frame=None,attack=None,kind='slam'):
  return sculpt_silhouette(_block_mother_model(frame,attack,kind))

@@ -1,17 +1,17 @@
 import unittest
-from boss_model import model,gorilla_point
+from boss_model import model
 from build_pack import FATHER_MODELS,MODELS
 class SkillModelTest(unittest.TestCase):
  def test_whirlwind_arm_and_piston_share_a_smooth_outward_rig(self):
   previous=0
   for frame in range(8):
    elements=model(attack=frame,kind='whirl')['elements']
-   piston=next(e for e in elements if e['from']==gorilla_point([12.18,3.2,4.08],True))
+   piston=next(e for e in elements if e.get('role')=='piston')
    rotation=piston.get('rotation',{})
    angle=rotation.get('angle',0)
    self.assertLessEqual(abs(angle-previous),7)
    if rotation:
-    self.assertEqual('z',rotation['axis']);self.assertEqual(gorilla_point([12.5,10.3,7.2],True),rotation['origin'])
+    self.assertEqual('z',rotation['axis']);self.assertEqual([12.5,10.3,7.2],rotation['origin'])
    self.assertIn('giant_yeti_whirl_'+str(frame),FATHER_MODELS)
    previous=angle
   self.assertEqual(45,previous)
@@ -30,3 +30,14 @@ class SkillModelTest(unittest.TestCase):
   self.assertGreaterEqual(len(glow),8)
   self.assertTrue(all(any(f['texture']=='#reactor' for f in e['faces'].values()) for e in glow))
   self.assertTrue(all(e['to'][i]>e['from'][i] for e in glow for i in range(3)))
+
+ def test_silverback_anatomy_is_built_in_the_mesh(self):
+  mesh=model()['elements']
+  parts={e['role']:e for e in mesh if 'role' in e}
+  head=parts['skull_core'];hump=parts['silverback_hump'];shoulder=parts['shoulder_crown']
+  self.assertGreater(hump['to'][1],head['to'][1]+1)
+  self.assertGreater(hump['from'][2],head['from'][2]+3)
+  self.assertGreater(shoulder['to'][1],head['to'][1])
+  self.assertLess(parts['fist']['from'][2],parts['foot']['from'][2]-5)
+  self.assertGreater(parts['fist']['to'][0]-parts['fist']['from'][0],4)
+  self.assertLess(parts['abdomen']['to'][0]-parts['abdomen']['from'][0],parts['pectoral_r']['to'][0]-8)

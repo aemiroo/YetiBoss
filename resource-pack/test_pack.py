@@ -1,6 +1,5 @@
 import json, unittest
 from build_pack import files,model,MODELS,WARDEN_MODELS,COLORS
-from boss_model import gorilla_point
 from build_bedrock import files as bedrock_files,mappings,display_mappings
 def nearest_element(elements,point):
  return min(range(len(elements)),key=lambda i:sum((elements[i]['from'][j]-point[j])**2 for j in range(3)))
@@ -64,8 +63,8 @@ class BossPackTest(unittest.TestCase):
   self.assertTrue(all(e['to'][2]<=3.25 for e in teeth))
  def test_knuckle_gait_has_alternating_lifts_and_short_steps(self):
   rest=model()['elements']
-  left=nearest_element(rest,[.85,.1,3.6])
-  right=nearest_element(rest,[12.15,.1,3.6])
+  left=next(i for i,e in enumerate(rest) if e.get('role')=='fist' and e.get('name')=='arm_l')
+  right=next(i for i,e in enumerate(rest) if e.get('role')=='fist' and e.get('name')=='arm_r')
   front=model(frame=6)['elements'];back=model(frame=18)['elements']
   self.assertGreater(front[left]['from'][1],front[right]['from'][1])
   self.assertGreater(back[right]['from'][1],back[left]['from'][1])
@@ -73,7 +72,7 @@ class BossPackTest(unittest.TestCase):
   self.assertAlmostEqual(front[right]['rotation']['angle'],-10)
  def test_attack_poses_raise_both_arms(self):
   rotations=[e['rotation'] for e in model(attack=3)['elements'] if 'rotation' in e]
-  for pivot in (gorilla_point([3.5,10.3,7.2],True),gorilla_point([12.5,10.3,7.2],True)):
+  for pivot in ([3.5,10.3,7.2],[12.5,10.3,7.2]):
    self.assertTrue(any(r['origin']==pivot and r['axis']=='x' and r['angle']==45 for r in rotations))
  def test_custom_sounds_are_in_both_packs(self):
   for name in ('idle','angry','spawn','death','hurt_1','hurt_2','grab_slam'):
@@ -176,8 +175,8 @@ class BossPackTest(unittest.TestCase):
  def test_cyborg_parts_follow_arm_rig_and_optic_is_front_only(self):
   for frame,attack in ((None,None),(3,None),(9,None),(None,3)):
    m=model(frame=frame,attack=attack)
-   arm=m['elements'][nearest_element(model()['elements'],gorilla_point([12.15,.1,3.6],True))]
-   piston=m['elements'][next(i for i,e in enumerate(model()['elements']) if e['from']==gorilla_point([12.18,3.2,4.08],True))]
+   arm=next(e for e in m['elements'] if e.get('role')=='fist' and e.get('name')=='arm_r')
+   piston=next(e for e in m['elements'] if e.get('role')=='piston')
    self.assertEqual(arm.get('rotation'),piston.get('rotation'))
    optics=[side for e in m['elements'] for side,f in e['faces'].items() if f['texture']=='#optic']
    self.assertEqual(['north'],optics)
@@ -188,8 +187,8 @@ class BossPackTest(unittest.TestCase):
   angles=[]
   for i in range(24):
    m=model(frame=i)
-   fist=m['elements'][nearest_element(model()['elements'],gorilla_point([12.15,.1,3.6],True))]
-   piston=m['elements'][next(i for i,e in enumerate(model()['elements']) if e['from']==gorilla_point([12.18,3.2,4.08],True))]
+   fist=next(e for e in m['elements'] if e.get('role')=='fist' and e.get('name')=='arm_r')
+   piston=next(e for e in m['elements'] if e.get('role')=='piston')
    self.assertEqual(fist.get('rotation'),piston.get('rotation'))
    angles.append(fist.get('rotation',{}).get('angle',0))
    self.assertIn('assets/yetiboss/items/giant_yeti_walk_'+str(i)+'.json',self.java)

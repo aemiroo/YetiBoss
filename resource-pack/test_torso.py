@@ -1,5 +1,5 @@
 import math,unittest
-from boss_model import model,gorilla_point
+from boss_model import model
 class SolidTorsoTest(unittest.TestCase):
  def test_center_torso_has_material_on_both_sides_through_all_poses(self):
   def inside(e,p):
@@ -12,8 +12,8 @@ class SolidTorsoTest(unittest.TestCase):
    return all(e['from'][i]<=q[i]<=e['to'][i] for i in range(3))
   poses=[model()]+[model(attack=i,kind=k) for k in ('slam','swipe','throw','roar') for i in range(8)]
   for mesh in poses:
-   for y in (4.6,5.5,6.5,7.5,8.5,9.5,10.5):
-    for x in (7.9,8.1):self.assertTrue(any(inside(e,gorilla_point((x,y,8.8))) for e in mesh['elements']),(x,y))
+   for y in (3.5,4.5,5.5,6.5,7.5,8.5,9.5):
+    for x in (7.9,8.1):self.assertTrue(any(inside(e,(x,y,8.8)) for e in mesh['elements']),(x,y))
 
  def test_barrel_torso_has_closed_front_and_back_in_all_poses(self):
   # Test the visible body width, not just two samples along the center seam.
@@ -58,14 +58,13 @@ class SolidTorsoTest(unittest.TestCase):
    self.assertEqual(organic['to'][1:],metal[0]['to'][1:])
 
  def test_head_rear_and_crown_are_closed_at_the_half_seam(self):
-  poses=[model()]+[model(attack=i,kind=k) for k in ('slam','swipe','throw','roar') for i in range(8)]
+  poses=[model()]+[model(attack=i,kind=k) for k in ('slam','swipe','throw','roar','whirl') for i in range(8)]
   poses+=[model(frame=i,kind=k) for k in ('walk','gallop') for i in range(24)]
   for mesh in poses:
-   skull=next(e for e in mesh['elements'] if e.get('name')=='skull_core' and e['faces'].get('south',{}).get('texture')=='#fur')
-   seam=skull['to'][0];y=skull['to'][1]+.03
-   for x in (seam-.05,seam+.05):
-    rear=[e for e in mesh['elements'] if 'south' in e['faces'] and abs(e['to'][2]-(skull['to'][2]-.05984))<1e-5
-       and e['from'][0]<=x<=e['to'][0] and e['from'][1]<=y<=e['to'][1]]
-    self.assertTrue(rear,(x,y))
-    self.assertTrue(any('up' in e['faces'] and abs(e['to'][1]-(skull['to'][1]+.09225))<1e-5
-       and e['from'][0]<=x<=e['to'][0] and e['from'][2]<=(skull['to'][2]-1.10984)<=e['to'][2] for e in mesh['elements']))
+   skull=sorted((e for e in mesh['elements'] if e.get('name')=='skull_core'),key=lambda e:e['from'][0])
+   self.assertEqual(2,len(skull))
+   left,right=skull
+   self.assertEqual(left['to'][0],right['from'][0])
+   self.assertEqual(left['from'][1:],right['from'][1:])
+   self.assertEqual(left['to'][1:],right['to'][1:])
+   for e in skull:self.assertTrue({'north','south','up','down'}.issubset(e['faces']))
