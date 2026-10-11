@@ -310,6 +310,13 @@ Scatter radius is now 6 + 0.75 × (raiders − 1), capped at 18 blocks: solo/4/8
 ### 0.9.11 — Gorilla Father
 Father now has a gorilla silhouette: compressed legs, a deeper and wider barrel chest, a high shoulder/back mantle, a lower head, forward knuckle-bearing arms and a charcoal muzzle. Mechanical plating uses quieter brushed steel instead of repeated panel grids. The mechanical half, connected horns, eye positions and sealed skull/muzzle remain. The same anatomical transform is applied to geometry and rig pivots in every animation; Mother is unchanged. The torso hitbox sits lower (0.832 blocks at default scale) to match the shortened stance. Icefall/Whirlwind behavior is unchanged. Updated Java/Bedrock packs and mappings are included.
 
+### 0.9.19 — Natural gorilla body layout
+
+- Replaced the tilted upright torso with a closed horizontal trunk, forward shoulder cage, rounded back and rear pelvis.
+- Lowered the forward-projecting head and shoulder rig, with long grounded forearms and bent rear legs beneath the hips.
+- Retained both hand designs, connected horns, the existing visual scale and all attack, walking, galloping and whirlwind poses. Mother remains unchanged.
+- Extended body continuity checks along the full horizontal trunk and added anatomical checks for shoulders ahead of hips, head ahead of shoulders and feet behind the knuckles.
+
 ### 0.9.18 — Forward gorilla resting stance
 
 - Hinged Father’s closed torso forward 22.5 degrees around the hips, with the head lowered and moved forward below the back hump.

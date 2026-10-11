@@ -227,7 +227,7 @@ def sculpt_silhouette(mesh,continuous_half=False):
 _block_mother_model=mother_model
 
 def model(frame=None,attack=None,kind='slam'):
- """Purpose-built silverback anatomy; no remapping of the previous robot body.
+ """Purpose-built natural gorilla anatomy with a horizontal trunk.
 
  All decorative parts share their limb pivot. A closed barrel joins the
  shoulders and hips; the forward fists and rear feet establish a knuckle stance.
@@ -262,19 +262,6 @@ def model(frame=None,attack=None,kind='slam'):
   l=box(a,(8,b[1],b[2]),mat,role=role);r=box((8,a[1],a[2]),b,metal,role=role)
   l['faces'].pop('east');r['faces'].pop('west')
   if role in ('torso_core','skull_core'):l['name']=r['name']=role
- # A rounded barrel made from interlocking stepped volumes, not a tall slab.
- half((4.65,3.0,4.75),(11.35,9.9,10.75),'fur_shadow',role='torso_core')
- half((3.85,6.1,3.8),(12.15,10.6,11.25),'fur',role='ribcage')
- half((3.3,8.0,4.8),(12.7,11.75,11.9),'fur_light',role='mantle')
- half((4.5,10.4,6.15),(11.5,13.15,12.05),'fur_shadow',role='silverback_hump')
- half((5.5,12.35,7.2),(10.5,13.55,11.55),'fur_light',role='hump_crown')
- half((5.05,2.45,7.65),(10.95,4.05,12.0),'fur',role='hips')
- # Separate projecting pectorals and tapered abdomen give the front a V shape.
- box((4.1,7.5,3.12),(7.98,10.35,5.2),'fur_light',role='pectoral_l')
- box((8.02,7.5,3.10),(11.9,10.35,5.18),'steel',role='pectoral_r')
- half((5.3,4.15,3.65),(10.7,7.45,5.6),'fur',role='abdomen')
- for j in range(3):
-  box((8.18,4.35+j*.83,3.13),(10.98-j*.13,4.98+j*.83,3.32),'metal_edge',role='belly_plate')
  # Short, bent rear legs and broad feet hold the weight of the hunched body.
  for side in (-1,1):
   part='leg_l' if side<0 else 'leg_r';x=4.55 if side<0 else 8.95
@@ -334,12 +321,6 @@ def model(frame=None,attack=None,kind='slam'):
   x=12.52+j*.63
   box((x,9.35,3.70),(x+.39,10.42,3.9),'mechanism','arm_r')
   box((x+.08,9.55,3.54),(x+.27,10.2,3.69),'reactor','arm_r')
- # Chest reactor sits over solid armor and deliberately stays below the jaw.
- box((8.38,7.85,2.61),(10.42,9.39,2.89),'metal_edge',role='reactor_socket')
- box((8.65,8.11,2.42),(10.14,9.12,2.6),'reactor',role='chest_reactor')
- for j in range(3):
-  box((10.65,8.1+j*.5,2.67),(11.91,8.28+j*.5,2.89),'mechanism')
-  box((10.81,8.14+j*.5,2.48),(11.62,8.24+j*.5,2.66),'reactor')
  # Head sits below the shoulder crowns and well ahead of the high rear hump.
  half((5.15,8.5,2.25),(10.85,11.65,6.65),'fur',role='skull_core')
  half((5.6,11.1,2.0),(10.4,11.95,5.8),'fur_light',role='crown')
@@ -406,30 +387,57 @@ def model(frame=None,attack=None,kind='slam'):
    if center is not None:origin[0]=round(center+(origin[0]-center)*.62,8)
    origin[0]=round(8+(origin[0]-8)*.75,8)
    origin[2]=round(7+(origin[2]-7)*.78,8)
- # Resting silverback pose: rigid torso hinge, lowered forward head, bent thighs.
- # Hands keep their local shape and grounded height; every arm detail shares
- # the lowered shoulder pivot and forward translation.
+ # A natural quadrupedal layout, rebuilt in native model coordinates.
+ # Retain the facial and hand designs, replacing every old torso volume.
  head_roles={'skull_core','crown','face','brow_l','brow_r','eye_l','eye_r','muzzle','nose','jaw','cheek_l','cheek_r','mouth','tooth','antler'}
  hand_roles={'fist','hand_fur','knuckle','finger','fingertip','thumb','thumb_tip'}
+ es=[e for e in es if e.get('name','').startswith(('arm','leg')) or e.get('role') in head_roles]
  for e in es:
   limb=e.get('name','');role=e.get('role')
   if limb.startswith('arm'):
    for bound in ('from','to'):
     e[bound][2]=round(e[bound][2]-1,8)
-    if role not in hand_roles:e[bound][1]=round(e[bound][1]*.9+.012,8)
+    if role not in hand_roles:e[bound][1]=round(e[bound][1]*.72+.012,8)
    if 'rotation' in e:
-    origin=e['rotation']['origin'];origin[1]=round(origin[1]*.9+.012,8);origin[2]=round(origin[2]-1,8)
+    origin=e['rotation']['origin'];origin[1]=round(origin[1]*.72+.012,8);origin[2]=round(origin[2]-1,8)
   elif limb.startswith('leg'):
+   side=-1 if limb.endswith('l') else 1
+   lift=e['from'][1]-(1.482 if role=='thigh' else .627 if role=='shin' else 0)
    if role=='thigh':
-    rotation=e.setdefault('rotation',{'origin':[8+(-1 if limb.endswith('l') else 1)*1.275,3.42,9.652],'angle':0,'axis':'x','rescale':False})
-    rotation['angle']=round(rotation['angle']+22.5,6)
-  elif role in head_roles:
+    e['from'][1:]=[3+lift,9.45];e['to'][1:]=[6.2+lift,12.0]
+   elif role=='shin':
+    e['from'][1:]=[1+lift,9.55];e['to'][1:]=[3.3+lift,12.4]
+   elif role=='foot':
+    e['from'][2]=9.4;e['to'][2]=13.5
+   else:
+    for bound in ('from','to'):e[bound][1]+= .6;e[bound][2]+= .97
+   rotation=e.get('rotation')
+   if role=='thigh':rotation=e.setdefault('rotation',{'angle':0,'axis':'x','rescale':False});rotation['angle']=round(rotation['angle']+22.5,6)
+   if rotation:rotation['origin']=[8+side*1.275,5.8,11.4]
+  else:
    for bound in ('from','to'):
-    e[bound][1]=round(e[bound][1]-1.4,8);e[bound][2]=round(e[bound][2]-1,8)
+    e[bound][1]=round(e[bound][1]-4,8);e[bound][2]=round(e[bound][2]-.7,8)
    if 'rotation' in e:
-    origin=e['rotation']['origin'];origin[1]=round(origin[1]-1.4,8);origin[2]=round(origin[2]-1,8)
-  elif role!='hips':
-   e['rotation']={'origin':[8,3.4,9],'angle':-22.5,'axis':'x','rescale':False}
+    origin=e['rotation']['origin'];origin[1]=round(origin[1]-4,8);origin[2]=round(origin[2]-.7,8)
+ # Long closed trunk from the forward shoulder cage to the rear pelvis.
+ half((5.35,4.6,4.4),(10.65,8.9,11.6),'fur_shadow',role='torso_core')
+ half((5.05,5.5,4.85),(10.95,9.35,9.45),'fur',role='ribcage')
+ half((4.45,7.2,4.75),(11.55,10.05,8.4),'fur_light',role='mantle')
+ half((5.3,8.3,6.5),(10.7,10.4,9.65),'fur_shadow',role='silverback_hump')
+ half((5.9,9.7,7.1),(10.1,10.75,9.3),'fur_light',role='hump_crown')
+ half((5.7,4.2,9.65),(10.3,7.55,12.4),'fur',role='hips')
+ half((5.9,6.3,9.3),(10.1,8.6,11.9),'fur_shadow',role='rump')
+ box((5.2,5.8,4.05),(7.98,8.45,5.0),'fur_light',role='pectoral_l')
+ box((8.02,5.8,4.02),(10.8,8.45,4.97),'steel',role='pectoral_r')
+ half((5.8,4.45,6.1),(10.2,6.05,10.75),'fur',role='abdomen')
+ box((8.45,6.3,3.85),(10.1,8.0,4.01),'metal_edge',role='reactor_socket')
+ box((8.7,6.55,3.66),(9.85,7.75,3.84),'reactor',role='chest_reactor')
+ for j in range(3):
+  box((10.18,6.4+j*.48,3.9),(10.8,6.61+j*.48,4.015),'mechanism')
+  box((10.25,6.46+j*.48,3.74),(10.64,6.55+j*.48,3.89),'reactor')
+ for j in range(3):
+  x=5.45+j*.73
+  box((x,5.3-(j%2)*.15,3.94),(x+.53,6.1,4.045),'fur_light',role='chest_fur')
  if frame is not None:
   sway=.12*math.sin(phase);bob=(.22 if kind=='gallop' else .08)*(1-math.cos(2*phase))
   for e in es:

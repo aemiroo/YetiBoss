@@ -60,7 +60,7 @@ class BossPackTest(unittest.TestCase):
   self.assertFalse(any(e['faces']['north']['texture']=='#tooth' for e in rest['elements']))
   teeth=[e for e in roar['elements'] if e['faces']['north']['texture']=='#tooth']
   self.assertGreater(len(teeth),6)
-  self.assertTrue(all(e['to'][2]<=3.25 for e in teeth))
+  self.assertTrue(all(e['to'][2]<3.25 for e in teeth))
  def test_knuckle_gait_has_alternating_lifts_and_short_steps(self):
   rest=model()['elements']
   left=next(i for i,e in enumerate(rest) if e.get('role')=='fist' and e.get('name')=='arm_l')
@@ -72,7 +72,7 @@ class BossPackTest(unittest.TestCase):
   self.assertAlmostEqual(front[right]['rotation']['angle'],-10)
  def test_attack_poses_raise_both_arms(self):
   rotations=[e['rotation'] for e in model(attack=3)['elements'] if 'rotation' in e]
-  for pivot in ([4.226,10.5798,6.156],[11.774,10.5798,6.156]):
+  for pivot in ([4.226,8.46624,6.156],[11.774,8.46624,6.156]):
    self.assertTrue(any(r['origin']==pivot and r['axis']=='x' and r['angle']==45 for r in rotations))
  def test_custom_sounds_are_in_both_packs(self):
   for name in ('idle','angry','spawn','death','hurt_1','hurt_2','grab_slam'):

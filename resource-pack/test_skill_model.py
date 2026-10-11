@@ -11,18 +11,18 @@ class SkillModelTest(unittest.TestCase):
    angle=rotation.get('angle',0)
    self.assertLessEqual(abs(angle-previous),7)
    if rotation:
-    self.assertEqual('z',rotation['axis']);self.assertEqual([11.774,10.5798,6.156],rotation['origin'])
+    self.assertEqual('z',rotation['axis']);self.assertEqual([11.774,8.46624,6.156],rotation['origin'])
    self.assertIn('giant_yeti_whirl_'+str(frame),FATHER_MODELS)
    previous=angle
   self.assertEqual(45,previous)
   self.assertFalse(any('_whirl_' in name for name in MODELS if name.startswith('mother_')))
- def test_gorilla_knuckles_are_forward_and_legs_are_short(self):
+ def test_gorilla_forelimbs_are_longer_with_forward_grounded_knuckles(self):
   elements=model()['elements']
   arms=[e for e in elements if e.get('name')=='arm_l']
   legs=[e for e in elements if e.get('name')=='leg_l']
   self.assertTrue(arms and legs)
   self.assertLess(min(e['from'][1] for e in arms),.1)
-  self.assertGreater(max(e['to'][1] for e in arms),3*max(e['to'][1] for e in legs))
+  self.assertGreater(max(e['to'][1] for e in arms),1.5*max(e['to'][1] for e in legs))
   self.assertLess(min(e['from'][2] for e in arms)+1.5,min(e['from'][2] for e in legs))
   self.assertGreater(max(e['to'][0] for e in elements if e.get('name')=='arm_r')-min(e['from'][0] for e in arms),10)
  def test_reactor_glow_retains_solid_geometry(self):
@@ -55,12 +55,12 @@ class SkillModelTest(unittest.TestCase):
   mesh=model()['elements']
   core=[e for e in mesh if e.get('name')=='torso_core']
   width=max(e['to'][0] for e in core)-min(e['from'][0] for e in core)
-  self.assertLessEqual(width,5.1)
-  self.assertLess(core[0]['to'][2]-core[0]['from'][2],4.8)
+  self.assertLessEqual(width,5.4)
+  self.assertGreater(core[0]['to'][2]-core[0]['from'][2],6)
   fists=[e for e in mesh if e.get('role')=='fist']
   self.assertTrue(all(e['to'][0]-e['from'][0]<2 for e in fists))
   crown=next(e for e in mesh if e.get('role')=='hump_crown')
-  self.assertGreater(crown['to'][1],15)
+  self.assertGreater(crown['to'][1],10)
 
  def test_organic_hand_is_connected_and_follows_the_arm_in_every_pose(self):
   roles={'fist','hand_fur','knuckle','finger','fingertip','thumb','thumb_tip'}
@@ -89,16 +89,16 @@ class SkillModelTest(unittest.TestCase):
   self.assertEqual('f31aa6883f0a585e3128b1fdb1b8aec59b8a7c24d3b2f255327ed179e435fbaf',
                    hashlib.sha256(json.dumps(hand,sort_keys=True).encode()).hexdigest())
 
- def test_resting_pose_leans_from_hips_with_bent_legs_and_grounded_hands(self):
-  import math
-  mesh=model()['elements']
-  core=next(e for e in mesh if e.get('name')=='torso_core')
-  self.assertEqual({'origin':[8,3.4,9],'angle':-22.5,'axis':'x','rescale':False},core['rotation'])
+ def test_natural_gorilla_layout_has_horizontal_back_and_rear_hips(self):
+  mesh=model()['elements'];parts={e['role']:e for e in mesh if 'role' in e}
+  core=parts['torso_core'];hips=parts['hips'];shoulder=parts['shoulder_crown'];head=parts['skull_core']
+  self.assertNotIn('rotation',core)
+  self.assertGreater(core['to'][2]-core['from'][2],1.5*(core['to'][1]-core['from'][1]))
+  self.assertGreater(hips['from'][2],shoulder['from'][2]+4)
+  self.assertLess(head['from'][2],shoulder['from'][2])
+  self.assertLess(head['to'][1],shoulder['to'][1])
   self.assertTrue(all(e['rotation']['angle']==22.5 for e in mesh if e.get('role')=='thigh'))
-  self.assertEqual(0,min(e['from'][1] for e in mesh if e.get('name')=='arm_l'))
-  self.assertEqual(0,min(e['from'][1] for e in mesh if e.get('name')=='arm_r'))
-  # The high center of the back moves several units ahead of the hip hinge.
-  angle=math.radians(-22.5)
-  y,z=12-3.4,9-9
-  leaned_z=9+math.sin(angle)*y+math.cos(angle)*z
-  self.assertLess(leaned_z,6)
+  for side in ('arm_l','arm_r'):self.assertEqual(0,min(e['from'][1] for e in mesh if e.get('name')==side))
+  feet=[e for e in mesh if e.get('role')=='foot']
+  hands=[e for e in mesh if e.get('role')=='fist']
+  self.assertTrue(all(foot['from'][2]>hand['to'][2]+3 for foot in feet for hand in hands))
