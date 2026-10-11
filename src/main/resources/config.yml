@@ -1,4 +1,4 @@
-schema-version: 19
+schema-version: 20
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Cyborg Father Yeti'
@@ -6,7 +6,7 @@ boss:
   golem-scale: 1.0
   model-scale: 6.4
   # Additional visual size for Father; Mother keeps the base model scale.
-  visual-size-multiplier: 1.25
+  visual-size-multiplier: 1.45
   movement-speed: 0.28
   arena-radius: 64.0
   leash-radius: 80.0

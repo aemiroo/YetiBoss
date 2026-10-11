@@ -265,7 +265,7 @@ def model(frame=None,attack=None,kind='slam'):
  # A rounded barrel made from interlocking stepped volumes, not a tall slab.
  half((4.65,3.0,4.75),(11.35,9.9,10.75),'fur_shadow',role='torso_core')
  half((3.85,6.1,3.8),(12.15,10.6,11.25),'fur',role='ribcage')
- half((3.5,8.0,4.8),(12.5,11.75,11.9),'fur_light',role='mantle')
+ half((3.3,8.0,4.8),(12.7,11.75,11.9),'fur_light',role='mantle')
  half((4.5,10.4,6.15),(11.5,13.15,12.05),'fur_shadow',role='silverback_hump')
  half((5.5,12.35,7.2),(10.5,13.55,11.55),'fur_light',role='hump_crown')
  half((5.05,2.45,7.65),(10.95,4.05,12.0),'fur',role='hips')
@@ -384,11 +384,15 @@ def model(frame=None,attack=None,kind='slam'):
   limb=e.get('name','')
   center=2.1 if limb=='arm_l' else 13.9 if limb=='arm_r' else None
   for bound in ('from','to'):
-   e[bound][1]=round(e[bound][1]*1.08,8)
-   if center is not None:e[bound][0]=round(center+(e[bound][0]-center)*.82,8)
+   e[bound][1]=round(13.11+(e[bound][1]-11.5)*.75 if e.get('role')=='antler' else e[bound][1]*1.14,8)
+   if center is not None:e[bound][0]=round(center+(e[bound][0]-center)*.62,8)
+   e[bound][0]=round(8+(e[bound][0]-8)*.75,8)
+   e[bound][2]=round(7+(e[bound][2]-7)*.78,8)
   if 'rotation' in e:
-   origin=e['rotation']['origin'];origin[1]=round(origin[1]*1.08,8)
-   if center is not None:origin[0]=round(center+(origin[0]-center)*.82,8)
+   origin=e['rotation']['origin'];origin[1]=round(13.11+(origin[1]-11.5)*.75 if e.get('role')=='antler' else origin[1]*1.14,8)
+   if center is not None:origin[0]=round(center+(origin[0]-center)*.62,8)
+   origin[0]=round(8+(origin[0]-8)*.75,8)
+   origin[2]=round(7+(origin[2]-7)*.78,8)
  if frame is not None:
   sway=.12*math.sin(phase);bob=(.22 if kind=='gallop' else .08)*(1-math.cos(2*phase))
   for e in es:

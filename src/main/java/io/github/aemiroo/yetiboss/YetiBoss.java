@@ -172,6 +172,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             if(!getConfig().contains("boss.visual-size-multiplier",true))getConfig().set("boss.visual-size-multiplier",1.25);
             getConfig().set("schema-version",19);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<20) {
+            double size=getConfig().getDouble("boss.visual-size-multiplier",1.25);
+            if(Math.abs(size-1.25)<.001)getConfig().set("boss.visual-size-multiplier",1.45);
+            getConfig().set("schema-version",20);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
@@ -250,7 +255,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             if(!Double.isFinite(value)||value<=0) throw new IllegalArgumentException("Invalid "+key);
         }
         if(c.getDouble("boss.health")>1024 || c.getDouble("boss.golem-scale")>4
-                ||c.getDouble("boss.model-scale")>12 ||c.getDouble("boss.model-scale")*c.getDouble("boss.visual-size-multiplier",1.25)>12 ||c.getDouble("boss.arena-radius")>128
+                ||c.getDouble("boss.model-scale")>12 ||c.getDouble("boss.model-scale")*c.getDouble("boss.visual-size-multiplier",1.45)>12 ||c.getDouble("boss.arena-radius")>128
                 ||c.getDouble("boss.leash-radius")<c.getDouble("boss.arena-radius")
                 ||c.getDouble("boss.leash-radius")>160 ||c.getDouble("boss.movement-speed")>1)
             throw new IllegalArgumentException("Boss settings exceed supported bounds");
@@ -440,7 +445,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         encounterChunks.clear();
     }
     private double fatherModelScale() {
-        return getConfig().getDouble("boss.model-scale")*getConfig().getDouble("boss.visual-size-multiplier",1.25);
+        return getConfig().getDouble("boss.model-scale")*getConfig().getDouble("boss.visual-size-multiplier",1.45);
     }
     private void spawn(Location at) {
         try {spawnSchedule.recordSpawn(at.getWorld().getUID().toString(),at.getX(),at.getZ());}
@@ -483,11 +488,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         });
         // A size-one slime provides a compact cube around the broad visible core.
         // The smaller native body remains hittable at the feet; horns are excluded.
-        Slime hitbox=at.getWorld().spawn(at.clone().add(0,ArenaSkills.hitboxOffset(modelScale),0),Slime.class,mob->{
+        Slime hitbox=at.getWorld().spawn(at.clone().add(0,ArenaSkills.hitboxOffset(modelScale,!mother),0),Slime.class,mob->{
             tagged(mob);mob.setSize(1);mob.setAI(false);mob.setGravity(false);mob.setSilent(true);
             mob.setInvisible(true);mob.setCollidable(false);mob.setRemoveWhenFarAway(false);
             Objects.requireNonNull(mob.getAttribute(Attribute.MAX_HEALTH)).setBaseValue(1024);mob.setHealth(1024);
-            Objects.requireNonNull(mob.getAttribute(Attribute.SCALE)).setBaseValue(ArenaSkills.hitboxWidth(modelScale)/.52);
+            Objects.requireNonNull(mob.getAttribute(Attribute.SCALE)).setBaseValue(ArenaSkills.hitboxWidth(modelScale,!mother)/.52);
         });
         return new Encounter(body,model,hitbox,at.clone(),tick,name,health,modelPrefix,modelScale);
     }
@@ -682,7 +687,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             });
     }
     private Location coreLocation(Encounter e,Location at) {
-        return at.clone().add(0,ArenaSkills.hitboxOffset(e.modelScale),0);
+        return at.clone().add(0,ArenaSkills.hitboxOffset(e.modelScale,e.modelPrefix.equals("giant_yeti")),0);
     }
     private void skillHit(Player player,double damage,org.bukkit.util.Vector direction,double kb,LivingEntity source) {
         boolean previous=skillDamage;skillDamage=true;
@@ -873,7 +878,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         e.body.setInvisible(custom);
         e.customVisible=custom;
         Objects.requireNonNull(e.hitbox.getAttribute(Attribute.SCALE)).setBaseValue(custom?
-            ArenaSkills.hitboxWidth(e.modelScale)/.52:.01);
+            ArenaSkills.hitboxWidth(e.modelScale,e.modelPrefix.equals("giant_yeti"))/.52:.01);
         for(Player player:e.body.getWorld().getPlayers()) {
             if(custom&&viewers.contains(player))player.showEntity(this,e.hitbox);
             else player.hideEntity(this,e.hitbox);

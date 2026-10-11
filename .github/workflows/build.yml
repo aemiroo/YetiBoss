@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.9.15 — Taller tapered Father Yeti"
+run-name: "YetiBoss 0.9.16 — Lean towering Father Yeti"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

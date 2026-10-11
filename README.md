@@ -310,6 +310,13 @@ Scatter radius is now 6 + 0.75 × (raiders − 1), capped at 18 blocks: solo/4/8
 ### 0.9.11 — Gorilla Father
 Father now has a gorilla silhouette: compressed legs, a deeper and wider barrel chest, a high shoulder/back mantle, a lower head, forward knuckle-bearing arms and a charcoal muzzle. Mechanical plating uses quieter brushed steel instead of repeated panel grids. The mechanical half, connected horns, eye positions and sealed skull/muzzle remain. The same anatomical transform is applied to geometry and rig pivots in every animation; Mother is unchanged. The torso hitbox sits lower (0.832 blocks at default scale) to match the shortened stance. Icefall/Whirlwind behavior is unchanged. Updated Java/Bedrock packs and mappings are included.
 
+### 0.9.16 — Lean towering Father
+
+- Reduced anatomical torso width by 25%, depth by 22%, and arm cross sections by approximately 43% relative to 0.9.15, with a taller mesh.
+- Raised the default Father visual multiplier from 1.25 to 1.45. Combined with the proportions, Father’s body is approximately 22% taller and 13% narrower in-game than 0.9.15; the shorter-proportioned horns leave the overall top height approximately 15% higher.
+- Narrowed and raised Father’s core hitbox to match the lean torso; Mother retains her existing model and core. Scale-aware spawn/flight clearance follows the larger Father.
+- Schema 20 upgrades the previous default multiplier while preserving custom values. Horns retain uniform proportions and connected branches.
+
 ### 0.9.15 — Taller, tapered Father
 
 - Narrowed the waist, ribcage, back and limb cross sections, leaving space between the lower arms and body. Increased anatomical height by 8% while preserving shared pivots.

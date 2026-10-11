@@ -13,6 +13,8 @@ final class ArenaSkills {
  static double healing(int age){return Math.max(0,Math.min(1,age/(double)WHIRL_DURATION));}
  static double horizontalSquared(double x,double z){return x*x+z*z;}
  static boolean pulse(int age){return age>0&&age<=WHIRL_DURATION&&age%20==0;}
+ static double hitboxWidth(double modelScale,boolean father){return father?modelScale*.42:hitboxWidth(modelScale);}
+ static double hitboxOffset(double modelScale,boolean father){return father?modelScale*.27:hitboxOffset(modelScale);}
  static double hitboxWidth(double modelScale){return modelScale*.60;}
  static double hitboxOffset(double modelScale){return modelScale*.13;}
 }
