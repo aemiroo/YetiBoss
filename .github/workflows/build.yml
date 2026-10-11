@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.9.12 — Isolated boss assets and pack diagnostics"
+run-name: "YetiBoss 0.9.13 — Solid Father Yeti torso"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

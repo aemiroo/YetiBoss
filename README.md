@@ -310,6 +310,12 @@ Scatter radius is now 6 + 0.75 × (raiders − 1), capped at 18 blocks: solo/4/8
 ### 0.9.11 — Gorilla Father
 Father now has a gorilla silhouette: compressed legs, a deeper and wider barrel chest, a high shoulder/back mantle, a lower head, forward knuckle-bearing arms and a charcoal muzzle. Mechanical plating uses quieter brushed steel instead of repeated panel grids. The mechanical half, connected horns, eye positions and sealed skull/muzzle remain. The same anatomical transform is applied to geometry and rig pivots in every animation; Mother is unchanged. The torso hitbox sits lower (0.832 blocks at default scale) to match the shortened stance. Icefall/Whirlwind behavior is unchanged. Updated Java/Bedrock packs and mappings are included.
 
+### 0.9.13 — Solid Father torso
+
+- Widened the continuous body beneath the Father’s chest, fur and armor to close the visible abdominal gaps.
+- Preserve the body core as solid cuboids rather than chamfered bands, with pose coverage checks across the full torso width.
+- Generated a new content-addressed model namespace and matching pack checksum.
+
 ### 0.9.12 — Model-pack isolation
 The published 0.9.11 ZIP was verified to contain the gorilla geometry and match its embedded SHA1. That rules out an outdated published ZIP, but does not prove which assets the client's complete pack stack used. Bosses previously shared item/model/texture resource keys with every earlier pack, allowing another active pack to override them.
 

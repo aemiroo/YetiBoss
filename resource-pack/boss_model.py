@@ -258,7 +258,7 @@ def model(frame=None,attack=None,kind='slam'):
  # Solid skull backing closes the faceted seam and the brow-to-muzzle gap.
  skull=box((5.8,9.1,3.90),(10.23,12.15,7.60),'fur');skull['name']='skull_core';skull['_head']=True
  # Continuous inner torso joins hips to shoulders under the shaped outer shell.
- box((6.28,4.0,7.18),(9.72,11.25,10.62),'fur')
+ core=box((4.3,4.0,4.8),(11.7,11.25,11.5),'fur');core['name']='torso_core'
  # Replace the right half with metal, leaving the opposite half organic.
  import copy
  rebuilt=[]
@@ -360,7 +360,7 @@ def sculpt_silhouette(mesh,continuous_half=False):
   mat=next(iter(source['faces'].values()))['texture']
   eligible=mat in ('#fur','#fur_light','#fur_shadow','#steel','#mechanism','#metal_edge','#muzzle')
   # Preserve thin armor, facial panels, horns, teeth and all small details.
-  inner_torso=continuous_half and abs(size[1]-7.25)<1e-5 and abs(size[2]-3.44)<1e-5
+  inner_torso=continuous_half and source.get('name')=='torso_core'
   inner_skull=continuous_half and abs(size[1]-3.05)<1e-5 and abs(size[2]-3.7)<1e-5
   # Keep the two muzzle halves solid right up to their shared center seam.
   # Chamfering their seam-facing bands recessed the front and exposed the void.
