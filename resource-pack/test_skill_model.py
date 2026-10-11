@@ -61,3 +61,27 @@ class SkillModelTest(unittest.TestCase):
   self.assertTrue(all(e['to'][0]-e['from'][0]<2 for e in fists))
   crown=next(e for e in mesh if e.get('role')=='hump_crown')
   self.assertGreater(crown['to'][1],15)
+
+ def test_organic_hand_is_connected_and_follows_the_arm_in_every_pose(self):
+  roles={'fist','hand_fur','knuckle','finger','fingertip','thumb','thumb_tip'}
+  poses=[model()]+[model(frame=i) for i in range(24)]
+  poses+=[model(attack=i,kind=k) for k in ('slam','swipe','throw','roar','whirl') for i in range(8)]
+  for mesh in poses:
+   hand=[e for e in mesh['elements'] if e.get('name')=='arm_l' and e.get('role') in roles]
+   forearm=next(e for e in mesh['elements'] if e.get('name')=='arm_l' and e.get('role')=='forearm')
+   self.assertTrue(all(e.get('rotation')==forearm.get('rotation') for e in hand))
+   fingers=sorted((e for e in hand if e.get('role')=='finger'),key=lambda e:e['from'][0])
+   self.assertEqual(4,len(fingers))
+   self.assertTrue(all(a['to'][0]<b['from'][0] for a,b in zip(fingers,fingers[1:])))
+   seen={0}
+   while True:
+    added=seen|{j for j,b in enumerate(hand) if any(all(min(hand[i]['to'][axis],b['to'][axis])>max(hand[i]['from'][axis],b['from'][axis]) for axis in range(3)) for i in seen)}
+    if added==seen:break
+    seen=added
+   self.assertEqual(len(hand),len(seen),'Detached organic hand part')
+
+ def test_mechanical_hand_geometry_and_materials_are_preserved(self):
+  import json,hashlib
+  hand=[e for e in model()['elements'] if e.get('name')=='arm_r' and e.get('role') in ('fist','knuckle','thumb')]
+  self.assertEqual('f31aa6883f0a585e3128b1fdb1b8aec59b8a7c24d3b2f255327ed179e435fbaf',
+                   hashlib.sha256(json.dumps(hand,sort_keys=True).encode()).hexdigest())

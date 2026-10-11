@@ -51,9 +51,9 @@ class ArenaSkillsTest {
   assertEquals(1.04,ArenaSkills.hitboxOffset(8),1e-9);
  }
  @Test void leanFatherCoreIsNarrowerAndRaisedWithoutChangingMother() {
-  double scale=6.4*1.45;
-  assertEquals(3.8976,ArenaSkills.hitboxWidth(scale,true),1e-9);
-  assertEquals(2.5056,ArenaSkills.hitboxOffset(scale,true),1e-9);
+  double scale=6.4*1.55;
+  assertEquals(4.1664,ArenaSkills.hitboxWidth(scale,true),1e-9);
+  assertEquals(2.6784,ArenaSkills.hitboxOffset(scale,true),1e-9);
   assertEquals(2.88,ArenaSkills.hitboxWidth(4.8,false),1e-9);
   assertEquals(.624,ArenaSkills.hitboxOffset(4.8,false),1e-9);
  }

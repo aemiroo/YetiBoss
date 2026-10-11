@@ -177,6 +177,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             if(Math.abs(size-1.25)<.001)getConfig().set("boss.visual-size-multiplier",1.45);
             getConfig().set("schema-version",20);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<21) {
+            double size=getConfig().getDouble("boss.visual-size-multiplier",1.45);
+            if(Math.abs(size-1.45)<.001)getConfig().set("boss.visual-size-multiplier",1.55);
+            getConfig().set("schema-version",21);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
@@ -255,7 +260,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             if(!Double.isFinite(value)||value<=0) throw new IllegalArgumentException("Invalid "+key);
         }
         if(c.getDouble("boss.health")>1024 || c.getDouble("boss.golem-scale")>4
-                ||c.getDouble("boss.model-scale")>12 ||c.getDouble("boss.model-scale")*c.getDouble("boss.visual-size-multiplier",1.45)>12 ||c.getDouble("boss.arena-radius")>128
+                ||c.getDouble("boss.model-scale")>12 ||c.getDouble("boss.model-scale")*c.getDouble("boss.visual-size-multiplier",1.55)>12 ||c.getDouble("boss.arena-radius")>128
                 ||c.getDouble("boss.leash-radius")<c.getDouble("boss.arena-radius")
                 ||c.getDouble("boss.leash-radius")>160 ||c.getDouble("boss.movement-speed")>1)
             throw new IllegalArgumentException("Boss settings exceed supported bounds");
@@ -445,7 +450,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         encounterChunks.clear();
     }
     private double fatherModelScale() {
-        return getConfig().getDouble("boss.model-scale")*getConfig().getDouble("boss.visual-size-multiplier",1.45);
+        return getConfig().getDouble("boss.model-scale")*getConfig().getDouble("boss.visual-size-multiplier",1.55);
     }
     private void spawn(Location at) {
         try {spawnSchedule.recordSpawn(at.getWorld().getUID().toString(),at.getX(),at.getZ());}

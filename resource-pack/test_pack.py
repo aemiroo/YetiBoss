@@ -66,8 +66,8 @@ class BossPackTest(unittest.TestCase):
   left=next(i for i,e in enumerate(rest) if e.get('role')=='fist' and e.get('name')=='arm_l')
   right=next(i for i,e in enumerate(rest) if e.get('role')=='fist' and e.get('name')=='arm_r')
   front=model(frame=6)['elements'];back=model(frame=18)['elements']
-  self.assertGreater(front[left]['from'][1],front[right]['from'][1])
-  self.assertGreater(back[right]['from'][1],back[left]['from'][1])
+  self.assertGreater(front[left]['from'][1]-rest[left]['from'][1],front[right]['from'][1]-rest[right]['from'][1])
+  self.assertGreater(back[right]['from'][1]-rest[right]['from'][1],back[left]['from'][1]-rest[left]['from'][1])
   self.assertAlmostEqual(front[left]['rotation']['angle'],10)
   self.assertAlmostEqual(front[right]['rotation']['angle'],-10)
  def test_attack_poses_raise_both_arms(self):

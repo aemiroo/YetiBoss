@@ -295,12 +295,25 @@ def model(frame=None,attack=None,kind='slam'):
   arm((1.05,10.9,5.15),(3.9,12.25,9.7),'fur','shoulder_crown')
   arm((.85,5.2,3.9),(3.95,8.75,9.4),'fur','upper_arm')
   arm((.3,1.5,1.72),(4.02,5.8,7.28),'fur_light','forearm')
-  arm((.18,0,.6),(4.27,2.05,6.2),'fur_shadow','fist')
-  # Three broad knuckles with separated creases, rather than a square cuff.
-  for j in range(3):
-   x=.32+j*1.24
-   arm((x,.28,.27),(x+1.07,1.62,.59),'fur_light','knuckle')
-  arm((3.72,.65,1.32),(4.55,2.65,3.15),'fur','thumb')
+  if side>0:
+   # Keep the existing mechanical hand exactly as designed.
+   arm((.18,0,.6),(4.27,2.05,6.2),'fur_shadow','fist')
+   for j in range(3):
+    x=.32+j*1.24
+    arm((x,.28,.27),(x+1.07,1.62,.59),'fur_light','knuckle')
+   arm((3.72,.65,1.32),(4.55,2.65,3.15),'fur','thumb')
+  else:
+   # A fleshy palm with four individually curled fingers and an opposed thumb.
+   # Each finger's two joints overlap the palm and the next phalanx.
+   arm((.25,.85,2.1),(3.95,2.1,5.8),'fur_shadow','fist')
+   arm((.45,1.15,2.55),(3.73,1.69,5.45),'fur_light','hand_fur')
+   for j in range(4):
+    x=.38+j*.82;rise=(.1 if j in (1,2) else 0)
+    arm((x,1.0,.96),(x+.66,1.68+rise,2.38),'fur_light','knuckle')
+    arm((x+.03,0,.58),(x+.63,1.1+rise,1.42),'fur_shadow','finger')
+    arm((x+.08,.12,1.3),(x+.59,.58+rise,2.25),'fur','fingertip')
+   arm((3.5,1.35,3.34),(4.25,2.62,4.9),'fur','thumb')
+   arm((3.83,.72,2.81),(4.42,1.75,3.88),'fur_shadow','thumb_tip')
  # Long layered fur follows the organic shoulder and elbow, tapering in length.
  for j in range(5):
   x=.55+j*.65
