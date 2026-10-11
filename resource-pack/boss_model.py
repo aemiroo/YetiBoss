@@ -406,6 +406,30 @@ def model(frame=None,attack=None,kind='slam'):
    if center is not None:origin[0]=round(center+(origin[0]-center)*.62,8)
    origin[0]=round(8+(origin[0]-8)*.75,8)
    origin[2]=round(7+(origin[2]-7)*.78,8)
+ # Resting silverback pose: rigid torso hinge, lowered forward head, bent thighs.
+ # Hands keep their local shape and grounded height; every arm detail shares
+ # the lowered shoulder pivot and forward translation.
+ head_roles={'skull_core','crown','face','brow_l','brow_r','eye_l','eye_r','muzzle','nose','jaw','cheek_l','cheek_r','mouth','tooth','antler'}
+ hand_roles={'fist','hand_fur','knuckle','finger','fingertip','thumb','thumb_tip'}
+ for e in es:
+  limb=e.get('name','');role=e.get('role')
+  if limb.startswith('arm'):
+   for bound in ('from','to'):
+    e[bound][2]=round(e[bound][2]-1,8)
+    if role not in hand_roles:e[bound][1]=round(e[bound][1]*.9+.012,8)
+   if 'rotation' in e:
+    origin=e['rotation']['origin'];origin[1]=round(origin[1]*.9+.012,8);origin[2]=round(origin[2]-1,8)
+  elif limb.startswith('leg'):
+   if role=='thigh':
+    rotation=e.setdefault('rotation',{'origin':[8+(-1 if limb.endswith('l') else 1)*1.275,3.42,9.652],'angle':0,'axis':'x','rescale':False})
+    rotation['angle']=round(rotation['angle']+22.5,6)
+  elif role in head_roles:
+   for bound in ('from','to'):
+    e[bound][1]=round(e[bound][1]-1.4,8);e[bound][2]=round(e[bound][2]-1,8)
+   if 'rotation' in e:
+    origin=e['rotation']['origin'];origin[1]=round(origin[1]-1.4,8);origin[2]=round(origin[2]-1,8)
+  elif role!='hips':
+   e['rotation']={'origin':[8,3.4,9],'angle':-22.5,'axis':'x','rescale':False}
  if frame is not None:
   sway=.12*math.sin(phase);bob=(.22 if kind=='gallop' else .08)*(1-math.cos(2*phase))
   for e in es:

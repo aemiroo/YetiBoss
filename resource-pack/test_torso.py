@@ -13,7 +13,7 @@ class SolidTorsoTest(unittest.TestCase):
   poses=[model()]+[model(attack=i,kind=k) for k in ('slam','swipe','throw','roar') for i in range(8)]
   for mesh in poses:
    for y in (3.5,4.5,5.5,6.5,7.5,8.5,9.5):
-    for x in (7.9,8.1):self.assertTrue(any(inside(e,(x,y,8.8)) for e in mesh['elements']),(x,y))
+    for x in (7.9,8.1):self.assertTrue(any(inside(e,(x,3.4+math.cos(math.radians(-22.5))*(y-3.4)-math.sin(math.radians(-22.5))*(8.8-9),9+math.sin(math.radians(-22.5))*(y-3.4)+math.cos(math.radians(-22.5))*(8.8-9))) for e in mesh['elements']),(x,y))
 
  def test_barrel_torso_has_closed_front_and_back_in_all_poses(self):
   # Test the visible body width, not just two samples along the center seam.
@@ -27,7 +27,7 @@ class SolidTorsoTest(unittest.TestCase):
    self.assertEqual(left['from'][1:],right['from'][1:])
    self.assertEqual(left['to'][1:],right['to'][1:])
    for e in core:
-    self.assertNotIn('rotation',e)
+    self.assertEqual(-22.5,e['rotation']['angle'])
     self.assertTrue({'north','south','up','down'}.issubset(e['faces']))
    self.assertGreater(right['to'][0]-left['from'][0],5)
    self.assertGreater(left['to'][2]-left['from'][2],4.5)

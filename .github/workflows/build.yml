@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.9.17 — Organic Yeti hand and taller Father"
+run-name: "YetiBoss 0.9.18 — Forward gorilla resting stance"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

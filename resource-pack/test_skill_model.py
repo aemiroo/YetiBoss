@@ -11,7 +11,7 @@ class SkillModelTest(unittest.TestCase):
    angle=rotation.get('angle',0)
    self.assertLessEqual(abs(angle-previous),7)
    if rotation:
-    self.assertEqual('z',rotation['axis']);self.assertEqual([11.774,11.742,7.156],rotation['origin'])
+    self.assertEqual('z',rotation['axis']);self.assertEqual([11.774,10.5798,6.156],rotation['origin'])
    self.assertIn('giant_yeti_whirl_'+str(frame),FATHER_MODELS)
    previous=angle
   self.assertEqual(45,previous)
@@ -83,5 +83,22 @@ class SkillModelTest(unittest.TestCase):
  def test_mechanical_hand_geometry_and_materials_are_preserved(self):
   import json,hashlib
   hand=[e for e in model()['elements'] if e.get('name')=='arm_r' and e.get('role') in ('fist','knuckle','thumb')]
+  # Undo only the new resting stance translation; the hand design is unchanged.
+  for e in hand:
+   for bound in ('from','to'):e[bound][2]=round(e[bound][2]+1,8)
   self.assertEqual('f31aa6883f0a585e3128b1fdb1b8aec59b8a7c24d3b2f255327ed179e435fbaf',
                    hashlib.sha256(json.dumps(hand,sort_keys=True).encode()).hexdigest())
+
+ def test_resting_pose_leans_from_hips_with_bent_legs_and_grounded_hands(self):
+  import math
+  mesh=model()['elements']
+  core=next(e for e in mesh if e.get('name')=='torso_core')
+  self.assertEqual({'origin':[8,3.4,9],'angle':-22.5,'axis':'x','rescale':False},core['rotation'])
+  self.assertTrue(all(e['rotation']['angle']==22.5 for e in mesh if e.get('role')=='thigh'))
+  self.assertEqual(0,min(e['from'][1] for e in mesh if e.get('name')=='arm_l'))
+  self.assertEqual(0,min(e['from'][1] for e in mesh if e.get('name')=='arm_r'))
+  # The high center of the back moves several units ahead of the hip hinge.
+  angle=math.radians(-22.5)
+  y,z=12-3.4,9-9
+  leaned_z=9+math.sin(angle)*y+math.cos(angle)*z
+  self.assertLess(leaned_z,6)
