@@ -4,7 +4,7 @@ The extension and its own resource pack are installed separately; neither is
 bundled here. Imported third-party gear retains its original asset rights.
 """
 import json, struct, zlib, zipfile
-from build_pack import ROOT, MODELS, WARDEN_MODELS, files as java_files
+from build_pack import ROOT, MODELS, WARDEN_MODELS, files as java_files, model_namespace
 
 from gear_model import GEAR_MODELS,GEAR_ITEMS,grip_point,icon as gear_icon
 PETS = MODELS+WARDEN_MODELS+GEAR_MODELS
@@ -132,8 +132,9 @@ def files():
     return result
 
 def mappings():
+    namespace=model_namespace()
     items={'minecraft:paper':[
-        {'type':'definition','model':'yetiboss:'+pet,'bedrock_identifier':'yetiboss:'+pet,
+        {'type':'definition','model':namespace+':'+pet,'bedrock_identifier':'yetiboss:'+pet,
          'display_name':pet.title()+' Boss'} for pet in MODELS+WARDEN_MODELS]}
     for name,base in GEAR_ITEMS.items():
         items[base]=[{'type':'definition','model':'yetiboss:'+name,'bedrock_identifier':'yetiboss:'+name,
@@ -141,7 +142,7 @@ def mappings():
     return {'format_version':2,'items':items}
 
 def display_mappings():
-    return 'mappings:\n'+''.join('  yetiboss_'+pet+':\n    type: "minecraft:paper"\n    item-identifier: "yetiboss:'+pet+'"\n    displayentityoptions:\n      y-offset: -0.5\n      vanilla-scale: false\n      vanilla-scale-multiplier: 1\n      hand: false\n' for pet in MODELS+WARDEN_MODELS)
+    return 'mappings:\n'+''.join('  '+namespace+'_'+pet+':\n    type: "minecraft:paper"\n    item-identifier: "yetiboss:'+pet+'"\n    displayentityoptions:\n      y-offset: -0.5\n      vanilla-scale: false\n      vanilla-scale-multiplier: 1\n      hand: false\n' for namespace in ('yetiboss',model_namespace()) for pet in MODELS+WARDEN_MODELS)
 
 if __name__ == '__main__':
     target = ROOT/'target'

@@ -19,6 +19,23 @@ class BossPackTest(unittest.TestCase):
     self.assertTrue(element['faces'])
     for bound in ('from','to'):self.assertTrue(all(0<=v<=16 for v in element[bound]))
     if 'rotation' in element:self.assertTrue(-45<=element['rotation']['angle']<=45)
+ def test_versioned_boss_assets_resolve_without_legacy_resource_keys(self):
+  namespace=self.java['yeti-model-namespace.txt'].decode().strip()
+  self.assertRegex(namespace,r'^yetiboss_m[0-9a-f]{16}$')
+  atlas=json.loads(self.java['assets/minecraft/atlases/items.json'])
+  sprites={source['resource'] for source in atlas['sources']}
+  for name in MODELS+WARDEN_MODELS:
+   item=json.loads(self.java[f'assets/{namespace}/items/{name}.json'])
+   self.assertEqual(namespace+':boss/'+name,item['model']['model'])
+   mesh=json.loads(self.java[f'assets/{namespace}/models/boss/{name}.json'])
+   for texture in mesh['textures'].values():
+    self.assertTrue(texture.startswith(namespace+':boss/'))
+    self.assertIn('assets/'+texture.replace(':','/textures/')+'.png',self.java)
+    self.assertIn(texture,sprites)
+  for definition in mappings()['items']['minecraft:paper']:
+   self.assertTrue(definition['model'].startswith(namespace+':'))
+   self.assertTrue(definition['bedrock_identifier'].startswith('yetiboss:'))
+  self.assertIn(namespace+'_giant_yeti:',display_mappings())
  def test_eyes_only_appear_on_front_in_every_pose(self):
   for name in MODELS:
    m=json.loads(self.java['assets/yetiboss/models/boss/'+name+'.json'])

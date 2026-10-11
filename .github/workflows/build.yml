@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.9.11 — Gorilla Father silhouette"
+run-name: "YetiBoss 0.9.12 — Isolated boss assets and pack diagnostics"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

@@ -50,6 +50,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private final Set<UUID> bossPackReady=new HashSet<>();
     private final Map<UUID,String> packStates=new HashMap<>();
     private byte[] bossPackHash;
+    private String bossModelNamespace="yetiboss";
+    private UUID bossPackId=BOSS_PACK_ID;
     private ReturnTrips returnTrips;
     private final Set<UUID> travelPending=new HashSet<>();
     private FrostItems frostItems;
@@ -184,7 +186,16 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         try(var input=getResource("yeti-pack.sha1")) {
             if(input==null)throw new IOException("Missing built boss pack hash");
             bossPackHash=HexFormat.of().parseHex(new String(input.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8).trim());
+            bossPackId=UUID.nameUUIDFromBytes(bossPackHash);
+            try(var manifest=getResource("yeti-model-namespace.txt")) {
+                if(manifest==null)throw new IOException("Missing model namespace manifest");
+                String namespace=new String(manifest.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8).trim();
+                if(!namespace.matches("yetiboss_m[0-9a-f]{16}"))throw new IOException("Invalid model namespace");
+                bossModelNamespace=namespace;
+            }
+            getLogger().info("Boss assets: "+bossModelNamespace+" | Pack SHA1: "+HexFormat.of().formatHex(bossPackHash));
         } catch(Exception ex) {
+            bossPackHash=null;
             getLogger().warning("Boss pack unavailable: "+ex.getMessage()+". The visible golem fallback will be used.");
         }
         getServer().getPluginManager().registerEvents(this,this);
@@ -485,7 +496,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     }
     private ItemStack modelItem(String name) {
         ItemStack item=new ItemStack(Material.PAPER);ItemMeta meta=item.getItemMeta();
-        meta.setItemModel(new NamespacedKey("yetiboss",name));item.setItemMeta(meta);return item;
+        meta.setItemModel(new NamespacedKey(bossModelNamespace,name));item.setItemMeta(meta);return item;
     }
     private void tick() {
         tick++;
@@ -885,11 +896,11 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             url="https://github.com/aemiroo/YetiBoss/releases/download/yeti-pack-assets/YetiBoss-Pack-"
                 +HexFormat.of().formatHex(bossPackHash)+".zip";
         packStates.put(id,"REQUESTED");
-        try { player.addResourcePack(BOSS_PACK_ID,url,bossPackHash,"Cyborg Father Yeti boss model",false); }
+        try { player.removeResourcePack(BOSS_PACK_ID);player.removeResourcePack(bossPackId);player.addResourcePack(bossPackId,url,bossPackHash,"Cyborg Father Yeti boss model",false); }
         catch(IllegalArgumentException ex) { packStates.put(id,"INVALID_URL");getLogger().warning("Invalid boss resource-pack URL"); }
     }
     @EventHandler public void bossPackStatus(PlayerResourcePackStatusEvent event) {
-        if(!BOSS_PACK_ID.equals(event.getID()))return;
+        if(!bossPackId.equals(event.getID()))return;
         UUID id=event.getPlayer().getUniqueId();
         packStates.put(id,event.getStatus().name());
         if(event.getStatus()==PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED)bossPackReady.add(id);
@@ -1637,6 +1648,8 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 stop(true);sender.sendMessage(prefix()+"Encounter stopped.");
             }
             case "status" -> {
+                sender.sendMessage(prefix()+"Plugin: "+getDescription().getVersion()+" | Asset namespace: "+bossModelNamespace);
+                sender.sendMessage(prefix()+"Expected pack SHA1: "+(bossPackHash==null?"unavailable":HexFormat.of().formatHex(bossPackHash)));
                 sender.sendMessage(prefix()+"Automatic spawns: "+getConfig().getBoolean("schedule.enabled")+" | Next slot: "+java.time.Instant.ofEpochMilli(spawnSchedule.next()));
                 sender.sendMessage(prefix()+(encounter==null?"No active Yeti.":"Health: "+Math.ceil(encounter.body.getHealth())+
                     " | Mother: "+(encounter.mother==null?"absent":Math.ceil(encounter.mother.body.getHealth())+" HP")+" | Summons: "+encounter.minions.size()+" | Participants: "+encounter.participation.size()+" | Phase: "+(encounter.enraged?"enraged":"normal")+

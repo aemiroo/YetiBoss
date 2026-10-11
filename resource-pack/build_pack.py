@@ -1,5 +1,5 @@
 """Original frost Yeti boss resource pack."""
-import base64,hashlib,json,math,pathlib,struct,zlib,zipfile
+import base64,hashlib,json,math,pathlib,struct,zlib,zipfile,functools
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 from gear_model import GEAR_MODELS, MATERIALS, model as gear_model, texture as gear_texture, item_definition
 from boss_model import model,mother_model,COLORS,texture_color
@@ -45,11 +45,31 @@ def files():
  result['assets/yetiboss/sounds.json']=json.dumps({name:{'sounds':[{'name':'yetiboss:'+name,'stream':False}]} for name in SOUNDS}).encode()
  for name in SOUNDS:
   result['assets/yetiboss/sounds/'+name+'.ogg']=base64.b64decode((ROOT/'resource-pack/sounds'/ (name+'.ogg.b64')).read_text())
+ # Content-addressed boss assets prevent an older, higher-priority pack from
+ # silently overriding this build's model, textures or item definition.
+ boss_paths=sorted(p for p in result if p.startswith(('assets/yetiboss/models/boss/','assets/yetiboss/textures/boss/')))
+ identity=hashlib.sha256()
+ for path in boss_paths:identity.update(path.encode());identity.update(result[path])
+ namespace='yetiboss_m'+identity.hexdigest()[:16]
+ for path in boss_paths+[f'assets/yetiboss/items/{name}.json' for name in MODELS+WARDEN_MODELS]:
+  data=result[path]
+  if path.endswith('.json'):data=data.replace(b'yetiboss:boss/',(namespace+':boss/').encode())
+  result[path.replace('assets/yetiboss/','assets/'+namespace+'/',1)]=data
+ atlas=json.loads(result['assets/minecraft/atlases/items.json'])
+ atlas['sources'] += [{'type':'minecraft:single','resource':namespace+':boss/'+name,'sprite':namespace+':boss/'+name} for name in COLORS]
+ result['assets/minecraft/atlases/items.json']=json.dumps(atlas).encode()
+ result['yeti-model-namespace.txt']=(namespace+'\n').encode()
  return result
+
+@functools.lru_cache(maxsize=1)
+def model_namespace():return files()['yeti-model-namespace.txt'].decode().strip()
+
 def build():
  output=ROOT/'target/YetiBoss-Pack.zip';output.parent.mkdir(parents=True,exist_ok=True)
+ contents=files()
+ (ROOT/'src/main/resources/yeti-model-namespace.txt').write_bytes(contents['yeti-model-namespace.txt'])
  with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as archive:
-  for name,data in sorted(files().items()):
+  for name,data in sorted(contents.items()):
    info=zipfile.ZipInfo(name,(2026,1,1,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED;archive.writestr(info,data)
  digest=hashlib.sha1(output.read_bytes()).hexdigest()
  (output.parent/'yeti-pack.sha1').write_text(digest+'\n')
