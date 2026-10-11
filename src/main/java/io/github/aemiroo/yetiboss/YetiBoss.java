@@ -168,6 +168,10 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 if((key.startsWith("attacks.icefall.")||key.startsWith("attacks.whirlwind."))&&!getConfig().getDefaults().isConfigurationSection(key)&&!getConfig().contains(key,true))getConfig().set(key,getConfig().getDefaults().get(key));
             getConfig().set("schema-version",18);saveConfig();
         }
+        if(getConfig().getInt("schema-version")<19) {
+            if(!getConfig().contains("boss.visual-size-multiplier",true))getConfig().set("boss.visual-size-multiplier",1.25);
+            getConfig().set("schema-version",19);saveConfig();
+        }
         entityKey=new NamespacedKey(this,"encounter_entity");
         swordKey=new NamespacedKey(this,"frostfang");
         try {
@@ -240,13 +244,13 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         for(String key:List.of("x","y","z","yaw"))
             if(!Double.isFinite(c.getDouble("schedule."+key)))throw new IllegalArgumentException("Invalid scheduled spawn coordinate");
         if(c.getBoolean("discord.enabled"))BossWebhook.endpoint(c.getString("discord.webhook-url",""));
-        for(String key:List.of("boss.health","boss.golem-scale","boss.model-scale","boss.movement-speed",
+        for(String key:List.of("boss.health","boss.golem-scale","boss.model-scale","boss.visual-size-multiplier","boss.movement-speed",
                 "boss.arena-radius","boss.leash-radius")) {
             double value=c.getDouble(key);
             if(!Double.isFinite(value)||value<=0) throw new IllegalArgumentException("Invalid "+key);
         }
         if(c.getDouble("boss.health")>1024 || c.getDouble("boss.golem-scale")>4
-                ||c.getDouble("boss.model-scale")>12 ||c.getDouble("boss.arena-radius")>128
+                ||c.getDouble("boss.model-scale")>12 ||c.getDouble("boss.model-scale")*c.getDouble("boss.visual-size-multiplier",1.25)>12 ||c.getDouble("boss.arena-radius")>128
                 ||c.getDouble("boss.leash-radius")<c.getDouble("boss.arena-radius")
                 ||c.getDouble("boss.leash-radius")>160 ||c.getDouble("boss.movement-speed")>1)
             throw new IllegalArgumentException("Boss settings exceed supported bounds");
@@ -376,7 +380,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         return at.getY()>at.getWorld().getMinHeight()&&at.getY()<at.getWorld().getMaxHeight()
             &&at.getWorld().getWorldBorder().isInside(at)&&!at.clone().add(0,-1,0).getBlock().isPassable()
             &&room(at,getConfig().getDouble("boss.golem-scale")*.7,
-                Math.max(getConfig().getDouble("boss.golem-scale")*2.7,getConfig().getDouble("boss.model-scale")));
+                Math.max(getConfig().getDouble("boss.golem-scale")*2.7,fatherModelScale()));
     }
     private void tickSchedule() {
         if(spawnSchedule==null||!getConfig().getBoolean("schedule.enabled"))return;
@@ -435,6 +439,9 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         for(Chunk chunk:encounterChunks)chunk.removePluginChunkTicket(this);
         encounterChunks.clear();
     }
+    private double fatherModelScale() {
+        return getConfig().getDouble("boss.model-scale")*getConfig().getDouble("boss.visual-size-multiplier",1.25);
+    }
     private void spawn(Location at) {
         try {spawnSchedule.recordSpawn(at.getWorld().getUID().toString(),at.getX(),at.getZ());}
         catch(IOException ex){getLogger().warning("Spawn cancelled: could not save previous location: "+ex.getMessage());return;}
@@ -447,7 +454,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
     private Encounter createYeti(Location at,double health,String name,boolean mother) {
         keepEncounterChunks(at);
         double size=mother?getConfig().getDouble("mother.size-multiplier",.75):1;
-        double modelScale=getConfig().getDouble("boss.model-scale")*size;
+        double modelScale=mother?getConfig().getDouble("boss.model-scale")*size:fatherModelScale();
         double bodyScale=getConfig().getDouble("boss.golem-scale")*size;
         String modelPrefix=mother?"mother_yeti":"giant_yeti";
         IronGolem body=at.getWorld().spawn(at,IronGolem.class,golem->{
@@ -808,7 +815,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         e.flightUsed=true;e.flightStarted=tick;e.flightGround=e.body.getLocation().clone();e.flightHealed=0;
         double desired=getConfig().getDouble("attacks.flight-phase.height",16),height=0;
         for(double h=.5;h<=desired;h+=.5) {
-            if(!room(e.flightGround.clone().add(0,h,0),.8,getConfig().getDouble("boss.model-scale")))break;
+            if(!room(e.flightGround.clone().add(0,h,0),.8,fatherModelScale()))break;
             height=h;
         }
         e.flightHeight=height;e.grabbed=null;e.pending=null;e.recovery=null;e.comboRemaining=0;e.barrageRemaining=0;e.chargeUntil=0;e.waveStarted=0;
@@ -824,7 +831,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         // Abort downward movement if players placed an obstruction; stay at the
         // current position until safe landing ground can be located.
         if(age>=FlightPhase.ASCEND+FlightPhase.HEAL&&!room(at,.8,2.7)) {
-            Location safe=spawnPoint(e,.8,getConfig().getDouble("boss.model-scale"));
+            Location safe=spawnPoint(e,.8,fatherModelScale());
             if(safe!=null){e.flightGround=safe;at=safe.clone().add(0,FlightPhase.height(age,e.flightHeight),0);}
             else at=e.body.getLocation();
         }
@@ -1634,7 +1641,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                         &&at.getWorld().getBlockAt(at.getBlockX(),floor-1,at.getBlockZ()).isPassable())floor--;
                 at.setY(floor);
                 double halfWidth=getConfig().getDouble("boss.golem-scale")*.7;
-                double height=Math.max(getConfig().getDouble("boss.golem-scale")*2.7,getConfig().getDouble("boss.model-scale"));
+                double height=Math.max(getConfig().getDouble("boss.golem-scale")*2.7,fatherModelScale());
                 if(!room(at,halfWidth,height)) {
                     sender.sendMessage(prefix()+"Choose open, loaded ground with "+Math.ceil(height)+" blocks of headroom.");return true;
                 }

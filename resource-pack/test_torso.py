@@ -29,7 +29,7 @@ class SolidTorsoTest(unittest.TestCase):
    for e in core:
     self.assertNotIn('rotation',e)
     self.assertTrue({'north','south','up','down'}.issubset(e['faces']))
-   self.assertGreater(right['to'][0]-left['from'][0],7)
+   self.assertGreater(right['to'][0]-left['from'][0],6.5)
    self.assertGreater(left['to'][2]-left['from'][2],5)
 
  def test_walk_retains_the_same_surface_topology(self):

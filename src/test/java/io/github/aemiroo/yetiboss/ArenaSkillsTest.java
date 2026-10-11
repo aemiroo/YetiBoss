@@ -46,6 +46,9 @@ class ArenaSkillsTest {
   double width=ArenaSkills.hitboxWidth(6.4),bottom=ArenaSkills.hitboxOffset(6.4);
   assertEquals(3.84,width,1e-9);assertTrue(bottom>.8);assertTrue(bottom+width<4.8);
   assertEquals(width*.75,ArenaSkills.hitboxWidth(4.8),1e-9);
+  // The enlarged Father gets the same proportional core; Mother retains 4.8.
+  assertEquals(4.8,ArenaSkills.hitboxWidth(8),1e-9);
+  assertEquals(1.04,ArenaSkills.hitboxOffset(8),1e-9);
  }
  @Test void specialMovesRespectCooldownAndConfiguredDisable() {
   var selector=new AttackSelector();var random=new Random(1);

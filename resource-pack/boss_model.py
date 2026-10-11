@@ -263,16 +263,16 @@ def model(frame=None,attack=None,kind='slam'):
   l['faces'].pop('east');r['faces'].pop('west')
   if role in ('torso_core','skull_core'):l['name']=r['name']=role
  # A rounded barrel made from interlocking stepped volumes, not a tall slab.
- half((4.05,3.0,4.0),(11.95,9.9,11.0),'fur_shadow',role='torso_core')
- half((3.35,6.1,3.4),(12.65,10.6,11.65),'fur',role='ribcage')
- half((3.0,8.0,4.35),(13.0,11.75,12.35),'fur_light',role='mantle')
- half((4.0,10.4,6.15),(12.0,13.15,12.85),'fur_shadow',role='silverback_hump')
- half((5.0,12.35,7.2),(11.0,13.55,12.2),'fur_light',role='hump_crown')
- half((4.65,2.45,7.25),(11.35,4.05,12.4),'fur',role='hips')
+ half((4.65,3.0,4.75),(11.35,9.9,10.75),'fur_shadow',role='torso_core')
+ half((3.85,6.1,3.8),(12.15,10.6,11.25),'fur',role='ribcage')
+ half((3.5,8.0,4.8),(12.5,11.75,11.9),'fur_light',role='mantle')
+ half((4.5,10.4,6.15),(11.5,13.15,12.05),'fur_shadow',role='silverback_hump')
+ half((5.5,12.35,7.2),(10.5,13.55,11.55),'fur_light',role='hump_crown')
+ half((5.05,2.45,7.65),(10.95,4.05,12.0),'fur',role='hips')
  # Separate projecting pectorals and tapered abdomen give the front a V shape.
- box((3.62,7.5,2.92),(7.98,10.35,5.2),'fur_light',role='pectoral_l')
- box((8.02,7.5,2.90),(12.38,10.35,5.18),'steel',role='pectoral_r')
- half((4.7,4.15,3.35),(11.3,7.45,5.6),'fur',role='abdomen')
+ box((4.1,7.5,3.12),(7.98,10.35,5.2),'fur_light',role='pectoral_l')
+ box((8.02,7.5,3.10),(11.9,10.35,5.18),'steel',role='pectoral_r')
+ half((5.3,4.15,3.65),(10.7,7.45,5.6),'fur',role='abdomen')
  for j in range(3):
   box((8.18,4.35+j*.83,3.13),(10.98-j*.13,4.98+j*.83,3.32),'metal_edge',role='belly_plate')
  # Short, bent rear legs and broad feet hold the weight of the hunched body.
@@ -364,6 +364,31 @@ def model(frame=None,attack=None,kind='slam'):
   beam(tip,1.5,vertical=True,angle=22.5,width=.46)
   beam(joint,1.1,vertical=True,angle=-22.5,width=.48)
   beam((joint[0]+.35,joint[1]-.15),.95,vertical=True,angle=22.5,width=.45)
+ # Closed stepped caps soften the shoulder and forearm silhouette. Each band
+ # keeps every exterior face and the same pivot; no open shell or hidden core.
+ import copy
+ shaped=[]
+ for e in es:
+  if e.get('role') not in ('shoulder','forearm'):
+   shaped.append(e);continue
+  a,b=e['from'],e['to'];height=b[1]-a[1]
+  cuts=[a[1],a[1]+height*.2,b[1]-height*.2,b[1]]
+  for j in range(3):
+   band=copy.deepcopy(e);band['from'][1]=cuts[j];band['to'][1]=cuts[j+1]
+   if j!=1:
+    trim=.28 if e['role']=='shoulder' else .18
+    for axis in (0,2):band['from'][axis]+=trim;band['to'][axis]-=trim
+   shaped.append(band)
+ es=shaped
+ for e in es:
+  limb=e.get('name','')
+  center=2.1 if limb=='arm_l' else 13.9 if limb=='arm_r' else None
+  for bound in ('from','to'):
+   e[bound][1]=round(e[bound][1]*1.08,8)
+   if center is not None:e[bound][0]=round(center+(e[bound][0]-center)*.82,8)
+  if 'rotation' in e:
+   origin=e['rotation']['origin'];origin[1]=round(origin[1]*1.08,8)
+   if center is not None:origin[0]=round(center+(origin[0]-center)*.82,8)
  if frame is not None:
   sway=.12*math.sin(phase);bob=(.22 if kind=='gallop' else .08)*(1-math.cos(2*phase))
   for e in es:

@@ -72,7 +72,7 @@ class BossPackTest(unittest.TestCase):
   self.assertAlmostEqual(front[right]['rotation']['angle'],-10)
  def test_attack_poses_raise_both_arms(self):
   rotations=[e['rotation'] for e in model(attack=3)['elements'] if 'rotation' in e]
-  for pivot in ([3.5,10.3,7.2],[12.5,10.3,7.2]):
+  for pivot in ([3.248,11.124,7.2],[12.752,11.124,7.2]):
    self.assertTrue(any(r['origin']==pivot and r['axis']=='x' and r['angle']==45 for r in rotations))
  def test_custom_sounds_are_in_both_packs(self):
   for name in ('idle','angry','spawn','death','hurt_1','hurt_2','grab_slam'):

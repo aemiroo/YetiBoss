@@ -1,10 +1,12 @@
-schema-version: 18
+schema-version: 19
 prefix: '&b[Yeti] &7'
 boss:
   name: 'Cyborg Father Yeti'
   health: 1000
   golem-scale: 1.0
   model-scale: 6.4
+  # Additional visual size for Father; Mother keeps the base model scale.
+  visual-size-multiplier: 1.25
   movement-speed: 0.28
   arena-radius: 64.0
   leash-radius: 80.0
@@ -15,7 +17,7 @@ mother:
   name: 'Mother Yeti'
   # Summoned once at Father's 70% HP; her max HP is this fraction of Father's.
   health-fraction: 0.35
-  # Relative to Father; accepted range is 0.5 to below 1.0.
+  # Relative to the base model scale; accepted range is 0.5 to below 1.0.
   size-multiplier: 0.75
 attacks:
   icefall:
