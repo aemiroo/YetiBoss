@@ -448,3 +448,8 @@ def model(frame=None,attack=None,kind='slam'):
 
 def mother_model(frame=None,attack=None,kind='slam'):
  return sculpt_silhouette(_block_mother_model(frame,attack,kind))
+
+# Keep the approved procedural model available as a conversion reference.
+procedural_father_model=model
+from imported_father import model as model, TEXTURE_BYTES as IMPORTED_FATHER_TEXTURES
+COLORS.update({name:(0,0,0,255) for name in IMPORTED_FATHER_TEXTURES})

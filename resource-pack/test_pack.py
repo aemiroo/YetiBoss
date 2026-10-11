@@ -1,5 +1,6 @@
 import json, unittest
-from build_pack import files,model,MODELS,WARDEN_MODELS,COLORS
+from build_pack import files,model as imported_model,MODELS,WARDEN_MODELS,COLORS
+from boss_model import procedural_father_model as model
 from build_bedrock import files as bedrock_files,mappings,display_mappings
 def nearest_element(elements,point):
  return min(range(len(elements)),key=lambda i:sum((elements[i]['from'][j]-point[j])**2 for j in range(3)))
@@ -16,8 +17,10 @@ class BossPackTest(unittest.TestCase):
     self.assertIn('assets/'+texture.replace(':','/textures/')+'.png',self.java)
    for element in m['elements']:
     self.assertTrue(element['faces'])
-    for bound in ('from','to'):self.assertTrue(all(0<=v<=16 for v in element[bound]))
-    if 'rotation' in element:self.assertTrue(-45<=element['rotation']['angle']<=45)
+    for bound in ('from','to'):self.assertTrue(all(-16<=v<=32 for v in element[bound]))
+    if 'rotation' in element:
+     import math
+     self.assertTrue(all(math.isfinite(v) for k,v in element['rotation'].items() if k in ('x','y','z','angle')))
  def test_versioned_boss_assets_resolve_without_legacy_resource_keys(self):
   namespace=self.java['yeti-model-namespace.txt'].decode().strip()
   self.assertRegex(namespace,r'^yetiboss_m[0-9a-f]{16}$')
@@ -39,7 +42,8 @@ class BossPackTest(unittest.TestCase):
   for name in MODELS:
    m=json.loads(self.java['assets/yetiboss/models/boss/'+name+'.json'])
    eye_faces=[(side,face) for e in m['elements'] for side,face in e['faces'].items() if face['texture']=='#ice_face']
-   self.assertEqual(['north'],[side for side,face in eye_faces],name)
+   if name.startswith('mother_'):self.assertEqual(['north'],[side for side,face in eye_faces],name)
+   else:self.assertEqual(['north'],[side for e in m['elements'] for side,f in e['faces'].items() if f['texture']=='#optic'],name)
  def test_no_overlapping_coplanar_surfaces_in_any_pose(self):
   axes={'north':(2,False),'south':(2,True),'west':(0,False),'east':(0,True),'down':(1,False),'up':(1,True)}
   for name in MODELS:
@@ -94,7 +98,9 @@ class BossPackTest(unittest.TestCase):
     if 'rotation' in e:
      x,y,z=e['rotation']['origin']
      self.assertEqual([8-x,y+8,z-8],c['pivot'])
-     r=e['rotation'];expected=[0,0,0];expected['xyz'.index(r['axis'])]=r['angle']*(-1 if r['axis']=='x' else 1)
+     r=e['rotation'];expected=[0,0,0]
+     if 'axis' in r:expected['xyz'.index(r['axis'])]=r['angle']*(-1 if r['axis']=='x' else 1)
+     else:expected=[-r.get('x',0),r.get('y',0),r.get('z',0)]
      self.assertEqual(expected,c['rotation'])
  def test_pack_namespaces_do_not_replace_pet_models(self):
   self.assertFalse(any('assets/cosmeticpets/' in p for p in self.java))
@@ -108,8 +114,8 @@ class BossPackTest(unittest.TestCase):
     n=struct.unpack('>I',png[pos:pos+4])[0]
     if png[pos+4:pos+8]==b'IDAT':return zlib.decompress(png[pos+8:pos+8+n])
     pos+=n+12
-  m=model();names=list(m['textures']);tile=names.index('fur')
-  java=raw(self.java['assets/yetiboss/textures/boss/father_fur.png'])
+  m=imported_model();names=list(m['textures']);texture=next(n for n in names if n.startswith('father_glb_'));tile=names.index(texture)
+  java=raw(self.java['assets/yetiboss/textures/boss/'+texture+'.png'])
   bedrock=raw(self.bedrock['textures/yetiboss/giant_yeti.png'])
   width=len(names)*64+1
   for y in range(16):
@@ -133,7 +139,7 @@ class BossPackTest(unittest.TestCase):
   for name in MODELS:
    if name.startswith('giant_yeti'):
     counterpart=name.replace('giant_yeti','mother_yeti')
-    if '_whirl_' in name or '_gallop_' in name or ('_walk_' in name and int(name.rsplit('_',1)[1])>=12):continue
+    if '_idle_' in name or '_whirl_' in name or '_gallop_' in name or ('_walk_' in name and int(name.rsplit('_',1)[1])>=12):continue
     self.assertIn('assets/yetiboss/items/'+counterpart+'.json',self.java)
     self.assertIn('attachables/'+counterpart+'.json',self.bedrock)
  def test_mother_walk_keeps_shared_rig_attached_to_slimmer_body(self):

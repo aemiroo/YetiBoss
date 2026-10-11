@@ -632,7 +632,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
                 animated==Attack.WHIRLWIND?"whirl":animated==Attack.ICEFALL||animated==Attack.SONIC_BOOM||animated==Attack.ROAR||animated==Attack.SNOW_GOLEMS?"roar":"attack";
         if(e.recovery==Attack.WHIRLWIND&&e.pending==null)poseFrame=Math.max(0,7-(int)((tick-e.recoveryStarted)*8/60));
         String model=e.chargeUntil>tick?e.modelPrefix+"_gallop_"+Math.max(0,frame):e.grabbed!=null?e.modelPrefix+"_attack_3":animated!=null?e.modelPrefix+"_"+pose+"_"+poseFrame:
-                frame<0?e.modelPrefix:e.modelPrefix+"_walk_"+frame;
+                frame<0?(e.modelPrefix.equals("giant_yeti")?e.modelPrefix+"_idle_"+((tick-e.started)*24/60%24):e.modelPrefix):e.modelPrefix+"_walk_"+frame;
         if(!model.equals(e.modelName)) { e.model.setItemStack(modelItem(model));e.modelName=model; }
         float turn=(float)Math.IEEEremainder(at.getYaw()-e.visualYaw,360);
         e.visualYaw+=Math.max(-12f,Math.min(12f,turn));

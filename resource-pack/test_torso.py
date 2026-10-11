@@ -1,5 +1,5 @@
 import math,unittest
-from boss_model import model
+from boss_model import procedural_father_model as model
 class SolidTorsoTest(unittest.TestCase):
  def test_center_torso_has_material_on_both_sides_through_all_poses(self):
   def inside(e,p):

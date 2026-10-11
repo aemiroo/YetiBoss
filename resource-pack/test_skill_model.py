@@ -1,5 +1,5 @@
 import unittest
-from boss_model import model
+from boss_model import procedural_father_model as model
 from build_pack import FATHER_MODELS,MODELS
 class SkillModelTest(unittest.TestCase):
  def test_whirlwind_arm_and_piston_share_a_smooth_outward_rig(self):

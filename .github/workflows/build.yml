@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.9.19 — Natural gorilla body layout"
+run-name: "YetiBoss 0.10.0 — Imported animated cyborg Father"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

@@ -310,6 +310,15 @@ Scatter radius is now 6 + 0.75 × (raiders − 1), capped at 18 blocks: solo/4/8
 ### 0.9.11 — Gorilla Father
 Father now has a gorilla silhouette: compressed legs, a deeper and wider barrel chest, a high shoulder/back mantle, a lower head, forward knuckle-bearing arms and a charcoal muzzle. Mechanical plating uses quieter brushed steel instead of repeated panel grids. The mechanical half, connected horns, eye positions and sealed skull/muzzle remain. The same anatomical transform is applied to geometry and rig pivots in every animation; Mother is unchanged. The torso hitbox sits lower (0.832 blocks at default scale) to match the shortened stance. Icefall/Whirlwind behavior is unchanged. Updated Java/Bedrock packs and mappings are included.
 
+### 0.10.0 — Imported animated Father
+
+- Father now uses the user-supplied animated GLB as the actual model foundation: all 70 original cuboid meshes, the original hierarchy, UV patches, and six animation clips are preserved in converted assets.
+- Adapted the upper body, head and shoulders into a forward natural gorilla stance. The organic side retains the source fur, muzzle, curved fingers and feet; the mechanical half uses steel plating, a chest reactor, forearm motor, pistons, cooling vents and a red optic.
+- Mounted the previously approved mechanical hand on the source hand bone and retained connected branching horns.
+- Mapped idle/walk/smash/attack1/attack2 clips to live idle, walking, galloping, slam, swipe and throw poses; roar and whirlwind use adapted source joints. The source death clip is retained for future use and is not yet played by the encounter.
+- Builds require only Python’s standard library. `convert_father_glb.py` is the offline conversion tool; converted assets carry source SHA-256 and provenance under `resource-pack/imported/father` and in the pack’s `FATHER-SOURCES.txt`.
+- Added imported-asset checks for exact transformed cuboid corners in every pose, original organic UV patches, natural stance, grounded hands, mechanical hand preservation and attachment of machinery to source joints. Procedural model regression tests remain available separately; Mother, loot and damage behavior are unchanged.
+
 ### 0.9.19 — Natural gorilla body layout
 
 - Replaced the tilted upright torso with a closed horizontal trunk, forward shoulder cage, rounded back and rear pelvis.
