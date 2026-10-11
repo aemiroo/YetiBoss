@@ -6,15 +6,19 @@ class ArenaSkillsTest {
  @Test void icefallGrowsWithTheRaidAndCapsEntityLoad() {
   assertEquals(0,ArenaSkills.icefallScale(0).maximumDrops());
   assertEquals(4,ArenaSkills.icefallScale(1).maximumDrops());
+  assertEquals(6,ArenaSkills.icefallScale(1).radius());
+  assertEquals(8.25,ArenaSkills.icefallScale(4).radius());
+  assertEquals(11.25,ArenaSkills.icefallScale(8).radius());
+  assertEquals(17.25,ArenaSkills.icefallScale(16).radius());
   assertEquals(10,ArenaSkills.icefallScale(4).maximumDrops());
   assertEquals(18,ArenaSkills.icefallScale(8).maximumDrops());
   assertEquals(30,ArenaSkills.icefallScale(16).maximumDrops());
   assertEquals(32,ArenaSkills.icefallScale(Integer.MAX_VALUE).maximumDrops());
-  assertEquals(12,ArenaSkills.icefallScale(Integer.MAX_VALUE).radius());
+  assertEquals(18,ArenaSkills.icefallScale(Integer.MAX_VALUE).radius());
   for(int n=1;n<100;n++) {
    var before=ArenaSkills.icefallScale(n);var after=ArenaSkills.icefallScale(n+1);
    assertTrue(after.maximumDrops()>=before.maximumDrops());assertTrue(after.radius()>=before.radius());
-   assertTrue(after.maximumDrops()<=32);assertTrue(after.radius()<=12);
+   assertTrue(after.maximumDrops()<=32);assertTrue(after.radius()<=18);
   }
  }
  @Test void scatteredIceStaysInTheDiskAndAvoidsDuplicateMarkers() {

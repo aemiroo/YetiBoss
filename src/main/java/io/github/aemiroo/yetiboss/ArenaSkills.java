@@ -5,7 +5,7 @@ final class ArenaSkills {
  record RaidScale(int targets,int scattered,double radius) {int maximumDrops(){return targets+scattered;}}
  static RaidScale icefallScale(int players) {
   if(players<=0)return new RaidScale(0,0,0);
-  return new RaidScale(Math.min(12,players),(int)Math.min(20L,(long)players+2),Math.min(12,4+.5*(players-1)));
+  return new RaidScale(Math.min(12,players),(int)Math.min(20L,(long)players+2),Math.min(18,6+.75*(players-1)));
  }
  static double scatterDistance(double randomUnit,double radius){return Math.sqrt(Math.max(0,Math.min(1,randomUnit)))*radius;}
  static boolean separated(double x,double y,double z){return Math.abs(y)>3||horizontalSquared(x,z)>=4;}
