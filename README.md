@@ -306,3 +306,6 @@ Markers are fixed once placed. Nearby centers are separated by at least two hori
 
 ### 0.9.10 — Wider Icefall scatter
 Scatter radius is now 6 + 0.75 × (raiders − 1), capped at 18 blocks: solo/4/8/16 raiders use 6/8.25/11.25/17.25 blocks. Drop budgets, damage, direct/splash circles, warning timing and fixed markers remain unchanged. The existing arena boundary and terrain checks still limit placements.
+
+### 0.9.11 — Gorilla Father
+Father now has a gorilla silhouette: compressed legs, a deeper and wider barrel chest, a high shoulder/back mantle, a lower head, forward knuckle-bearing arms and a charcoal muzzle. Mechanical plating uses quieter brushed steel instead of repeated panel grids. The mechanical half, connected horns, eye positions and sealed skull/muzzle remain. The same anatomical transform is applied to geometry and rig pivots in every animation; Mother is unchanged. The torso hitbox sits lower (0.832 blocks at default scale) to match the shortened stance. Icefall/Whirlwind behavior is unchanged. Updated Java/Bedrock packs and mappings are included.

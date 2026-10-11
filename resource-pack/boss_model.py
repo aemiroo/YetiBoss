@@ -149,17 +149,18 @@ def texture_color(mat,x,y):
   if name in ('reactor','optic'):
    return tuple(min(255,v+35) for v in c) if 5<=x<=10 and 5<=y<=10 else c
   if name=='steel':
-   delta=26 if x in (1,14) or y in (1,14) else -14 if x in (3,12) or y in (3,12) else ((x//4+y//4)%3-1)*5
+   delta=12 if x in (1,14) or y in (1,14) else ((x+3*y)%5-2)*2
   elif name=='metal_edge':delta=18 if x<5 else -15 if x>12 else 0
   else:delta=((x//2+y//2)%3-1)*7
   return tuple(max(0,min(255,v+delta)) for v in c)
  if name in ('fur','fur_light','fur_shadow','horn','muzzle'):
-  base={'fur':(226,234,232),'fur_light':(238,242,235),'fur_shadow':(198,215,216),'horn':(207,219,207),'muzzle':(220,229,227)}[name]
+  base={'fur':(226,234,232),'fur_light':(238,242,235),'fur_shadow':(198,215,216),'horn':(207,219,207),'muzzle':(75,93,101)}[name]
   patch=((x//3)*7+(y//3)*11+(x//3)*(y//3))%9
   delta=(-10,-5,0,0,0,3,5,7,9)[patch]
   return tuple(max(0,min(255,c+delta)) for c in base)
  if name=='ice_face':
   return (255,156,76) if 3<=x<=12 and 5<=y<=10 else (37,53,56)
+ if name=='nose':return (24,31,35) if (3<=x<=6 or 10<=x<=13) and 7<=y<=11 else (65,78,83)
  if name=='face_plain':return (84,105,108)
  if name=='scream':return (28,41,44) if 3<=x<=12 and 3<=y<=12 else (198,215,216)
  return _previous_texture_color(name,x,y)
@@ -185,13 +186,17 @@ def model(frame=None,attack=None,kind='slam'):
     if kind=='roar':angle=22.5
     if kind=='whirl':angle=side*45*attack/7;axis='z'
   e={'from':list(a),'to':list(b),'faces':{f:{'uv':[0,0,16,16],'texture':'#'+mat} for f in ('north','south','east','west','up','down')}}
+  if part:e['_part']=part;e['name']=part
+  if part is None and mat in ('face_plain','muzzle','scream','tooth','horn','ice_face','nose'):e['_head']=True
   if angle:e['rotation']={'origin':pivot,'angle':angle,'axis':axis,'rescale':False}
   es.append(e);return e
  # Deep shoulder mantle, low hips and a head recessed into the chest.
- box((3.1,6.5,6.1),(12.9,11.5,12.65),'fur',angle=22.5,pivot=[8,6.5,8])
- box((4.2,10.35,6.2),(11.8,12.6,10.9),'fur_light')
+ box((2.8,6.5,6.1),(13.2,11.5,12.65),'fur',angle=22.5,pivot=[8,6.5,8])
+ box((3.6,10.35,6.2),(12.4,12.6,11.6),'fur_light')
  box((4.6,4.2,6.7),(11.4,6.65,11.45),'fur_shadow')
  box((5.8,3.65,6.5),(10.2,4.4,10.7),'fur')
+ # Broad projecting pectorals make the silhouette read as an ape, not a suit.
+ box((3.2,6.62,4.70),(12.8,10.5,7.18),'fur',angle=22.5,pivot=[8,6.5,8])
  for side in (-1,1):
   part='leg_l' if side==-1 else 'leg_r';x=5.2 if side==-1 else 8.6
   box((x,2.45,8.05),(x+2.2,4.25,11.0),'fur',part)
@@ -243,6 +248,7 @@ def model(frame=None,attack=None,kind='slam'):
   beam((joint[0]+.35,joint[1]-.15),.95,vertical=True,angle=22.5,width=.45)
  # Lowered head and antlers sit forward of the shoulder mantle.
  for e in es[head_start:]:
+  e['_head']=True
   for bound in ('from','to'):
    e[bound][1]=round(e[bound][1]-1.1,6)
    e[bound][2]=round(e[bound][2]-.45,6)
@@ -250,7 +256,7 @@ def model(frame=None,attack=None,kind='slam'):
    e['rotation']['origin'][1]-=1.1
    e['rotation']['origin'][2]-=.45
  # Solid skull backing closes the faceted seam and the brow-to-muzzle gap.
- box((5.8,9.1,3.90),(10.23,12.15,7.60),'fur')
+ skull=box((5.8,9.1,3.90),(10.23,12.15,7.60),'fur');skull['name']='skull_core';skull['_head']=True
  # Continuous inner torso joins hips to shoulders under the shaped outer shell.
  box((6.28,4.0,7.18),(9.72,11.25,10.62),'fur')
  # Replace the right half with metal, leaving the opposite half organic.
@@ -287,21 +293,25 @@ def model(frame=None,attack=None,kind='slam'):
  box((12.1,9.7,5.33),(15.45,10.99,10.59),'steel','arm_r')
  box((15.46,7.44,6.1),(15.72,9.55,6.47),'cable','arm_r')
  # Half chest plate, reactor and exposed lower rib rails tilt with the torso.
- def chest(a,b,mat):return box(a,b,mat,angle=22.5,pivot=[8,6.5,8])
+ def chest(a,b,mat):
+  a=(a[0],a[1],a[2]-1.4);b=(b[0],b[1],b[2]-1.4)
+  return box(a,b,mat,angle=22.5,pivot=[8,6.5,8])
  chest((8.12,8.72,6.04),(12.15,10.22,6.34),'steel')
  chest((8.15,6.72,5.96),(11.88,8.66,6.29),'mechanism')
  chest((9.1,7.18,5.68),(10.76,8.44,5.94),'metal_edge')
  chest((9.35,7.38,5.49),(10.52,8.23,5.67),'reactor')
  for y in (6.91,7.42,7.93):chest((10.91,y,5.70),(11.65,y+.18,5.95),'metal_edge')
  chest((8.25,7.04,5.71),(8.57,8.51,5.95),'cable')
+ # A blunt gorilla nose projects past the muzzle.
+ box((6.75,9.3,2.34),(9.25,10.0,2.76),'nose')
  # Organic eye shares the mechanical lens height, size and front plane.
  organic_eye=box((6.48,10.68,3.48),(7.30,11.18,3.58),'face_plain')
  organic_eye['faces']['north']['texture']='#ice_face'
  # Mechanical eye covers only one side of the recessed face.
- box((8.15,10.05,3.78),(10.2,11.89,4.025),'steel')
- box((8.53,10.55,3.59),(9.7,11.35,3.77),'mechanism')
+ box((8.15,10.05,3.78),(10.2,11.89,4.025),'steel')['_head']=True
+ box((8.53,10.55,3.59),(9.7,11.35,3.77),'mechanism')['_head']=True
  lens=box((8.70,10.68,3.48),(9.52,11.18,3.58),'steel')
- lens['faces']['north']['texture']='#optic'
+ lens['faces']['north']['texture']='#optic';lens['_head']=True
  # Boot/shin plates finish the repaired mechanical half.
  box((8.91,1.2,6.81),(10.48,2.34,7.19),'steel','leg_r')
  box((9.42,1.38,6.60),(9.97,2.11,6.80),'reactor','leg_r')
@@ -398,7 +408,26 @@ def sculpt_silhouette(mesh,continuous_half=False):
 
 _block_father_model=model
 _block_mother_model=mother_model
+def gorilla_point(point,arm=False):
+ """Short legs, a tall barrel chest, and a forward knuckle stance."""
+ x,y,z=point
+ height=y*.65 if y<=4.4 else 2.86+(y-4.4)*1.15 if y<=11.5 else 11.025+(y-11.5)*.75
+ return [x,round(height,8),round(z-.08*max(0,y-3)-(.8 if arm else 0),8)]
+
+def gorilla_silhouette(mesh):
+ for e in mesh['elements']:
+  arm=e.pop('_part','').startswith('arm')
+  head=e.pop('_head',False)
+  if head:
+   for bound in ('from','to'):
+    q=e[bound];e[bound]=[8+(q[0]-8)*.82,10+(q[1]-10)*.82,q[2]]
+   if 'rotation' in e:
+    q=e['rotation']['origin'];e['rotation']['origin']=[8+(q[0]-8)*.82,10+(q[1]-10)*.82,q[2]]
+  for bound in ('from','to'):e[bound]=gorilla_point(e[bound],arm)
+  if 'rotation' in e:e['rotation']['origin']=gorilla_point(e['rotation']['origin'],arm)
+ return mesh
+
 def model(frame=None,attack=None,kind='slam'):
- return sculpt_silhouette(_block_father_model(frame,attack,kind),continuous_half=True)
+ return gorilla_silhouette(sculpt_silhouette(_block_father_model(frame,attack,kind),continuous_half=True))
 def mother_model(frame=None,attack=None,kind='slam'):
  return sculpt_silhouette(_block_mother_model(frame,attack,kind))

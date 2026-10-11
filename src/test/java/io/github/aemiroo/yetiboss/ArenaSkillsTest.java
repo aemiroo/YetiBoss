@@ -44,7 +44,7 @@ class ArenaSkillsTest {
  }
  @Test void broadCoreFitsTorsoAndExcludesGroundAndAntlers() {
   double width=ArenaSkills.hitboxWidth(6.4),bottom=ArenaSkills.hitboxOffset(6.4);
-  assertEquals(3.84,width,1e-9);assertTrue(bottom>1);assertTrue(bottom+width<5.1);
+  assertEquals(3.84,width,1e-9);assertTrue(bottom>.8);assertTrue(bottom+width<4.8);
   assertEquals(width*.75,ArenaSkills.hitboxWidth(4.8),1e-9);
  }
  @Test void specialMovesRespectCooldownAndConfiguredDisable() {

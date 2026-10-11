@@ -14,5 +14,5 @@ final class ArenaSkills {
  static double horizontalSquared(double x,double z){return x*x+z*z;}
  static boolean pulse(int age){return age>0&&age<=WHIRL_DURATION&&age%20==0;}
  static double hitboxWidth(double modelScale){return modelScale*.60;}
- static double hitboxOffset(double modelScale){return modelScale*.18;}
+ static double hitboxOffset(double modelScale){return modelScale*.13;}
 }

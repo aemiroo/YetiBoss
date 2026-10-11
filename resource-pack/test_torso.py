@@ -1,5 +1,5 @@
 import math,unittest
-from boss_model import model
+from boss_model import model,gorilla_point
 class SolidTorsoTest(unittest.TestCase):
  def test_center_torso_has_material_on_both_sides_through_all_poses(self):
   def inside(e,p):
@@ -13,7 +13,7 @@ class SolidTorsoTest(unittest.TestCase):
   poses=[model()]+[model(attack=i,kind=k) for k in ('slam','swipe','throw','roar') for i in range(8)]
   for mesh in poses:
    for y in (4.6,5.5,6.5,7.5,8.5,9.5,10.5):
-    for x in (7.9,8.1):self.assertTrue(any(inside(e,(x,y,8.8)) for e in mesh['elements']),(x,y))
+    for x in (7.9,8.1):self.assertTrue(any(inside(e,gorilla_point((x,y,8.8))) for e in mesh['elements']),(x,y))
 
  def test_walk_retains_the_same_surface_topology(self):
   count=len(model()['elements'])
@@ -44,12 +44,11 @@ class SolidTorsoTest(unittest.TestCase):
   poses=[model()]+[model(attack=i,kind=k) for k in ('slam','swipe','throw','roar') for i in range(8)]
   poses+=[model(frame=i,kind=k) for k in ('walk','gallop') for i in range(24)]
   for mesh in poses:
-   skull=next(e for e in mesh['elements'] if abs(e['to'][1]-e['from'][1]-3.05)<1e-5
-       and abs(e['to'][2]-e['from'][2]-3.7)<1e-5 and e['faces'].get('south',{}).get('texture')=='#fur')
-   seam=skull['to'][0];y=skull['to'][1]+.05
+   skull=next(e for e in mesh['elements'] if e.get('name')=='skull_core' and e['faces'].get('south',{}).get('texture')=='#fur')
+   seam=skull['to'][0];y=skull['to'][1]+.03
    for x in (seam-.05,seam+.05):
-    rear=[e for e in mesh['elements'] if 'south' in e['faces'] and abs(e['to'][2]-(skull['to'][2]-.05))<1e-5
+    rear=[e for e in mesh['elements'] if 'south' in e['faces'] and abs(e['to'][2]-(skull['to'][2]-.05984))<1e-5
        and e['from'][0]<=x<=e['to'][0] and e['from'][1]<=y<=e['to'][1]]
     self.assertTrue(rear,(x,y))
-    self.assertTrue(any('up' in e['faces'] and abs(e['to'][1]-(skull['to'][1]+.15))<1e-5
-       and e['from'][0]<=x<=e['to'][0] and e['from'][2]<=6.5<=e['to'][2] for e in mesh['elements']))
+    self.assertTrue(any('up' in e['faces'] and abs(e['to'][1]-(skull['to'][1]+.09225))<1e-5
+       and e['from'][0]<=x<=e['to'][0] and e['from'][2]<=(skull['to'][2]-1.10984)<=e['to'][2] for e in mesh['elements']))
