@@ -624,10 +624,16 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         int attackFrame=e.pending==null?-1:Math.max(0,Math.min(3,
                 (int)((tick-e.windupStarted)*4/Math.max(1,e.releaseTick-e.windupStarted))));
         if(e.recovery!=null&&tick>=e.recoveryUntil)e.recovery=null;
-        Attack animated=e.pending!=null?e.pending:e.comboRemaining==1?Attack.SLAM:e.recovery;
+        boolean throwing=e.barrageRemaining>0||tick<e.barrageAnimationUntil;
+        Attack animated=e.pending!=null?e.pending:throwing?Attack.BARRAGE:e.comboRemaining==1?Attack.SLAM:e.recovery;
         int poseFrame=e.pending!=null?attackFrame:e.recovery==null?0:
                 Math.min(7,4+(int)((tick-e.recoveryStarted)*4/Math.max(1,e.recoveryUntil-e.recoveryStarted)));
         if(e.comboRemaining==1&&e.pending==null)poseFrame=Math.max(0,Math.min(3,(int)(4-(e.comboNext-tick)*4/18)));
+        if(throwing&&e.pending==null) {
+            int interval=Math.max(1,getConfig().getInt("attacks.barrage.interval-ticks"));
+            long remaining=Math.max(0,e.nextShot-tick);
+            poseFrame=Math.min(7,(int)((interval-remaining)*8/interval));
+        }
         String pose=animated==Attack.SWIPE?"swipe":animated==Attack.ICE_BALL||animated==Attack.BARRAGE?"throw":
                 animated==Attack.WHIRLWIND?"whirl":animated==Attack.ICEFALL||animated==Attack.SONIC_BOOM||animated==Attack.ROAR||animated==Attack.SNOW_GOLEMS?"roar":"attack";
         if(e.recovery==Attack.WHIRLWIND&&e.pending==null)poseFrame=Math.max(0,7-(int)((tick-e.recoveryStarted)*8/60));
@@ -642,6 +648,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             Player target=chooseTarget(players,e.body);
             if(target!=null) launchAt(e,target.getEyeLocation(),Attack.BARRAGE);
             e.barrageRemaining--;e.nextShot=tick+getConfig().getInt("attacks.barrage.interval-ticks");
+            e.barrageAnimationUntil=e.nextShot;
             return;
         }
         if(e.grabbed!=null||e.recovery!=null||e.chargeUntil>tick||e.comboRemaining>0)return;
@@ -753,14 +760,20 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             int age=(int)(tick-e.whirlStarted);
             double healed=ArenaSkills.healing(age),delta=healed-e.whirlHealed;e.whirlHealed=healed;
             if(delta>0)e.body.setHealth(Math.min(e.maximumHealth,e.body.getHealth()+delta*e.maximumHealth*getConfig().getDouble("attacks.whirlwind.heal-fraction")));
-            e.visualYaw+=(float)(18*Math.min(1,age/12.0));at.setYaw(e.visualYaw);e.body.setRotation(e.visualYaw,0);
-            String name=e.modelPrefix+"_whirl_"+Math.min(7,3+age/3);
+            double spin=18*Math.min(1,Math.min(age/12.0,(ArenaSkills.WHIRL_DURATION-age)/12.0));
+            e.visualYaw+=(float)spin;at.setYaw(e.visualYaw);e.body.setRotation(e.visualYaw,0);
+            String name=e.modelPrefix+"_whirl_"+(age%8);
             if(!name.equals(e.modelName)){e.model.setItemStack(modelItem(name));e.modelName=name;}
             double radius=getConfig().getDouble("attacks.whirlwind.radius");
-            if(tick%2==0)for(int i=0;i<12;i++) {
-                double a=Math.toRadians(e.visualYaw)+i*Math.PI/6;
-                at.getWorld().spawnParticle(Particle.SNOWFLAKE,at.clone().add(Math.cos(a)*radius,.3+(i%4)*.8,Math.sin(a)*radius),1,0,0,0,0);
+            if(tick%2==0)for(int i=0;i<16;i++) {
+                double a=Math.toRadians(e.visualYaw)+i*Math.PI/8+age*.08;
+                double r=radius*(.3+.7*(i%4)/3.0);
+                double h=.35+(i%4)*.85+Math.sin(age*.18+i)*.18;
+                Location swirl=at.clone().add(Math.cos(a)*r,h,Math.sin(a)*r);
+                at.getWorld().spawnParticle(Particle.SNOWFLAKE,swirl,2,.12,.12,.12,.015);
+                if(i%2==0)at.getWorld().spawnParticle(Particle.CLOUD,swirl,1,.15,.12,.15,.01);
             }
+            if(age%10==0)at.getWorld().spawnParticle(Particle.SWEEP_ATTACK,at.clone().add(0,1.5,0),6,radius*.48,.8,radius*.48,0);
             if(ArenaSkills.pulse(age)) {
                 at.getWorld().playSound(at,Sound.ENTITY_PLAYER_ATTACK_SWEEP,2f,.65f);
                 for(Player player:players) {
@@ -981,7 +994,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             }
             case WHIRLWIND -> {
                 e.whirlStarted=tick;e.whirlHealed=0;e.recovery=null;e.body.getPathfinder().stopPathfinding();
-                e.model.setTeleportDuration(1);
+                e.model.setTeleportDuration(2);
             }
             case SONIC_BOOM -> {
                 Location origin=at.clone().add(0,3,0);
@@ -1042,6 +1055,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
             }
             case BARRAGE -> {
                 e.barrageRemaining=getConfig().getInt("attacks.barrage.count");e.nextShot=tick;
+                e.barrageAnimationUntil=tick+getConfig().getInt("attacks.barrage.interval-ticks");
             }
             case SWIPE, SLAM -> {
                 if(attack==Attack.SWIPE&&!e.comboExecuting) {
@@ -1706,7 +1720,7 @@ public final class YetiBoss extends JavaPlugin implements Listener {
         final UUID id=UUID.randomUUID();final IronGolem body;final Slime hitbox;final ItemDisplay model;
         float visualYaw;long lastWalkTick;
         final Location origin;Location last,aim;org.bukkit.util.Vector direction;
-        final long started;long lastPlayers,nextAttack,releaseTick,nextShot,retryReward,nextRetarget,windupStarted;
+        final long started;long lastPlayers,nextAttack,releaseTick,nextShot,barrageAnimationUntil,retryReward,nextRetarget,windupStarted;
         final CombatPressure pressure=new CombatPressure();
         final ThresholdSummon wardenTrigger=new ThresholdSummon(),motherTrigger=new ThresholdSummon(.7);
         Encounter mother;long nextMotherAttempt;final String name,modelPrefix;final double maximumHealth,modelScale;

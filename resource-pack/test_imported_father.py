@@ -55,6 +55,14 @@ class ImportedFatherTest(unittest.TestCase):
   self.assertGreater(len({json.dumps(m['elements']) for m in idle}),12)
   self.assertEqual(len(model()['elements']),len(idle[3]['elements']))
 
+ def test_attack_loops_settle_at_their_starting_pose(self):
+  for kind in ('slam','swipe','throw','whirl'):
+   first=model(attack=0,kind=kind);last=model(attack=7,kind=kind)
+   self.assertEqual(first['elements'],last['elements'],kind)
+   if kind!='whirl':
+    times=[model(attack=i,kind=kind)['source_time'] for i in range(8)]
+    self.assertGreater(times[3],times[1]);self.assertGreater(times[4],times[6])
+
  def test_natural_pose_has_forward_shoulders_and_head_and_grounded_hands(self):
   worlds=transforms('idle',0);left=point(worlds[LEFT][1]);head=point(worlds[HEAD][1]);hip=point(worlds[BONES['left_leg_13']][1])
   self.assertGreater(hip[2]-left[2],4)

@@ -51,7 +51,10 @@ def transforms(clip,time,kind='idle',attack=None):
   if i==UPPER:r=mul(rotation('x',-40),r)
   if i in (HEAD,LEFT,RIGHT):r=mul(rotation('x',40),r)
   if i in (LEFT,RIGHT):sc=[s*.8 for s in sc]
-  if kind=='whirl' and i in (LEFT,RIGHT):r=mul(rotation('z',(-1 if i==LEFT else 1)*55*(attack or 0)/7),r)
+  if kind=='whirl' and i in (LEFT,RIGHT):
+   phase=(attack or 0)/7
+   lift=48*math.sin(math.pi*phase)+7*math.sin(2*math.pi*phase)
+   r=mul(rotation('z',(-1 if i==LEFT else 1)*lift),r)
   if kind=='roar' and i==JAW:r=mul(rotation('x',-25*math.sin(math.pi*(attack or 0)/7)),r)
   if kind=='roar' and i in (LEFT,RIGHT):r=mul(rotation('x',-15*math.sin(math.pi*(attack or 0)/7)),r)
   local=[[r[row][col]*sc[col] for col in range(3)] for row in range(3)]
@@ -104,7 +107,14 @@ EXTRAS=extras()
 @functools.lru_cache(maxsize=256)
 def _model(frame=None,attack=None,kind='slam'):
  clip=('idle' if kind=='idle' else 'walk') if frame is not None else 'smash' if attack is not None and kind=='slam' else 'attack1' if attack is not None and kind=='swipe' else 'attack2' if attack is not None and kind=='throw' else 'idle'
- duration=DATA['clips'][clip]['duration'];time=duration*(frame%24)/24 if frame is not None else duration*(attack or 0)/7 if attack is not None and clip!='idle' else 0
+ duration=DATA['clips'][clip]['duration']
+ if frame is not None:time=duration*(frame%24)/24
+ elif attack is not None and clip!='idle':
+  # Rise through the strike, then settle back to the same rest pose. The first
+  # and last throw frames match so a repeated barrage has no hard seam.
+  phase=max(0,min(7,attack))/7
+  time=duration*.72*math.sin(math.pi*phase)**2
+ else:time=0
  worlds=transforms(clip,time,kind,attack);elements=[]
  for source_index,c in enumerate(DATA['cubes']+EXTRAS):
   if c.get('hand'):continue
