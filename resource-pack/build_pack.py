@@ -1,32 +1,44 @@
 """Original frost Yeti boss resource pack."""
-import base64,hashlib,json,math,pathlib,struct,zlib,zipfile
+import base64,hashlib,json,math,pathlib,struct,zlib,zipfile,functools
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 from gear_model import GEAR_MODELS, MATERIALS, model as gear_model, texture as gear_texture, item_definition
-from boss_model import model,mother_model,COLORS,texture_color
+from boss_model import model,mother_model,COLORS,texture_color,IMPORTED_FATHER_TEXTURES
+from warden_model import model as warden_model, MATERIALS as WARDEN_MATERIALS, texture_color as warden_texture_color
+WARDEN_MODELS=("ice_warden",)+tuple("ice_warden_walk_"+str(i) for i in range(24))+tuple("ice_warden_"+kind+"_"+str(i) for kind in ("idle","hurt","emerge","roar","sniff","strike") for i in range(12 if kind=="strike" else 8))
 def png(name):
+ if name in IMPORTED_FATHER_TEXTURES:return IMPORTED_FATHER_TEXTURES[name]
  def chunk(kind,data): return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
  rows=[]
  for y in range(16):
   row=bytearray()
   for x in range(16):
-   row.extend(list(texture_color(name,x,15-y))+[255])
+   row.extend(list(warden_texture_color(name,x,15-y) if name in WARDEN_MATERIALS else texture_color(name,x,15-y))+[255])
   rows.append(b'\0'+bytes(row))
  raw=b''.join(rows)
  return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',16,16,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
 SOUNDS=('idle','angry','spawn','death','hurt_1','hurt_2','grab_slam')
-FATHER_MODELS=('giant_yeti',)+tuple('giant_yeti_walk_'+str(i) for i in range(12))+tuple('giant_yeti_attack_'+str(i) for i in range(8))+tuple('giant_yeti_'+kind+'_'+str(i) for kind in ('swipe','throw','roar') for i in range(8))
-MODELS=FATHER_MODELS+tuple(name.replace('giant_yeti','mother_yeti') for name in FATHER_MODELS)
+FATHER_MODELS=('giant_yeti',)+tuple('giant_yeti_walk_'+str(i) for i in range(24))+tuple('giant_yeti_attack_'+str(i) for i in range(8))+tuple('giant_yeti_'+kind+'_'+str(i) for kind in ('swipe','throw','roar') for i in range(8))
+FATHER_MODELS+=tuple('giant_yeti_whirl_'+str(i) for i in range(8))
+FATHER_MODELS+=tuple('giant_yeti_gallop_'+str(i) for i in range(24))
+FATHER_IDLE_MODELS=tuple('giant_yeti_idle_'+str(i) for i in range(24))
+MODELS=FATHER_MODELS+FATHER_IDLE_MODELS+tuple(name.replace('giant_yeti','mother_yeti') for name in FATHER_MODELS if '_whirl_' not in name and '_gallop_' not in name and ('_walk_' not in name or int(name.rsplit('_',1)[1])<12))
 def files():
  result={'pack.mcmeta':json.dumps({'pack':{'description':'YetiBoss - Father and Mother Yeti','min_format':[97,1],'max_format':[97,1]}}).encode(),
-         'LICENSE.txt':b'Original YetiBoss model and textures: GPL-3.0. Audio clips supplied by the server owner; original audio rights remain with their respective creators.\n'}
+         'LICENSE.txt':b'Original procedural YetiBoss models and textures: GPL-3.0. Imported Father geometry/textures retain their original asset rights; see FATHER-SOURCES.txt. Audio clips supplied by the server owner; original audio rights remain with their respective creators.\n'}
  for name in MODELS:
   make=mother_model if name.startswith('mother_yeti') else model
   if name in ('giant_yeti','mother_yeti'):m=make()
   else:
    kind=name.split('_')[-2];index=int(name.rsplit('_',1)[1])
-   m=make(frame=index) if kind=='walk' else make(attack=index,kind='slam' if kind=='attack' else kind)
+   m=make(frame=index,kind=kind) if kind in ('walk','gallop','idle') else make(attack=index,kind='slam' if kind=='attack' else kind)
   result['assets/yetiboss/models/boss/'+name+'.json']=json.dumps(m).encode()
   result['assets/yetiboss/items/'+name+'.json']=json.dumps({'model':{'type':'minecraft:model','model':'yetiboss:boss/'+name}}).encode()
+ for name in WARDEN_MODELS:
+  m=warden_model() if name=='ice_warden' else warden_model(int(name.rsplit('_',1)[1]),kind=name.rsplit('_',2)[1])
+  result['assets/yetiboss/models/boss/'+name+'.json']=json.dumps(m).encode()
+  result['assets/yetiboss/items/'+name+'.json']=json.dumps({'model':{'type':'minecraft:model','model':'yetiboss:boss/'+name}}).encode()
+ result['FATHER-SOURCES.txt']=(ROOT/'resource-pack/imported/father/SOURCES.md').read_bytes()
+ result['GEAR-SOURCES.txt']=(ROOT/'resource-pack/imported/SOURCES.md').read_bytes()
  for name in GEAR_MODELS:
   result['assets/yetiboss/models/gear/'+name+'.json']=json.dumps(gear_model(name)).encode()
   if '_pull_' not in name:result['assets/yetiboss/items/'+name+'.json']=json.dumps(item_definition(name)).encode()
@@ -36,11 +48,31 @@ def files():
  result['assets/yetiboss/sounds.json']=json.dumps({name:{'sounds':[{'name':'yetiboss:'+name,'stream':False}]} for name in SOUNDS}).encode()
  for name in SOUNDS:
   result['assets/yetiboss/sounds/'+name+'.ogg']=base64.b64decode((ROOT/'resource-pack/sounds'/ (name+'.ogg.b64')).read_text())
+ # Content-addressed boss assets prevent an older, higher-priority pack from
+ # silently overriding this build's model, textures or item definition.
+ boss_paths=sorted(p for p in result if p.startswith(('assets/yetiboss/models/boss/','assets/yetiboss/textures/boss/')))
+ identity=hashlib.sha256()
+ for path in boss_paths:identity.update(path.encode());identity.update(result[path])
+ namespace='yetiboss_m'+identity.hexdigest()[:16]
+ for path in boss_paths+[f'assets/yetiboss/items/{name}.json' for name in MODELS+WARDEN_MODELS]:
+  data=result[path]
+  if path.endswith('.json'):data=data.replace(b'yetiboss:boss/',(namespace+':boss/').encode())
+  result[path.replace('assets/yetiboss/','assets/'+namespace+'/',1)]=data
+ atlas=json.loads(result['assets/minecraft/atlases/items.json'])
+ atlas['sources'] += [{'type':'minecraft:single','resource':namespace+':boss/'+name,'sprite':namespace+':boss/'+name} for name in COLORS]
+ result['assets/minecraft/atlases/items.json']=json.dumps(atlas).encode()
+ result['yeti-model-namespace.txt']=(namespace+'\n').encode()
  return result
+
+@functools.lru_cache(maxsize=1)
+def model_namespace():return files()['yeti-model-namespace.txt'].decode().strip()
+
 def build():
  output=ROOT/'target/YetiBoss-Pack.zip';output.parent.mkdir(parents=True,exist_ok=True)
+ contents=files()
+ (ROOT/'src/main/resources/yeti-model-namespace.txt').write_bytes(contents['yeti-model-namespace.txt'])
  with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as archive:
-  for name,data in sorted(files().items()):
+  for name,data in sorted(contents.items()):
    info=zipfile.ZipInfo(name,(2026,1,1,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED;archive.writestr(info,data)
  digest=hashlib.sha1(output.read_bytes()).hexdigest()
  (output.parent/'yeti-pack.sha1').write_text(digest+'\n')
