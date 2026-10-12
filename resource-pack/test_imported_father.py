@@ -100,6 +100,10 @@ class ImportedFatherTest(unittest.TestCase):
    cube=next(c for c in EXTRAS if c.get('role')==role)
    self.assertAlmostEqual(organic,(cube['from'][1]+cube['to'][1])/2)
    self.assertLess(cube['to'][1],brow)
+  lens=next(c for c in EXTRAS if c.get('role')=='optic')
+  source=DATA['cubes'][60]
+  for axis in (0,1):
+   self.assertAlmostEqual((source['to'][axis]-source['from'][axis])*3/16,lens['to'][axis]-lens['from'][axis])
   for frame,attack,kind in ((None,None,'slam'),(7,None,'idle'),(None,3,'slam'),(None,3,'whirl')):
    m=model(frame,attack,kind);r,t=transforms(m['source_animation'],m['source_time'],kind,attack)[HEAD]
    optic=next(e for e in m['elements'] if e['role']=='optic')

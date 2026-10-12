@@ -13,6 +13,9 @@ LEFT=BONES['left_arm_72'];RIGHT=BONES['right_arm_83'];HAND=BONES['right_hand_81'
 # The visible organic eye is below the brow, on the lower face-mask aperture.
 # Keep the lens on that eye line, rather than the raised brow joint.
 EYE_HEIGHT=.015625
+# The source eye occupies a 3-by-3 texel patch on the 16-by-16 face.
+EYE_WIDTH=(DATA['cubes'][60]['to'][0]-DATA['cubes'][60]['from'][0])*3/16
+EYE_SIZE_Y=(DATA['cubes'][60]['to'][1]-DATA['cubes'][60]['from'][1])*3/16
 
 def mul(a,b):return [[sum(a[i][k]*b[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
 def vec(a,v):return [sum(a[i][j]*v[j] for j in range(3)) for i in range(3)]
@@ -98,8 +101,24 @@ def extras():
  box(FOREARM,[.21,-.48,-.17],[.24,.01,-.12],'cable')
  box(RIGHT,[-.25,-.07,-.38],[.24,.24,-.32],'metal_edge','shoulder_plate')
  for x in (-.20,-.08,.04,.16):box(RIGHT,[x,.07,-.40],[x+.07,.18,-.37],'reactor')
- box(HEAD,[.13,EYE_HEIGHT-.10,-.817],[.46,EYE_HEIGHT+.10,-.73],'mechanism','optic_socket')
- box(HEAD,[.20,EYE_HEIGHT-.05,-.835],[.40,EYE_HEIGHT+.05,-.815],'metal_edge','optic',front='optic')
+ box(HEAD,[.3-EYE_WIDTH/2-.018,EYE_HEIGHT-EYE_SIZE_Y/2-.018,-.817],[.3+EYE_WIDTH/2+.018,EYE_HEIGHT+EYE_SIZE_Y/2+.018,-.73],'mechanism','optic_socket')
+ box(HEAD,[.3-EYE_WIDTH/2,EYE_HEIGHT-EYE_SIZE_Y/2,-.835],[.3+EYE_WIDTH/2,EYE_HEIGHT+EYE_SIZE_Y/2,-.815],'metal_edge','optic',front='optic')
+ # Front-facing cable runs share the chest bone; forearm hoses share the
+ # forearm bone. No rigid cable spans an animated shoulder or elbow joint.
+ def cable(node,points,axis):
+  for a,b in zip(points,points[1:]):
+   mid=[(x+y)/2 for x,y in zip(a,b)];length=math.dist(a,b)
+   box(node,[mid[0]-.009,mid[1]-length/2,mid[2]-.009],[mid[0]+.009,mid[1]+length/2,mid[2]+.009],'cable','exposed_cable')
+   angle=math.degrees(math.atan2(b[2]-a[2],b[1]-a[1])) if axis=='x' else -math.degrees(math.atan2(b[0]-a[0],b[1]-a[1]))
+   result[-1]['local_rotation']={'origin':mid,'axis':axis,'angle':angle}
+  for p in (points[0],points[-1]):
+   box(node,[v-.018 for v in p],[p[0]+.018,p[1]+.018,p[2]+.055],'metal_edge','cable_connector')
+ cable(UPPER,[(.13,.29,-.525),(.075,.22,-.525),(.035,.36,-.525),(.065,.61,-.525),(.13,.67,-.525)],'z')
+ cable(UPPER,[(.405,.30,-.525),(.49,.25,-.525),(.54,.40,-.525),(.51,.64,-.525),(.405,.68,-.525)],'z')
+ cable(FOREARM,[(.14,-.09,-.29),(.14,-.16,-.325),(.14,-.38,-.325),(.14,-.45,-.29)],'x')
+ for y in (.215,.395,.575):
+  box(UPPER,[.43,y,-.53],[.56,y+.028,-.48],'metal_edge','exposed_rib')
+  box(UPPER,[.525,y-.005,-.55],[.555,y+.033,-.53],'mechanism','rib_bolt')
  for i,e in enumerate(DATA['mechanical_hand']):
   result.append({'node':HAND,'from':e['from'],'to':e['to'],'faces':{s:f['texture'][1:] for s,f in e['faces'].items()},'part':'arm_r','mechanical':True,'role':e.get('role'),'source_name':'approved_hand_'+str(i),'approved_hand':i})
  for i,e in enumerate(DATA['horns']):

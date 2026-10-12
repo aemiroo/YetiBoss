@@ -310,6 +310,11 @@ Scatter radius is now 6 + 0.75 × (raiders − 1), capped at 18 blocks: solo/4/8
 ### 0.9.11 — Gorilla Father
 Father now has a gorilla silhouette: compressed legs, a deeper and wider barrel chest, a high shoulder/back mantle, a lower head, forward knuckle-bearing arms and a charcoal muzzle. Mechanical plating uses quieter brushed steel instead of repeated panel grids. The mechanical half, connected horns, eye positions and sealed skull/muzzle remain. The same anatomical transform is applied to geometry and rig pivots in every animation; Mother is unchanged. The torso hitbox sits lower (0.832 blocks at default scale) to match the shortened stance. Icefall/Whirlwind behavior is unchanged. Updated Java/Bedrock packs and mappings are included.
 
+### 0.10.3 — Smaller optic and exposed machinery
+
+- Cyborg lens matches the original eye texture dimensions, with a compact socket.
+- Chest cable loops, connectors, metal ribs and an exposed forearm hose follow their source bones.
+
 ### 0.10.2 — Father eye alignment
 
 - Lowered the red cyborg lens and its socket beneath the raised brow to match the visible organic eye line.
