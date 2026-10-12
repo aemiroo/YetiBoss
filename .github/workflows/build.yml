@@ -1,5 +1,5 @@
 name: Build YetiBoss
-run-name: "YetiBoss 0.10.1 — Smoother Father attacks and whirlwind"
+run-name: "YetiBoss 0.10.2 — Father eye alignment"
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

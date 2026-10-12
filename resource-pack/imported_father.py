@@ -10,6 +10,9 @@ TEXTURE_BYTES={k:base64.b64decode(v) for k,v in json.loads((ROOT/'textures.json'
 BONES={n['name']:i for i,n in enumerate(DATA['nodes'])}
 UPPER=BONES['upperbody_84'];HEAD=BONES['h_head_61'];JAW=BONES['h_jaw_60']
 LEFT=BONES['left_arm_72'];RIGHT=BONES['right_arm_83'];HAND=BONES['right_hand_81'];FOREARM=BONES['right_forearm_82']
+# The visible organic eye is below the brow, on the lower face-mask aperture.
+# Keep the lens on that eye line, rather than the raised brow joint.
+EYE_HEIGHT=.015625
 
 def mul(a,b):return [[sum(a[i][k]*b[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
 def vec(a,v):return [sum(a[i][j]*v[j] for j in range(3)) for i in range(3)]
@@ -95,8 +98,8 @@ def extras():
  box(FOREARM,[.21,-.48,-.17],[.24,.01,-.12],'cable')
  box(RIGHT,[-.25,-.07,-.38],[.24,.24,-.32],'metal_edge','shoulder_plate')
  for x in (-.20,-.08,.04,.16):box(RIGHT,[x,.07,-.40],[x+.07,.18,-.37],'reactor')
- box(HEAD,[.13,.01,-.817],[.46,.21,-.73],'mechanism','optic_socket')
- box(HEAD,[.20,.06,-.835],[.40,.16,-.815],'metal_edge','optic',front='optic')
+ box(HEAD,[.13,EYE_HEIGHT-.10,-.817],[.46,EYE_HEIGHT+.10,-.73],'mechanism','optic_socket')
+ box(HEAD,[.20,EYE_HEIGHT-.05,-.835],[.40,EYE_HEIGHT+.05,-.815],'metal_edge','optic',front='optic')
  for i,e in enumerate(DATA['mechanical_hand']):
   result.append({'node':HAND,'from':e['from'],'to':e['to'],'faces':{s:f['texture'][1:] for s,f in e['faces'].items()},'part':'arm_r','mechanical':True,'role':e.get('role'),'source_name':'approved_hand_'+str(i),'approved_hand':i})
  for i,e in enumerate(DATA['horns']):

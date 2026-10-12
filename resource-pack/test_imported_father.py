@@ -92,9 +92,25 @@ class ImportedFatherTest(unittest.TestCase):
    forearm=[e for e in m['elements'] if e['role'] in ('forearm_motor','piston','piston_outer')]
    self.assertEqual(3,len(forearm));self.assertEqual(1,len({e['source_node'] for e in forearm}))
 
+ def test_optic_and_socket_follow_the_organic_eye_height(self):
+  from imported_father import EYE_HEIGHT,EXTRAS
+  organic=EYE_HEIGHT
+  brow=DATA['nodes'][BONES['h_head_50']]['translation'][1]+DATA['cubes'][64]['from'][1]
+  for role in ('optic','optic_socket'):
+   cube=next(c for c in EXTRAS if c.get('role')==role)
+   self.assertAlmostEqual(organic,(cube['from'][1]+cube['to'][1])/2)
+   self.assertLess(cube['to'][1],brow)
+  for frame,attack,kind in ((None,None,'slam'),(7,None,'idle'),(None,3,'slam'),(None,3,'whirl')):
+   m=model(frame,attack,kind);r,t=transforms(m['source_animation'],m['source_time'],kind,attack)[HEAD]
+   optic=next(e for e in m['elements'] if e['role']=='optic')
+   center=[sum(p[k] for p in corners(optic))/8 for k in range(3)]
+   expected=point(add(vec(r,[.3,organic,-.825]),t))
+   self.assertLess(max(abs(a-b) for a,b in zip(center,expected)),2e-6)
+
  def test_chest_motor_and_eye_sockets_attach_to_retained_source_volumes(self):
   from imported_father import UPPER,FOREARM
-  attachments=[(UPPER,[.265,.435,-.35]),(FOREARM,[0,-.26,-.195]),(HEAD,[.295,.11,-.73])]
+  from imported_father import EYE_HEIGHT
+  attachments=[(UPPER,[.265,.435,-.35]),(FOREARM,[0,-.26,-.195]),(HEAD,[.295,EYE_HEIGHT,-.73])]
   for frame,attack,kind in ((None,None,'slam'),(4,None,'walk'),(None,3,'slam'),(None,7,'whirl')):
    m=model(frame,attack,kind);worlds=transforms(m['source_animation'],m['source_time'],kind,attack)
    for node,local in attachments:
